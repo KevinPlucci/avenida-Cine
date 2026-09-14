@@ -1,7 +1,7 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { MAX_BUTACAS_POR_COMPRA, PORCENTAJE_CUPON_BIENVENIDA } from '../../core/constantes';
 import { Cupon } from '../../core/models/compra';
@@ -31,9 +31,7 @@ import { vencimientoTarjetaValidator } from '../../shared/validators';
   styleUrl: './comprar-entradas.css',
 })
 export class ComprarEntradas implements OnInit {
-  /** Parámetro :id de la ruta (id de la función). */
-  readonly id = input.required<string>();
-
+  private readonly route = inject(ActivatedRoute);
   private readonly funcionesService = inject(FuncionesService);
   private readonly comprasService = inject(ComprasService);
   private readonly router = inject(Router);
@@ -76,7 +74,8 @@ export class ComprarEntradas implements OnInit {
   });
 
   async ngOnInit(): Promise<void> {
-    const id = Number(this.id());
+    // Parámetro :id de la ruta /funciones/:id/comprar
+    const id = Number(this.route.snapshot.paramMap.get('id'));
     try {
       await this.auth.esperarSesion();
       const [funcion, ocupadas] = await Promise.all([

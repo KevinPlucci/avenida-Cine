@@ -1,6 +1,6 @@
-import { Component, inject, input, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { PORCENTAJE_CUPON_BIENVENIDA } from '../../core/constantes';
 import { mensajeError } from '../../core/utils/errores';
@@ -42,9 +42,7 @@ import { AutoFocoDirective } from '../../shared/directives/auto-foco.directive';
   `,
 })
 export class Login {
-  /** Query param ?volver=/ruta para regresar después de ingresar. */
-  readonly volver = input<string>();
-
+  private readonly route = inject(ActivatedRoute);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly fb = inject(NonNullableFormBuilder);
@@ -76,9 +74,12 @@ export class Login {
     }
   }
 
-  /** Solo rutas internas, para no redirigir a otro sitio. */
+  /**
+   * Query param ?volver=/ruta: a dónde regresar después de ingresar (lo agregan los guards y los links "Ingresá").
+   * Solo se aceptan rutas internas, para no redirigir a otro sitio.
+   */
   private destinoSeguro(): string {
-    const destino = this.volver();
+    const destino = this.route.snapshot.queryParamMap.get('volver');
     return destino?.startsWith('/') && !destino.startsWith('//') ? destino : '/';
   }
 }

@@ -46,5 +46,9 @@ export const routes: Routes = [
     canActivate: [adminGuard],
     loadChildren: () => import('./pages/admin/admin.routes').then((m) => m.ADMIN_ROUTES),
   },
-  { path: '**', redirectTo: '' },
+  {
+    path: '**',
+    title: 'Página no encontrada',
+    loadComponent: () => import('./pages/no-encontrada/no-encontrada').then((m) => m.NoEncontrada),
+  },
 ];

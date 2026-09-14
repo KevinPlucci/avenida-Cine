@@ -1,6 +1,6 @@
-import { Component, inject, input, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Genero } from '../../core/models/genero';
 import { GenerosService } from '../../core/services/generos.service';
 import { PeliculasService } from '../../core/services/peliculas.service';
@@ -15,13 +15,13 @@ const TAMANIO_MAXIMO_POSTER = 2 * 1024 * 1024;
   templateUrl: './pelicula-form.html',
 })
 export class PeliculaForm implements OnInit {
-  /** Parámetro :id de la ruta. No viene cuando se crea una película nueva. */
-  readonly id = input<string>();
-
   private readonly peliculasService = inject(PeliculasService);
   private readonly generosService = inject(GenerosService);
   private readonly router = inject(Router);
   private readonly fb = inject(NonNullableFormBuilder);
+
+  /** Parámetro :id de la ruta /admin/peliculas/:id. Es null en /admin/peliculas/nueva. */
+  protected readonly id = inject(ActivatedRoute).snapshot.paramMap.get('id');
 
   protected readonly generos = signal<Genero[]>([]);
   protected readonly cargando = signal(true);
@@ -41,9 +41,8 @@ export class PeliculaForm implements OnInit {
   async ngOnInit(): Promise<void> {
     try {
       this.generos.set(await this.generosService.listar());
-      const id = this.id();
-      if (id) {
-        const pelicula = await this.peliculasService.obtener(Number(id));
+      if (this.id) {
+        const pelicula = await this.peliculasService.obtener(Number(this.id));
         if (!pelicula) {
           this.error.set('La película no existe.');
           return;
@@ -106,11 +105,10 @@ export class PeliculaForm implements OnInit {
     }
 
     const { generos, duracion_min, titulo, sinopsis, imagen_url, en_cartelera } = this.form.getRawValue();
-    const id = this.id();
     this.guardando.set(true);
     try {
       await this.peliculasService.guardar(
-        id ? Number(id) : null,
+        this.id ? Number(this.id) : null,
         { titulo: titulo.trim(), sinopsis: sinopsis.trim(), duracion_min: duracion_min ?? 0, imagen_url, en_cartelera },
         generos,
       );

@@ -1,7 +1,7 @@
 <a routerLink="/admin/peliculas" class="volver">← Volver al listado</a>
 
 <div class="tarjeta form-mediano">
-  <h2>{{ id() ? 'Editar película' : 'Nueva película' }}</h2>
+  <h2>{{ id ? 'Editar película' : 'Nueva película' }}</h2>
 
   @if (cargando()) {
     <p class="cargando">Cargando...</p>

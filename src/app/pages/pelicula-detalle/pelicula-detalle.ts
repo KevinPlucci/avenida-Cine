@@ -1,8 +1,8 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Title } from '@angular/platform-browser';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { NOMBRE_CINE } from '../../core/constantes';
 import { FuncionConDetalle } from '../../core/models/funcion';
@@ -36,9 +36,7 @@ import { IdiomaPipe } from '../../shared/pipes/idioma.pipe';
   styleUrl: './pelicula-detalle.css',
 })
 export class PeliculaDetalle implements OnInit {
-  /** Parámetro :id de la ruta. */
-  readonly id = input.required<string>();
-
+  private readonly route = inject(ActivatedRoute);
   private readonly peliculasService = inject(PeliculasService);
   private readonly funcionesService = inject(FuncionesService);
   private readonly reseniasService = inject(ReseniasService);
@@ -70,7 +68,8 @@ export class PeliculaDetalle implements OnInit {
   protected readonly errorResenia = signal('');
 
   async ngOnInit(): Promise<void> {
-    const id = Number(this.id());
+    // Parámetro :id de la ruta /peliculas/:id
+    const id = Number(this.route.snapshot.paramMap.get('id'));
     try {
       const [pelicula, funciones, resenias, puntaje] = await Promise.all([
         this.peliculasService.obtener(id),

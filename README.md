@@ -120,7 +120,7 @@ src/
       validators.ts     validadores propios
     pages/              una carpeta por pantalla (todas con lazy loading)
       inicio/  pelicula-detalle/  comprar-entradas/  ver-compra/
-      login/  registro/  mi-perfil/
+      login/  registro/  mi-perfil/  no-encontrada/
       admin/            layout con pestañas + películas, funciones, salas y géneros
 ```
 
@@ -132,9 +132,10 @@ src/
 | `/peliculas/:id` | Detalle, puntaje promedio, reseñas y funciones | Todos |
 | `/funciones/:id/comprar` | Mapa de butacas, resumen con cupón y pago | Todos (anónimo o registrado) |
 | `/compras/:codigo` | Entrada con QR y descarga del PDF | Quien tenga el código |
-| `/login`, `/registro` | Ingreso y registro | Solo sin sesión |
+| `/login`, `/registro` | Ingreso y registro (`/login?volver=/ruta` vuelve a esa ruta después de ingresar) | Solo sin sesión |
 | `/perfil` | Datos, cupón y compras | Registrados |
 | `/admin/...` | Películas, funciones (alta, edición y baja), salas y géneros | Administradores |
+| Cualquier otra | Página 404 | Todos |
 
 ### Modelo de datos
 
@@ -184,9 +185,10 @@ Componente -> Servicio (PeliculasService, ...) -> supabase-js -> fetch propio ->
 **Angular**
 
 - **Componentes standalone y signals** para el estado de cada pantalla (`signal`, `computed`, `input`, `model`). Es lo recomendado en Angular 21 y permite trabajar sin zone.js.
-- **Lazy loading** en todas las rutas; el panel de administración es un grupo de rutas hijas con su propio layout.
+- **Ruteo**: todas las rutas con lazy loading; el panel de administración es un grupo de rutas hijas con su propio layout. La navegación usa `routerLink` en los enlaces y `Router` (`navigate`, `navigateByUrl`) después de acciones como ingresar, registrarse, comprar o salir.
+- **Parámetros de ruta con `ActivatedRoute`**: `:id` y `:codigo` indican qué película, función o compra mostrar, y el query param `?volver=` indica a dónde volver después de ingresar (solo se aceptan rutas internas).
+- **Ruta comodín `**`**: cualquier dirección que no existe muestra una página 404 con un enlace a la cartelera.
 - **Guards funcionales**: `authGuard`, `adminGuard` e `invitadoGuard`. Esperan a que se resuelva la sesión guardada antes de decidir.
-- **`withComponentInputBinding`**: los parámetros de la ruta (`:id`, `:codigo`, `?volver=`) llegan como `input()`.
 - **Formularios reactivos** con validadores propios: contraseñas iguales, fecha de nacimiento válida, vencimiento de tarjeta y horario futuro. Un componente `app-error-campo` muestra los mensajes.
 - **Servicios por entidad** (`PeliculasService`, `FuncionesService`, etc.). Los componentes no usan Supabase directamente.
 - **HttpClient e interceptores**: supabase-js permite recibir su propio `fetch`. Se le pasa uno hecho con `HttpClient` (`core/http/fetch-con-http-client.ts`), así todas las llamadas a la base, a la autenticación y a Storage pasan por los interceptores:
@@ -379,6 +381,7 @@ Dudas ya detectadas para los próximos emails:
 
 | Fecha | Versión | Cambios |
 |---|---|---|
+| 14/09/2026 | 0.2.1 | Página 404 para direcciones que no existen. Los parámetros de las rutas (`:id`, `:codigo` y `?volver=`) se leen con `ActivatedRoute`. |
 | 14/09/2026 | 0.2.0 | Temas de clase: HttpClient con interceptores (barra de carga y aviso sin conexión) para todas las llamadas a Supabase, cuatro directivas propias (`appMascara`, `appImagenRespaldo`, `*appSiRol`, `appAutoFoco`) y animaciones con `animate.enter`/`animate.leave`. Nuevo estilo visual (Oswald, logo, ficha con póster de fondo, entrada tipo ticket, distintivos de formato, PDF con encabezado). Edición de funciones desde el panel de admin con la regla "con ventas solo cambia el precio" validada en la base (`supabase/migraciones/002_editar_funciones.sql`). Prueba completa en el navegador contra Supabase: registro, compras con y sin cupón, PDF, reseñas, compra anónima, buscador y filtros. |
 | 14/09/2026 | 0.1.4 | Primer deploy en <https://avenida-cine.vercel.app>. Verificado: rutas internas, datos de Supabase, manifest, service worker e íconos de la PWA. |
 | 14/09/2026 | 0.1.3 | Proyecto creado en Vercel (`avenida-cine`), conectado al repositorio para publicar automáticamente con cada cambio en `main`. |

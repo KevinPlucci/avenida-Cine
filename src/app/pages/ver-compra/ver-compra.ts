@@ -1,6 +1,6 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { Component, inject, input, OnInit, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Component, inject, OnInit, signal } from '@angular/core';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { NOMBRE_CINE } from '../../core/constantes';
 import { DetalleCompra } from '../../core/models/compra';
 import { ComprasService } from '../../core/services/compras.service';
@@ -16,9 +16,7 @@ import { IdiomaPipe } from '../../shared/pipes/idioma.pipe';
   styleUrl: './ver-compra.css',
 })
 export class VerCompra implements OnInit {
-  /** Parámetro :codigo de la ruta. */
-  readonly codigo = input.required<string>();
-
+  private readonly route = inject(ActivatedRoute);
   private readonly comprasService = inject(ComprasService);
   private readonly ticketPdf = inject(TicketPdfService);
 
@@ -32,8 +30,10 @@ export class VerCompra implements OnInit {
   protected readonly error = signal('');
 
   async ngOnInit(): Promise<void> {
+    // Parámetro :codigo de la ruta /compras/:codigo
+    const codigo = this.route.snapshot.paramMap.get('codigo') ?? '';
     try {
-      const compra = await this.comprasService.obtener(this.codigo());
+      const compra = await this.comprasService.obtener(codigo);
       if (!compra) {
         this.error.set('No encontramos una compra con ese código.');
         return;
