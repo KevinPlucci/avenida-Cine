@@ -1,29 +1,31 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { Genero } from '../../core/models/genero';
 import { GenerosService } from '../../core/services/generos.service';
 import { mensajeError } from '../../core/utils/errores';
-import { ErrorCampo } from '../../shared/components/error-campo';
 
 @Component({
   selector: 'app-admin-generos',
-  imports: [ReactiveFormsModule, ErrorCampo],
+  imports: [FormsModule],
   template: `
     <div class="tarjeta">
       <h2>Géneros</h2>
       <p class="meta">Cada película puede tener varios géneros. Los clientes los usan para filtrar la cartelera.</p>
 
-      <form class="form-en-linea" [formGroup]="form" (ngSubmit)="crear()">
+      <!-- Formulario template-driven: el campo y su validación se definen en el template con ngModel -->
+      <form class="form-en-linea" #formGenero="ngForm" (ngSubmit)="crear(formGenero)">
         <label class="campo">
           <span>Nuevo género</span>
-          <input formControlName="nombre" placeholder="Ej: Musical" />
-          <app-error-campo [control]="form.controls.nombre" />
+          <input name="nombre" [(ngModel)]="nombre" #campoNombre="ngModel" required maxlength="40" placeholder="Ej: Musical" />
+          @if (campoNombre.touched && !nombre().trim()) {
+            <small class="error-texto">Este campo es obligatorio.</small>
+          }
         </label>
         <button type="submit" class="btn btn-primario" [disabled]="guardando()">Agregar</button>
       </form>
 
       @if (error()) {
-        <p class="alerta alerta-error">{{ error() }}</p>
+        <p class="alerta alerta-error" animate.enter="aparecer">{{ error() }}</p>
       }
 
       @if (cargando()) {
@@ -60,30 +62,27 @@ import { ErrorCampo } from '../../shared/components/error-campo';
 export class AdminGeneros implements OnInit {
   private readonly generosService = inject(GenerosService);
 
+  protected readonly nombre = signal('');
   protected readonly generos = signal<Genero[]>([]);
   protected readonly cargando = signal(true);
   protected readonly guardando = signal(false);
   protected readonly error = signal('');
 
-  protected readonly form = new FormGroup({
-    nombre: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(40)] }),
-  });
-
   async ngOnInit(): Promise<void> {
     await this.cargar();
   }
 
-  protected async crear(): Promise<void> {
+  protected async crear(formulario: NgForm): Promise<void> {
     this.error.set('');
-    const nombre = this.form.getRawValue().nombre.trim();
-    if (this.form.invalid || !nombre) {
-      this.form.markAllAsTouched();
+    const nombre = this.nombre().trim();
+    if (formulario.invalid || !nombre) {
+      formulario.control.markAllAsTouched();
       return;
     }
     this.guardando.set(true);
     try {
       await this.generosService.crear(nombre);
-      this.form.reset();
+      formulario.resetForm({ nombre: '' });
       await this.cargar();
     } catch (e) {
       this.error.set(mensajeError(e));

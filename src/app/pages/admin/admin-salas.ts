@@ -1,14 +1,13 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { Sala } from '../../core/models/sala';
 import { SalasService } from '../../core/services/salas.service';
 import { BLOQUES, FILAS } from '../../core/utils/butacas';
 import { mensajeError } from '../../core/utils/errores';
-import { ErrorCampo } from '../../shared/components/error-campo';
 
 @Component({
   selector: 'app-admin-salas',
-  imports: [ReactiveFormsModule, ErrorCampo],
+  imports: [FormsModule],
   template: `
     <div class="tarjeta">
       <h2>Salas</h2>
@@ -18,17 +17,20 @@ import { ErrorCampo } from '../../shared/components/error-campo';
         Las salas inactivas no se pueden usar para funciones nuevas.
       </p>
 
-      <form class="form-en-linea" [formGroup]="form" (ngSubmit)="crear()">
+      <!-- Formulario template-driven: el campo y su validación se definen en el template con ngModel -->
+      <form class="form-en-linea" #formSala="ngForm" (ngSubmit)="crear(formSala)">
         <label class="campo">
           <span>Nueva sala</span>
-          <input formControlName="nombre" placeholder="Ej: Sala 5" />
-          <app-error-campo [control]="form.controls.nombre" />
+          <input name="nombre" [(ngModel)]="nombre" #campoNombre="ngModel" required maxlength="40" placeholder="Ej: Sala 5" />
+          @if (campoNombre.touched && !nombre().trim()) {
+            <small class="error-texto">Este campo es obligatorio.</small>
+          }
         </label>
         <button type="submit" class="btn btn-primario" [disabled]="guardando()">Agregar</button>
       </form>
 
       @if (error()) {
-        <p class="alerta alerta-error">{{ error() }}</p>
+        <p class="alerta alerta-error" animate.enter="aparecer">{{ error() }}</p>
       }
 
       @if (cargando()) {
@@ -78,30 +80,27 @@ export class AdminSalas implements OnInit {
   protected readonly bloques = BLOQUES;
   protected readonly totalButacas = FILAS.length * BLOQUES.reduce((suma, cantidad) => suma + cantidad, 0);
 
+  protected readonly nombre = signal('');
   protected readonly salas = signal<Sala[]>([]);
   protected readonly cargando = signal(true);
   protected readonly guardando = signal(false);
   protected readonly error = signal('');
 
-  protected readonly form = new FormGroup({
-    nombre: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(40)] }),
-  });
-
   async ngOnInit(): Promise<void> {
     await this.cargar();
   }
 
-  protected async crear(): Promise<void> {
+  protected async crear(formulario: NgForm): Promise<void> {
     this.error.set('');
-    const nombre = this.form.getRawValue().nombre.trim();
-    if (this.form.invalid || !nombre) {
-      this.form.markAllAsTouched();
+    const nombre = this.nombre().trim();
+    if (formulario.invalid || !nombre) {
+      formulario.control.markAllAsTouched();
       return;
     }
     this.guardando.set(true);
     try {
       await this.salasService.crear(nombre);
-      this.form.reset();
+      formulario.resetForm({ nombre: '' });
       await this.cargar();
     } catch (e) {
       this.error.set(mensajeError(e));

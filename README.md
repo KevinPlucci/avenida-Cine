@@ -191,7 +191,10 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 - **Parámetros de ruta con `ActivatedRoute`**: `:id` y `:codigo` indican qué película, función o compra mostrar, y el query param `?volver=` indica a dónde volver después de ingresar (solo se aceptan rutas internas).
 - **Ruta comodín `**`**: cualquier dirección que no existe muestra una página 404 con un enlace a la cartelera.
 - **Guards funcionales**: `authGuard`, `adminGuard` e `invitadoGuard`. Esperan a que se resuelva la sesión guardada antes de decidir.
-- **Formularios reactivos** con validadores propios: contraseñas iguales, fecha de nacimiento válida, vencimiento de tarjeta y horario futuro. Un componente `app-error-campo` muestra los mensajes.
+- **Formularios**, con el enfoque que mejor encaja en cada caso y siempre con validaciones:
+  - *Reactive Forms* en los formularios grandes (registro, compra, reseñas, películas y funciones), con validadores propios: contraseñas iguales, fecha de nacimiento válida, vencimiento de tarjeta y horario futuro. El componente `app-error-campo` muestra los mensajes.
+  - *Signal Forms* en el login: el modelo es un `signal`, `form()` le agrega las validaciones (`required`, `email`), los campos se vinculan con `[formField]` y los mensajes salen de `errors()`.
+  - *Template-driven* en los formularios de un solo campo del panel (nueva sala y nuevo género), con `ngModel` y la validación `required` en el template.
 - **Comunicación entre componentes** con `input()` y `output()`: por ejemplo, la pantalla de compra le pasa al mapa de butacas las ocupadas y el máximo, y el mapa le avisa con `seleccionadasChange` qué butacas se eligieron y con `limiteAlcanzado` si se intentó superar el máximo.
 - **Servicios por entidad** (`PeliculasService`, `FuncionesService`, etc.). Los componentes no usan Supabase directamente.
 - **Consumo de la API con `HttpClient.get`**: la cartelera la arma `CarteleraService` con tres peticiones GET a la API REST de Supabase (películas, puntajes y ventas), tipadas con interfaces (`Pelicula`, `Puntaje`, `VentasPelicula`) y combinadas con `forkJoin`. La pantalla de inicio se suscribe al observable y muestra la carga, los datos o el error. Lo que necesita la sesión del usuario usa supabase-js, que maneja el token.
@@ -386,6 +389,7 @@ Dudas ya detectadas para los próximos emails:
 
 | Fecha | Versión | Cambios |
 |---|---|---|
+| 14/09/2026 | 0.2.4 | El login pasa a Signal Forms y los formularios de nueva sala y nuevo género a template-driven; el resto sigue con formularios reactivos. |
 | 14/09/2026 | 0.2.3 | La cartelera se obtiene con peticiones GET de HttpClient a la API REST de Supabase (`CarteleraService`), tipadas con interfaces. Si la API no responde, la pantalla muestra un mensaje en lugar de quedar cargando. |
 | 14/09/2026 | 0.2.2 | El mapa de butacas avisa cuando se intenta elegir más butacas de las permitidas por compra. La barra de carga aparece solo si la carga demora más de 200 ms. |
 | 14/09/2026 | 0.2.1 | Página 404 para direcciones que no existen. Los parámetros de las rutas (`:id`, `:codigo` y `?volver=`) se leen con `ActivatedRoute`. |

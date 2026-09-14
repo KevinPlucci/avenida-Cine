@@ -1,34 +1,37 @@
 import { Component, inject, signal } from '@angular/core';
-import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { email, form, FormField, required, submit } from '@angular/forms/signals';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { PORCENTAJE_CUPON_BIENVENIDA } from '../../core/constantes';
 import { mensajeError } from '../../core/utils/errores';
-import { ErrorCampo } from '../../shared/components/error-campo';
 import { AutoFocoDirective } from '../../shared/directives/auto-foco.directive';
 
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, RouterLink, ErrorCampo, AutoFocoDirective],
+  imports: [FormField, RouterLink, AutoFocoDirective],
   template: `
     <div class="tarjeta form-chico" animate.enter="aparecer">
       <h1>Ingresar</h1>
-      <form [formGroup]="form" (ngSubmit)="ingresar()">
+      <form novalidate (submit)="ingresar($event)">
         <label class="campo">
           <span>Email</span>
-          <input type="email" formControlName="email" autocomplete="email" appAutoFoco />
-          <app-error-campo [control]="form.controls.email" />
+          <input type="email" [formField]="loginForm.email" autocomplete="email" appAutoFoco />
+          @if (loginForm.email().touched() && loginForm.email().invalid()) {
+            <small class="error-texto">{{ loginForm.email().errors()[0]?.message }}</small>
+          }
         </label>
         <label class="campo">
           <span>Contraseña</span>
-          <input type="password" formControlName="password" autocomplete="current-password" />
-          <app-error-campo [control]="form.controls.password" />
+          <input type="password" [formField]="loginForm.password" autocomplete="current-password" />
+          @if (loginForm.password().touched() && loginForm.password().invalid()) {
+            <small class="error-texto">{{ loginForm.password().errors()[0]?.message }}</small>
+          }
         </label>
         @if (error()) {
           <p class="alerta alerta-error" animate.enter="aparecer">{{ error() }}</p>
         }
-        <button type="submit" class="btn btn-primario btn-bloque" [disabled]="enviando()">
-          {{ enviando() ? 'Ingresando...' : 'Ingresar' }}
+        <button type="submit" class="btn btn-primario btn-bloque" [disabled]="loginForm().submitting()">
+          {{ loginForm().submitting() ? 'Ingresando...' : 'Ingresar' }}
         </button>
       </form>
       <p class="meta pie">
@@ -45,33 +48,31 @@ export class Login {
   private readonly route = inject(ActivatedRoute);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
-  private readonly fb = inject(NonNullableFormBuilder);
 
   protected readonly porcentaje = PORCENTAJE_CUPON_BIENVENIDA;
-  protected readonly enviando = signal(false);
   protected readonly error = signal('');
 
-  protected readonly form = this.fb.group({
-    email: ['', [Validators.required, Validators.email]],
-    password: ['', Validators.required],
+  // Signal Forms: el modelo del formulario es un signal y form() le agrega las validaciones.
+  private readonly credenciales = signal({ email: '', password: '' });
+  protected readonly loginForm = form(this.credenciales, (campo) => {
+    required(campo.email, { message: 'Este campo es obligatorio.' });
+    email(campo.email, { message: 'Ingresá un email válido.' });
+    required(campo.password, { message: 'Este campo es obligatorio.' });
   });
 
-  protected async ingresar(): Promise<void> {
+  protected async ingresar(evento: Event): Promise<void> {
+    evento.preventDefault();
     this.error.set('');
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      return;
-    }
-    const { email, password } = this.form.getRawValue();
-    this.enviando.set(true);
-    try {
-      await this.auth.iniciarSesion(email.trim(), password);
-      await this.router.navigateByUrl(this.destinoSeguro());
-    } catch (e) {
-      this.error.set(mensajeError(e));
-    } finally {
-      this.enviando.set(false);
-    }
+    // submit() ejecuta la acción solo si el formulario es válido.
+    await submit(this.loginForm, async () => {
+      const { email: correo, password } = this.credenciales();
+      try {
+        await this.auth.iniciarSesion(correo.trim(), password);
+        await this.router.navigateByUrl(this.destinoSeguro());
+      } catch (e) {
+        this.error.set(mensajeError(e));
+      }
+    });
   }
 
   /**
