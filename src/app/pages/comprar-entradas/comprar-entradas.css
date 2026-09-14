@@ -18,6 +18,10 @@
   margin-top: 0;
 }
 
+.aviso-limite {
+  margin: 12px 0 0;
+}
+
 /* El resumen acompaña el scroll mientras se eligen las butacas */
 .lateral {
   position: sticky;

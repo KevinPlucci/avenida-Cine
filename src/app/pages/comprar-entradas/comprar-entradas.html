@@ -19,7 +19,16 @@
     <section class="tarjeta">
       <h2>1. Elegí tus butacas</h2>
       <p class="meta">Tocá una butaca para seleccionarla. Podés elegir hasta {{ maximo }}.</p>
-      <app-mapa-butacas [ocupadas]="ocupadas()" [(seleccionadas)]="seleccionadas" [maximo]="maximo" />
+      <app-mapa-butacas
+        [ocupadas]="ocupadas()"
+        [maximo]="maximo"
+        [seleccionadas]="seleccionadas()"
+        (seleccionadasChange)="cambiarSeleccion($event)"
+        (limiteAlcanzado)="avisoLimite.set($event)"
+      />
+      @if (avisoLimite()) {
+        <p class="alerta aviso-limite" animate.enter="aparecer">Podés elegir hasta {{ avisoLimite() }} butacas por compra.</p>
+      }
     </section>
 
     <section class="tarjeta lateral">

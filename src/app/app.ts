@@ -13,9 +13,8 @@ import { Header } from './shared/components/header';
   imports: [RouterOutlet, Header],
   templateUrl: './app.html',
   styles: `
-    .barra-carga { position: fixed; inset: 0 0 auto; z-index: 100; height: 3px; overflow: hidden; opacity: 0; animation: mostrar-barra 0s linear 250ms forwards; }
+    .barra-carga { position: fixed; inset: 0 0 auto; z-index: 100; height: 3px; overflow: hidden; }
     .barra-carga::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 35%; background: var(--color-dorado); animation: recorrer 1.1s ease-in-out infinite; }
-    @keyframes mostrar-barra { to { opacity: 1; } }
     @keyframes recorrer { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
     .aviso { padding-top: 16px; }
     .aviso .alerta { margin: 0; }

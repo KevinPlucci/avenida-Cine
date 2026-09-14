@@ -1,4 +1,4 @@
-import { Component, input, model } from '@angular/core';
+import { Component, input, model, output } from '@angular/core';
 import { FILAS, idButaca, numerosPorBloque, ordenarButacas } from '../../core/utils/butacas';
 
 @Component({
@@ -61,6 +61,8 @@ export class MapaButacas {
   readonly ocupadas = input.required<ReadonlySet<string>>();
   readonly seleccionadas = model<string[]>([]);
   readonly maximo = input.required<number>();
+  /** Avisa al componente padre que se intentó elegir más butacas de las permitidas. */
+  readonly limiteAlcanzado = output<number>();
 
   protected readonly filas = FILAS;
   protected readonly bloques = numerosPorBloque();
@@ -72,6 +74,8 @@ export class MapaButacas {
       this.seleccionadas.set(actuales.filter((b) => b !== id));
     } else if (actuales.length < this.maximo()) {
       this.seleccionadas.set(ordenarButacas([...actuales, id]));
+    } else {
+      this.limiteAlcanzado.emit(this.maximo());
     }
   }
 }

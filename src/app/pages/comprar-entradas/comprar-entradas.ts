@@ -44,6 +44,8 @@ export class ComprarEntradas implements OnInit {
   protected readonly funcion = signal<FuncionConDetalle | null>(null);
   protected readonly ocupadas = signal<ReadonlySet<string>>(new Set());
   protected readonly seleccionadas = signal<string[]>([]);
+  /** Máximo de butacas que se intentó superar; lo informa el mapa con su output limiteAlcanzado (0 = sin aviso). */
+  protected readonly avisoLimite = signal(0);
   protected readonly cupon = signal<Cupon | null>(null);
   protected readonly cargando = signal(true);
   protected readonly error = signal('');
@@ -103,6 +105,12 @@ export class ComprarEntradas implements OnInit {
     } finally {
       this.cargando.set(false);
     }
+  }
+
+  /** Recibe del mapa (output seleccionadasChange) las butacas elegidas. */
+  protected cambiarSeleccion(butacas: string[]): void {
+    this.seleccionadas.set(butacas);
+    this.avisoLimite.set(0);
   }
 
   protected async confirmar(): Promise<void> {
