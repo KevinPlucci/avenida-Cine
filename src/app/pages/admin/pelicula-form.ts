@@ -1,6 +1,7 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ConCambiosSinGuardar } from '../../core/auth/auth.guards';
 import { Genero } from '../../core/models/genero';
 import { GenerosService } from '../../core/services/generos.service';
 import { PeliculasService } from '../../core/services/peliculas.service';
@@ -14,7 +15,7 @@ const TAMANIO_MAXIMO_POSTER = 2 * 1024 * 1024;
   imports: [ReactiveFormsModule, RouterLink, ErrorCampo],
   templateUrl: './pelicula-form.html',
 })
-export class PeliculaForm implements OnInit {
+export class PeliculaForm implements OnInit, ConCambiosSinGuardar {
   private readonly peliculasService = inject(PeliculasService);
   private readonly generosService = inject(GenerosService);
   private readonly router = inject(Router);
@@ -28,6 +29,8 @@ export class PeliculaForm implements OnInit {
   protected readonly guardando = signal(false);
   protected readonly subiendo = signal(false);
   protected readonly error = signal('');
+  /** Se pone en true al guardar, para poder salir sin pedir confirmación. */
+  private guardado = false;
 
   protected readonly form = this.fb.group({
     titulo: ['', [Validators.required, Validators.maxLength(120)]],
@@ -63,10 +66,16 @@ export class PeliculaForm implements OnInit {
     }
   }
 
+  /** Lo consulta cambiosSinGuardarGuard (canDeactivate) antes de salir de la pantalla. */
+  tieneCambiosSinGuardar(): boolean {
+    return this.form.dirty && !this.guardado;
+  }
+
   protected alternarGenero(id: number): void {
     const control = this.form.controls.generos;
     control.setValue(control.value.includes(id) ? control.value.filter((g) => g !== id) : [...control.value, id]);
     control.markAsTouched();
+    control.markAsDirty();
   }
 
   protected async subirPoster(evento: Event): Promise<void> {
@@ -89,6 +98,7 @@ export class PeliculaForm implements OnInit {
       const url = await this.peliculasService.subirPoster(archivo);
       this.form.controls.imagen_url.setValue(url);
       this.form.controls.imagen_url.markAsTouched();
+      this.form.controls.imagen_url.markAsDirty();
     } catch (e) {
       this.error.set(mensajeError(e));
     } finally {
@@ -112,6 +122,7 @@ export class PeliculaForm implements OnInit {
         { titulo: titulo.trim(), sinopsis: sinopsis.trim(), duracion_min: duracion_min ?? 0, imagen_url, en_cartelera },
         generos,
       );
+      this.guardado = true;
       await this.router.navigateByUrl('/admin/peliculas');
     } catch (e) {
       const codigo = (e as { code?: string }).code;

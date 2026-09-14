@@ -53,6 +53,15 @@ export class AuthService {
     return { requiereConfirmacion: !data.session };
   }
 
+  /** Vuelve a leer el perfil desde la base, por ejemplo para confirmar que el rol sigue vigente. */
+  async refrescarPerfil(): Promise<void> {
+    await this.esperarSesion();
+    const usuario = this.usuarioActual();
+    if (!usuario) return;
+    const { data } = await this.supabase.from('perfiles').select('*').eq('id', usuario.id).maybeSingle();
+    this.perfilActual.set(data as Perfil | null);
+  }
+
   async cerrarSesion(): Promise<void> {
     await this.supabase.auth.signOut();
     await this.actualizarSesion(null);

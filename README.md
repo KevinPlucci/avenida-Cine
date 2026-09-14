@@ -190,7 +190,11 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 - **Ruteo**: todas las rutas con lazy loading; el panel de administración es un grupo de rutas hijas con su propio layout. La navegación usa `routerLink` en los enlaces y `Router` (`navigate`, `navigateByUrl`) después de acciones como ingresar, registrarse, comprar o salir.
 - **Parámetros de ruta con `ActivatedRoute`**: `:id` y `:codigo` indican qué película, función o compra mostrar, y el query param `?volver=` indica a dónde volver después de ingresar (solo se aceptan rutas internas).
 - **Ruta comodín `**`**: cualquier dirección que no existe muestra una página 404 con un enlace a la cartelera.
-- **Guards funcionales**: `authGuard`, `adminGuard` e `invitadoGuard`. Esperan a que se resuelva la sesión guardada antes de decidir.
+- **Guards funcionales** (esperan a que se resuelva la sesión guardada antes de decidir):
+  - `canActivate`: `authGuard` en el perfil (sin sesión manda al login con `?volver=`) e `invitadoGuard` en login y registro.
+  - `canMatch`: `adminGuard` en `/admin`. Si el usuario no es administrador la ruta no coincide, así el código del panel (lazy) ni siquiera se descarga.
+  - `canActivateChild`: `rolAdminVigenteGuard` en las pantallas del panel. Vuelve a leer el rol desde la base al entrar a cada una, por si se lo quitaron mientras navegaba.
+  - `canDeactivate`: `cambiosSinGuardarGuard` en el formulario de película. Si hay cambios sin guardar pide confirmación antes de salir.
 - **Formularios**, con el enfoque que mejor encaja en cada caso y siempre con validaciones:
   - *Reactive Forms* en los formularios grandes (registro, compra, reseñas, películas y funciones), con validadores propios: contraseñas iguales, fecha de nacimiento válida, vencimiento de tarjeta y horario futuro. El componente `app-error-campo` muestra los mensajes.
   - *Signal Forms* en el login: el modelo es un `signal`, `form()` le agrega las validaciones (`required`, `email`), los campos se vinculan con `[formField]` y los mensajes salen de `errors()`.
@@ -389,6 +393,7 @@ Dudas ya detectadas para los próximos emails:
 
 | Fecha | Versión | Cambios |
 |---|---|---|
+| 14/09/2026 | 0.2.5 | El panel de administración se protege con `canMatch` (su código no se descarga si el usuario no es admin) y `canActivateChild` (se vuelve a comprobar el rol en cada pantalla del panel). El formulario de película pide confirmación antes de salir con cambios sin guardar (`canDeactivate`). |
 | 14/09/2026 | 0.2.4 | El login pasa a Signal Forms y los formularios de nueva sala y nuevo género a template-driven; el resto sigue con formularios reactivos. |
 | 14/09/2026 | 0.2.3 | La cartelera se obtiene con peticiones GET de HttpClient a la API REST de Supabase (`CarteleraService`), tipadas con interfaces. Si la API no responde, la pantalla muestra un mensaje en lugar de quedar cargando. |
 | 14/09/2026 | 0.2.2 | El mapa de butacas avisa cuando se intenta elegir más butacas de las permitidas por compra. La barra de carga aparece solo si la carga demora más de 200 ms. |
