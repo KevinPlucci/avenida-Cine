@@ -1,0 +1,66 @@
+@if (cargando()) {
+  <p class="cargando">Cargando cartelera...</p>
+} @else if (error()) {
+  <p class="alerta alerta-error">{{ error() }}</p>
+} @else {
+  @if (masVendidas().length) {
+    <section>
+      <h2>Las más vendidas</h2>
+      <div class="grid-peliculas">
+        @for (pelicula of masVendidas(); track pelicula.id) {
+          <app-pelicula-card [pelicula]="pelicula" [mostrarVentas]="true" />
+        }
+      </div>
+    </section>
+  }
+
+  <section>
+    <h2>En cartelera</h2>
+
+    <div class="tarjeta filtros">
+      <label class="campo">
+        <span>Buscar por nombre</span>
+        <input type="search" [formControl]="busqueda" placeholder="Ej: Horizonte rojo" />
+      </label>
+
+      @if (generos().length) {
+        <div class="campo">
+          <span>Filtrar por género</span>
+          <div class="chips">
+            @for (genero of generos(); track genero.id) {
+              <button
+                type="button"
+                class="chip"
+                [class.activo]="generosElegidos().includes(genero.id)"
+                [attr.aria-pressed]="generosElegidos().includes(genero.id)"
+                (click)="alternarGenero(genero.id)"
+              >
+                {{ genero.nombre }}
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <p class="meta resultado">
+      {{ filtradas().length }} de {{ peliculas().length }} películas
+      @if (generosElegidos().length > 1) {
+        (con todos los géneros elegidos)
+      }
+      @if (hayFiltros()) {
+        · <button type="button" class="link" (click)="limpiarFiltros()">Limpiar filtros</button>
+      }
+    </p>
+
+    @if (filtradas().length) {
+      <div class="grid-peliculas">
+        @for (pelicula of filtradas(); track pelicula.id) {
+          <app-pelicula-card [pelicula]="pelicula" />
+        }
+      </div>
+    } @else {
+      <p class="vacio">No hay películas que coincidan con la búsqueda.</p>
+    }
+  </section>
+}

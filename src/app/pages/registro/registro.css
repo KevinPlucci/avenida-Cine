@@ -1,0 +1,9 @@
+.fecha {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1.4fr;
+  gap: 8px;
+}
+
+.pie {
+  margin-top: 16px;
+}

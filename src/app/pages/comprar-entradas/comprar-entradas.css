@@ -1,0 +1,36 @@
+.encabezado {
+  margin-bottom: 16px;
+}
+
+.compra {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  align-items: start;
+}
+
+.compra > section + section {
+  margin-top: 0;
+}
+
+.resumen {
+  margin-bottom: 16px;
+}
+
+.resumen dd {
+  text-align: right;
+}
+
+.total {
+  padding-top: 6px;
+  border-top: 1px solid var(--color-borde);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+@media (max-width: 1000px) {
+  .compra {
+    /* minmax(0, ...) para que el mapa de butacas se desplace dentro de su tarjeta y no ensanche la página */
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

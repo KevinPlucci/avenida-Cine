@@ -1,0 +1,9 @@
+.filtros {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 6px;
+}
+
+.resultado {
+  margin: 10px 0 14px;
+}

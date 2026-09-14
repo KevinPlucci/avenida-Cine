@@ -1,0 +1,87 @@
+<a routerLink="/admin/peliculas" class="volver">← Volver al listado</a>
+
+<div class="tarjeta form-mediano">
+  <h2>{{ id() ? 'Editar película' : 'Nueva película' }}</h2>
+
+  @if (cargando()) {
+    <p class="cargando">Cargando...</p>
+  } @else {
+    <form [formGroup]="form" (ngSubmit)="guardar()">
+      <label class="campo">
+        <span>Título</span>
+        <input formControlName="titulo" />
+        <app-error-campo [control]="form.controls.titulo" />
+      </label>
+
+      <label class="campo">
+        <span>Sinopsis</span>
+        <textarea formControlName="sinopsis" rows="4"></textarea>
+        <app-error-campo [control]="form.controls.sinopsis" />
+      </label>
+
+      <label class="campo campo-corto">
+        <span>Duración (minutos)</span>
+        <input type="number" formControlName="duracion_min" min="1" max="600" />
+        <app-error-campo [control]="form.controls.duracion_min" />
+      </label>
+
+      <div class="campo">
+        <span>Póster</span>
+        <div class="poster-editor">
+          @if (form.controls.imagen_url.valid) {
+            <img class="miniatura-grande" [src]="form.controls.imagen_url.value" alt="Vista previa del póster" />
+          }
+          <div class="poster-campos">
+            <input type="file" accept="image/*" aria-label="Subir imagen del póster" [disabled]="subiendo()" (change)="subirPoster($event)" />
+            @if (subiendo()) {
+              <small class="meta">Subiendo imagen...</small>
+            }
+            <input formControlName="imagen_url" placeholder="o pegá la URL de la imagen" aria-label="URL del póster" />
+            <app-error-campo
+              [control]="form.controls.imagen_url"
+              mensajePatron="Tiene que ser una URL que empiece con http:// o https://."
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="campo">
+        <span>Géneros (se pueden elegir varios)</span>
+        @if (generos().length) {
+          <div class="chips">
+            @for (genero of generos(); track genero.id) {
+              <button
+                type="button"
+                class="chip"
+                [class.activo]="form.controls.generos.value.includes(genero.id)"
+                [attr.aria-pressed]="form.controls.generos.value.includes(genero.id)"
+                (click)="alternarGenero(genero.id)"
+              >
+                {{ genero.nombre }}
+              </button>
+            }
+          </div>
+        } @else {
+          <p class="meta">No hay géneros cargados. <a routerLink="/admin/generos">Crealos acá</a>.</p>
+        }
+        <app-error-campo [control]="form.controls.generos" />
+      </div>
+
+      <label class="check">
+        <input type="checkbox" formControlName="en_cartelera" />
+        Mostrar en la cartelera
+      </label>
+
+      @if (error()) {
+        <p class="alerta alerta-error">{{ error() }}</p>
+      }
+
+      <div class="acciones">
+        <button type="submit" class="btn btn-primario" [disabled]="guardando() || subiendo()">
+          {{ guardando() ? 'Guardando...' : 'Guardar' }}
+        </button>
+        <a routerLink="/admin/peliculas" class="btn">Cancelar</a>
+      </div>
+    </form>
+  }
+</div>

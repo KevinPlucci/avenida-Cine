@@ -1,0 +1,20 @@
+import { Genero } from './genero';
+
+export interface Pelicula {
+  id: number;
+  titulo: string;
+  sinopsis: string;
+  duracion_min: number;
+  imagen_url: string;
+  en_cartelera: boolean;
+  generos: Genero[];
+}
+
+/** Película con los datos calculados que se muestran en la cartelera. */
+export interface PeliculaCartelera extends Pelicula {
+  promedio: number | null;
+  cantidad_resenias: number;
+  entradas_vendidas: number;
+}
+
+export type PeliculaGuardar = Omit<Pelicula, 'id' | 'generos'>;

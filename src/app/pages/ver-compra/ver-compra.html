@@ -1,0 +1,60 @@
+@if (cargando()) {
+  <p class="cargando">Cargando entrada...</p>
+} @else if (error()) {
+  <p class="alerta alerta-error">{{ error() }}</p>
+  <a routerLink="/">Volver a la cartelera</a>
+} @else if (compra(); as c) {
+  <div class="tarjeta entrada">
+    @if (recienComprada) {
+      <p class="alerta alerta-exito">
+        Compra confirmada. Descargá el PDF o guardá esta página: el código QR es tu entrada.
+      </p>
+    }
+
+    <div class="contenido">
+      <div>
+        <h1>{{ c.pelicula }}</h1>
+        <dl class="datos">
+          <dt>Fecha</dt>
+          <dd>{{ c.inicio | date: "EEEE d 'de' MMMM 'de' y" }}</dd>
+          <dt>Hora</dt>
+          <dd>{{ c.inicio | date: 'HH:mm' }} h</dd>
+          <dt>Sala</dt>
+          <dd>{{ c.sala }}</dd>
+          <dt>Función</dt>
+          <dd>{{ c.formato }} · {{ c.idioma | idioma }}</dd>
+          <dt>Butacas</dt>
+          <dd>{{ c.butacas.join(', ') }}</dd>
+          <dt>Comprador</dt>
+          <dd>{{ c.nombre }} ({{ c.email }})</dd>
+          @if (c.descuento > 0) {
+            <dt>Subtotal</dt>
+            <dd>{{ c.subtotal | currency }}</dd>
+            <dt>Descuento</dt>
+            <dd>- {{ c.descuento | currency }}</dd>
+          }
+          <dt>Total</dt>
+          <dd>
+            <strong>{{ c.total | currency }}</strong>
+          </dd>
+          <dt>Comprada el</dt>
+          <dd>{{ c.fecha_compra | date: 'dd/MM/yyyy HH:mm' }}</dd>
+        </dl>
+      </div>
+
+      <div class="qr">
+        @if (qr()) {
+          <img [src]="qr()" alt="Código QR de la entrada" width="220" height="220" />
+        }
+        <small class="meta codigo">{{ c.codigo }}</small>
+      </div>
+    </div>
+
+    <div class="acciones">
+      <button type="button" class="btn btn-primario" (click)="descargarPdf()" [disabled]="descargando()">
+        {{ descargando() ? 'Generando PDF...' : 'Descargar PDF' }}
+      </button>
+      <a routerLink="/" class="btn">Volver a la cartelera</a>
+    </div>
+  </div>
+}

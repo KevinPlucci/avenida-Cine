@@ -1,0 +1,178 @@
+<div class="tarjeta">
+  <h2>Nueva función</h2>
+  <p class="meta">
+    Entre el final de una función y el inicio de la siguiente en la misma sala tiene que haber al menos
+    {{ minutosEntreFunciones }} minutos.
+  </p>
+
+  @if (cargando()) {
+    <p class="cargando">Cargando...</p>
+  } @else {
+    <form [formGroup]="form" (ngSubmit)="crear()">
+      <div class="fila-campos">
+        <label class="campo">
+          <span>Película</span>
+          <select formControlName="pelicula_id">
+            <option [ngValue]="null" disabled>Elegí una película</option>
+            @for (pelicula of peliculas(); track pelicula.id) {
+              <option [ngValue]="pelicula.id">
+                {{ pelicula.titulo }} ({{ pelicula.duracion_min }} min){{ pelicula.en_cartelera ? '' : ' - fuera de cartelera' }}
+              </option>
+            }
+          </select>
+          <app-error-campo [control]="form.controls.pelicula_id" />
+        </label>
+
+        <label class="campo">
+          <span>Sala</span>
+          <select formControlName="sala_id">
+            <option [ngValue]="null" disabled>Elegí una sala</option>
+            @for (sala of salasActivas(); track sala.id) {
+              <option [ngValue]="sala.id">{{ sala.nombre }}</option>
+            }
+          </select>
+          <app-error-campo [control]="form.controls.sala_id" />
+        </label>
+      </div>
+
+      <div class="campo">
+        <span>Día</span>
+        <div class="chips">
+          @for (dia of dias; track dia.valor) {
+            <button type="button" class="chip" [class.activo]="valores().dia === dia.valor" (click)="elegirDia(dia.valor)">
+              {{ dia.fecha | date: 'EEE d/M' }}
+            </button>
+          }
+        </div>
+        <app-error-campo [control]="form.controls.dia" />
+      </div>
+
+      <div class="fila-campos">
+        <div class="campo">
+          <span>Horario de inicio</span>
+          <div class="en-linea">
+            <select formControlName="hora" aria-label="Hora">
+              <option value="">Hora</option>
+              @for (hora of horas; track hora) {
+                <option [value]="hora">{{ hora }}</option>
+              }
+            </select>
+            <strong>:</strong>
+            <select formControlName="minuto" aria-label="Minutos">
+              @for (minuto of minutos; track minuto) {
+                <option [value]="minuto">{{ minuto }}</option>
+              }
+            </select>
+          </div>
+          <app-error-campo [control]="form.controls.hora" />
+          <app-error-campo [control]="form" />
+        </div>
+
+        <label class="campo">
+          <span>Precio de la entrada</span>
+          <input type="number" formControlName="precio" min="0" step="100" />
+          <app-error-campo [control]="form.controls.precio" />
+        </label>
+      </div>
+
+      <div class="fila-campos">
+        <div class="campo">
+          <span>Formato</span>
+          <div class="opciones">
+            @for (formato of formatos; track formato) {
+              <label><input type="radio" formControlName="formato" [value]="formato" /> {{ formato }}</label>
+            }
+          </div>
+        </div>
+        <div class="campo">
+          <span>Idioma</span>
+          <div class="opciones">
+            @for (idioma of idiomas; track idioma) {
+              <label><input type="radio" formControlName="idioma" [value]="idioma" /> {{ idioma | idioma }}</label>
+            }
+          </div>
+        </div>
+      </div>
+
+      @if (inicioElegido() && finElegido()) {
+        <p class="alerta">
+          Empieza el {{ inicioElegido() | date: "EEEE d/M 'a las' HH:mm" }} y termina a las
+          {{ finElegido() | date: 'HH:mm' }}. La sala queda libre desde las {{ libreDesde() | date: 'HH:mm' }}.
+        </p>
+      }
+
+      @if (conflictos().length) {
+        <div class="alerta alerta-error">
+          La sala está ocupada en ese horario:
+          <ul>
+            @for (conflicto of conflictos(); track conflicto.id) {
+              <li>
+                {{ conflicto.pelicula?.titulo }}: de {{ conflicto.inicio | date: 'dd/MM HH:mm' }} a
+                {{ conflicto.fin | date: 'HH:mm' }} (libre desde las {{ conflicto.bloqueada_hasta | date: 'HH:mm' }})
+              </li>
+            }
+          </ul>
+        </div>
+      }
+      @if (error()) {
+        <p class="alerta alerta-error">{{ error() }}</p>
+      }
+      @if (exito()) {
+        <p class="alerta alerta-exito">{{ exito() }}</p>
+      }
+
+      <button type="submit" class="btn btn-primario" [disabled]="guardando()">
+        {{ guardando() ? 'Guardando...' : 'Crear función' }}
+      </button>
+    </form>
+  }
+</div>
+
+<section class="tarjeta">
+  <h2>Próximas funciones</h2>
+  <div class="chips filtro-dias">
+    <button type="button" class="chip" [class.activo]="filtroDia() === ''" (click)="filtroDia.set('')">Todas</button>
+    @for (dia of dias; track dia.valor) {
+      <button type="button" class="chip" [class.activo]="filtroDia() === dia.valor" (click)="filtroDia.set(dia.valor)">
+        {{ dia.fecha | date: 'EEE d/M' }}
+      </button>
+    }
+  </div>
+
+  <div class="tabla-contenedor">
+    <table>
+      <thead>
+        <tr>
+          <th>Día</th>
+          <th>Horario</th>
+          <th>Película</th>
+          <th>Sala</th>
+          <th>Formato</th>
+          <th>Idioma</th>
+          <th>Precio</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (funcion of funcionesFiltradas(); track funcion.id) {
+          <tr>
+            <td>{{ funcion.inicio | date: 'EEE dd/MM' }}</td>
+            <td>{{ funcion.inicio | date: 'HH:mm' }} a {{ funcion.fin | date: 'HH:mm' }}</td>
+            <td>{{ funcion.pelicula?.titulo }}</td>
+            <td>{{ funcion.sala.nombre }}</td>
+            <td>{{ funcion.formato }}</td>
+            <td>{{ funcion.idioma | idioma }}</td>
+            <td>{{ funcion.precio | currency }}</td>
+            <td class="acciones-tabla">
+              <button type="button" class="btn btn-chico btn-peligro" (click)="eliminar(funcion)">Eliminar</button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="8" class="vacio">No hay funciones para mostrar.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

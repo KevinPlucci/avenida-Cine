@@ -1,0 +1,84 @@
+<h1>Mi perfil</h1>
+
+@if (error()) {
+  <p class="alerta alerta-error">{{ error() }}</p>
+}
+
+<div class="columnas">
+  <section class="tarjeta">
+    <h2>Mis datos</h2>
+    @if (auth.perfil(); as p) {
+      <dl class="datos">
+        <dt>Nombre</dt>
+        <dd>{{ p.nombre }} {{ p.apellido }}</dd>
+        <dt>Email</dt>
+        <dd>{{ p.email }}</dd>
+        <dt>Nacimiento</dt>
+        <dd>{{ p.fecha_nacimiento | date: 'dd/MM/yyyy' }}</dd>
+        <dt>Tipo de sangre</dt>
+        <dd>{{ p.tipo_sangre }}</dd>
+        <dt>Color de ojos</dt>
+        <dd>{{ p.color_ojos }}</dd>
+        <dt>Vacaciones</dt>
+        <dd>{{ p.dias_vacaciones }} días por año</dd>
+      </dl>
+    } @else {
+      <p class="meta">No se encontraron los datos del perfil.</p>
+    }
+  </section>
+
+  <section class="tarjeta">
+    <h2>Beneficios</h2>
+    @if (cargando()) {
+      <p class="cargando">Cargando...</p>
+    } @else if (cupon(); as c) {
+      @if (c.usado) {
+        <p class="meta">Ya usaste tu cupón de {{ c.porcentaje }}% de descuento de primera compra.</p>
+      } @else {
+        <p class="alerta alerta-exito">
+          Tenés un cupón de <strong>{{ c.porcentaje }}% de descuento</strong>. Se aplica solo en tu primera compra.
+        </p>
+      }
+    } @else {
+      <p class="meta">No tenés cupones disponibles.</p>
+    }
+  </section>
+</div>
+
+<section class="tarjeta">
+  <h2>Mis compras</h2>
+  @if (cargando()) {
+    <p class="cargando">Cargando...</p>
+  } @else {
+    <div class="tabla-contenedor">
+      <table>
+        <thead>
+          <tr>
+            <th>Película</th>
+            <th>Función</th>
+            <th>Sala</th>
+            <th>Entradas</th>
+            <th>Total</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (compra of compras(); track compra.codigo) {
+            <tr>
+              <td>{{ compra.pelicula }}</td>
+              <td>{{ compra.inicio | date: 'dd/MM/yyyy HH:mm' }}</td>
+              <td>{{ compra.sala }}</td>
+              <td>{{ compra.cantidad }}</td>
+              <td>{{ compra.total | currency }}</td>
+              <td><a [routerLink]="['/compras', compra.codigo]">Ver entrada</a></td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="vacio">Todavía no compraste entradas.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>

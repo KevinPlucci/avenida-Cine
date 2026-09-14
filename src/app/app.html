@@ -1,0 +1,26 @@
+<app-header />
+
+@if (!supabaseConfigurado) {
+  <div class="contenedor aviso">
+    <p class="alerta alerta-error">
+      Falta configurar Supabase en <code>src/environments/environment.ts</code> (ver README).
+    </p>
+  </div>
+}
+
+@if (hayActualizacion()) {
+  <div class="contenedor aviso">
+    <p class="alerta">
+      Hay una nueva versión de la aplicación.
+      <button type="button" class="link" (click)="recargar()">Actualizar</button>
+    </p>
+  </div>
+}
+
+<main class="contenedor principal">
+  <router-outlet />
+</main>
+
+<footer>
+  <div class="contenedor">{{ nombreCine }} · Trabajo Práctico 1 · Programación IV</div>
+</footer>
