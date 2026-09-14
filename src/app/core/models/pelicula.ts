@@ -17,4 +17,10 @@ export interface PeliculaCartelera extends Pelicula {
   entradas_vendidas: number;
 }
 
+/** Entradas vendidas de una película (respuesta de la función ranking_ventas). */
+export interface VentasPelicula {
+  pelicula_id: number;
+  entradas_vendidas: number;
+}
+
 export type PeliculaGuardar = Omit<Pelicula, 'id' | 'generos'>;

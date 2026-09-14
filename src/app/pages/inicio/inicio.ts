@@ -1,9 +1,9 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { debounceTime, map } from 'rxjs';
-import { PeliculasService } from '../../core/services/peliculas.service';
+import { CarteleraService } from '../../core/services/cartelera.service';
 import { PeliculaCartelera } from '../../core/models/pelicula';
 import { Genero } from '../../core/models/genero';
 import { mensajeError } from '../../core/utils/errores';
@@ -17,7 +17,8 @@ import { PeliculaCard } from '../../shared/components/pelicula-card';
   styleUrl: './inicio.css',
 })
 export class Inicio implements OnInit {
-  private readonly peliculasService = inject(PeliculasService);
+  private readonly carteleraService = inject(CarteleraService);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly hoy = new Date();
   protected readonly peliculas = signal<PeliculaCartelera[]>([]);
@@ -56,14 +57,21 @@ export class Inicio implements OnInit {
 
   protected readonly hayFiltros = computed(() => this.textoBuscado() !== '' || this.generosElegidos().length > 0);
 
-  async ngOnInit(): Promise<void> {
-    try {
-      this.peliculas.set(await this.peliculasService.listarCartelera());
-    } catch (e) {
-      this.error.set(mensajeError(e));
-    } finally {
-      this.cargando.set(false);
-    }
+  ngOnInit(): void {
+    // Datos de la API: la suscripción se corta sola si el componente se destruye antes de que respondan.
+    this.carteleraService
+      .obtenerCartelera()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (peliculas) => {
+          this.peliculas.set(peliculas);
+          this.cargando.set(false);
+        },
+        error: (e) => {
+          this.error.set(mensajeError(e));
+          this.cargando.set(false);
+        },
+      });
   }
 
   protected alternarGenero(id: number): void {

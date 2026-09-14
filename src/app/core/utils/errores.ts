@@ -1,3 +1,5 @@
+import { HttpErrorResponse } from '@angular/common/http';
+
 const MENSAJES_POR_CODIGO: Record<string, string> = {
   // PostgreSQL
   '23505': 'Ya existe un registro con esos datos.',
@@ -12,8 +14,12 @@ const MENSAJES_POR_CODIGO: Record<string, string> = {
   over_email_send_rate_limit: 'Se enviaron demasiados emails. Probá de nuevo en unos minutos.',
 };
 
-/** Convierte un error de Supabase (o cualquier otro) en un mensaje para mostrar al usuario. */
+/** Convierte un error de Supabase, de HttpClient o de cualquier otro tipo en un mensaje para el usuario. */
 export function mensajeError(error: unknown): string {
+  if (error instanceof HttpErrorResponse) {
+    // Sin respuesta (status 0) es un problema de conexión; si no, el cuerpo trae el { code, message } de la API.
+    return error.status === 0 ? 'No se pudo conectar con el servidor.' : mensajeError(error.error);
+  }
   if (typeof error !== 'object' || error === null) {
     return 'Ocurrió un error inesperado.';
   }

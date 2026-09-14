@@ -170,12 +170,14 @@ erDiagram
 ### Cómo viajan las peticiones
 
 ```text
-Componente -> Servicio (PeliculasService, ...) -> supabase-js -> fetch propio -> HttpClient
-                                                                                  |
-                                                        cargaInterceptor (barra de carga)
-                                                        conexionInterceptor (aviso sin conexión)
-                                                                                  |
-                                                                              Supabase
+Cartelera (datos públicos):
+  Inicio -> CarteleraService -> HttpClient.get -> API REST de Supabase
+
+Lo que necesita la sesión del usuario (compras, reseñas, perfil, administración):
+  Componente -> Servicio (ComprasService, ...) -> supabase-js -> fetch propio -> HttpClient -> Supabase
+
+Todas las peticiones de HttpClient pasan por los interceptores:
+  cargaInterceptor (barra de carga) y conexionInterceptor (aviso sin conexión)
 ```
 
 ---
@@ -192,6 +194,7 @@ Componente -> Servicio (PeliculasService, ...) -> supabase-js -> fetch propio ->
 - **Formularios reactivos** con validadores propios: contraseñas iguales, fecha de nacimiento válida, vencimiento de tarjeta y horario futuro. Un componente `app-error-campo` muestra los mensajes.
 - **Comunicación entre componentes** con `input()` y `output()`: por ejemplo, la pantalla de compra le pasa al mapa de butacas las ocupadas y el máximo, y el mapa le avisa con `seleccionadasChange` qué butacas se eligieron y con `limiteAlcanzado` si se intentó superar el máximo.
 - **Servicios por entidad** (`PeliculasService`, `FuncionesService`, etc.). Los componentes no usan Supabase directamente.
+- **Consumo de la API con `HttpClient.get`**: la cartelera la arma `CarteleraService` con tres peticiones GET a la API REST de Supabase (películas, puntajes y ventas), tipadas con interfaces (`Pelicula`, `Puntaje`, `VentasPelicula`) y combinadas con `forkJoin`. La pantalla de inicio se suscribe al observable y muestra la carga, los datos o el error. Lo que necesita la sesión del usuario usa supabase-js, que maneja el token.
 - **Componentes standalone**, sin `NgModule` propios: cada componente declara lo que usa (por ejemplo `ReactiveFormsModule` o `RouterLink`).
 - **HttpClient e interceptores**: supabase-js permite recibir su propio `fetch`. Se le pasa uno hecho con `HttpClient` (`core/http/fetch-con-http-client.ts`), así todas las llamadas a la base, a la autenticación y a Storage pasan por los interceptores:
   - `cargaInterceptor`: cuenta las peticiones en curso en un `BehaviorSubject` de `EstadoRedService`. Con operadores de RxJS la barra de carga aparece solo si la carga demora más de 200 ms y se oculta apenas termina.
@@ -383,6 +386,7 @@ Dudas ya detectadas para los próximos emails:
 
 | Fecha | Versión | Cambios |
 |---|---|---|
+| 14/09/2026 | 0.2.3 | La cartelera se obtiene con peticiones GET de HttpClient a la API REST de Supabase (`CarteleraService`), tipadas con interfaces. Si la API no responde, la pantalla muestra un mensaje en lugar de quedar cargando. |
 | 14/09/2026 | 0.2.2 | El mapa de butacas avisa cuando se intenta elegir más butacas de las permitidas por compra. La barra de carga aparece solo si la carga demora más de 200 ms. |
 | 14/09/2026 | 0.2.1 | Página 404 para direcciones que no existen. Los parámetros de las rutas (`:id`, `:codigo` y `?volver=`) se leen con `ActivatedRoute`. |
 | 14/09/2026 | 0.2.0 | Temas de clase: HttpClient con interceptores (barra de carga y aviso sin conexión) para todas las llamadas a Supabase, cuatro directivas propias (`appMascara`, `appImagenRespaldo`, `*appSiRol`, `appAutoFoco`) y animaciones con `animate.enter`/`animate.leave`. Nuevo estilo visual (Oswald, logo, ficha con póster de fondo, entrada tipo ticket, distintivos de formato, PDF con encabezado). Edición de funciones desde el panel de admin con la regla "con ventas solo cambia el precio" validada en la base (`supabase/migraciones/002_editar_funciones.sql`). Prueba completa en el navegador contra Supabase: registro, compras con y sin cupón, PDF, reseñas, compra anónima, buscador y filtros. |

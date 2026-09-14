@@ -1,41 +1,12 @@
 import { inject, Injectable } from '@angular/core';
 import { SupabaseService } from '../supabase.service';
-import { Pelicula, PeliculaCartelera, PeliculaGuardar } from '../models/pelicula';
-import { Puntaje } from '../models/resenia';
+import { Pelicula, PeliculaGuardar } from '../models/pelicula';
 
 const COLUMNAS = 'id, titulo, sinopsis, duracion_min, imagen_url, en_cartelera, generos(id, nombre)';
 
 @Injectable({ providedIn: 'root' })
 export class PeliculasService {
   private readonly db = inject(SupabaseService).client;
-
-  /** Películas en cartelera con su puntaje promedio y la cantidad de entradas vendidas. */
-  async listarCartelera(): Promise<PeliculaCartelera[]> {
-    const [peliculas, puntajes, ranking] = await Promise.all([
-      this.db.from('peliculas').select(COLUMNAS).eq('en_cartelera', true).order('titulo'),
-      this.db.from('puntajes_peliculas').select('pelicula_id, promedio, cantidad'),
-      // GET en lugar de POST para que el service worker pueda guardarla y mostrar la cartelera sin conexión.
-      this.db.rpc('ranking_ventas', {}, { get: true }),
-    ]);
-    if (peliculas.error) throw peliculas.error;
-    if (puntajes.error) throw puntajes.error;
-    if (ranking.error) throw ranking.error;
-
-    const puntajePorPelicula = new Map((puntajes.data as Puntaje[]).map((p) => [p.pelicula_id, p]));
-    const ventasPorPelicula = new Map(
-      (ranking.data as { pelicula_id: number; entradas_vendidas: number }[]).map((r) => [
-        r.pelicula_id,
-        r.entradas_vendidas,
-      ]),
-    );
-
-    return (peliculas.data as Pelicula[]).map((pelicula) => ({
-      ...pelicula,
-      promedio: puntajePorPelicula.get(pelicula.id)?.promedio ?? null,
-      cantidad_resenias: puntajePorPelicula.get(pelicula.id)?.cantidad ?? 0,
-      entradas_vendidas: ventasPorPelicula.get(pelicula.id) ?? 0,
-    }));
-  }
 
   async obtener(id: number): Promise<Pelicula | null> {
     const { data, error } = await this.db.from('peliculas').select(COLUMNAS).eq('id', id).maybeSingle();
