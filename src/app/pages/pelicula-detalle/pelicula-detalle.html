@@ -6,27 +6,29 @@
 } @else if (pelicula(); as p) {
   <a routerLink="/" class="volver">← Volver a la cartelera</a>
 
-  <article class="ficha">
-    <img class="poster" [src]="p.imagen_url" [alt]="'Póster de ' + p.titulo" />
-    <div>
+  <article class="ficha" animate.enter="aparecer">
+    <div class="ficha-fondo" [style.background-image]="'url(' + p.imagen_url + ')'"></div>
+    <img class="poster" [src]="p.imagen_url" [alt]="'Póster de ' + p.titulo" appImagenRespaldo />
+    <div class="ficha-info">
       <h1>{{ p.titulo }}</h1>
-      <p class="meta">{{ p.duracion_min | duracion }}</p>
-      <div class="chips generos">
+      <p class="duracion">{{ p.duracion_min | duracion }}</p>
+      <div class="chips">
         @for (genero of p.generos; track genero.id) {
           <span class="chip">{{ genero.nombre }}</span>
         }
       </div>
-      <p class="puntaje">
+      <div class="puntaje">
         @if (puntaje(); as pt) {
-          <app-estrellas [valor]="pt.promedio" />
-          <strong>{{ pt.promedio }}</strong>
-          <span class="meta">({{ pt.cantidad }} {{ pt.cantidad === 1 ? 'reseña' : 'reseñas' }})</span>
+          <strong class="promedio">{{ pt.promedio }}</strong>
+          <div>
+            <app-estrellas [valor]="pt.promedio" />
+            <span class="cantidad">{{ pt.cantidad }} {{ pt.cantidad === 1 ? 'reseña' : 'reseñas' }}</span>
+          </div>
         } @else {
-          <span class="meta">Todavía no tiene reseñas.</span>
+          <span class="cantidad">Todavía no tiene reseñas</span>
         }
-      </p>
-      <h2>Sinopsis</h2>
-      <p>{{ p.sinopsis }}</p>
+      </div>
+      <p class="sinopsis">{{ p.sinopsis }}</p>
     </div>
   </article>
 
@@ -38,8 +40,11 @@
         <div class="horarios">
           @for (funcion of dia.items; track funcion.id) {
             <a class="horario" [routerLink]="['/funciones', funcion.id, 'comprar']">
-              <strong>{{ funcion.inicio | date: 'HH:mm' }}</strong>
-              <span>{{ funcion.formato }} · {{ funcion.idioma | idioma }}</span>
+              <span class="hora">{{ funcion.inicio | date: 'HH:mm' }}</span>
+              <span class="detalle-horario">
+                <span class="formato" [attr.data-formato]="funcion.formato">{{ funcion.formato }}</span>
+                {{ funcion.idioma | idioma }}
+              </span>
               <span class="meta">{{ funcion.sala.nombre }} · {{ funcion.precio | currency }}</span>
             </a>
           }
@@ -87,11 +92,11 @@
     }
 
     @if (errorResenia()) {
-      <p class="alerta alerta-error">{{ errorResenia() }}</p>
+      <p class="alerta alerta-error" animate.enter="aparecer">{{ errorResenia() }}</p>
     }
 
     @for (resenia of resenias(); track resenia.id) {
-      <div class="resenia">
+      <div class="resenia" animate.enter="aparecer" animate.leave="desaparecer">
         <div class="resenia-cabecera">
           <app-estrellas [valor]="resenia.estrellas" />
           <strong>{{ resenia.autor }}</strong>

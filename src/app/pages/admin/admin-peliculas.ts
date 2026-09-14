@@ -3,11 +3,12 @@ import { RouterLink } from '@angular/router';
 import { Pelicula } from '../../core/models/pelicula';
 import { PeliculasService } from '../../core/services/peliculas.service';
 import { mensajeError } from '../../core/utils/errores';
+import { ImagenRespaldoDirective } from '../../shared/directives/imagen-respaldo.directive';
 import { DuracionPipe } from '../../shared/pipes/duracion.pipe';
 
 @Component({
   selector: 'app-admin-peliculas',
-  imports: [RouterLink, DuracionPipe],
+  imports: [RouterLink, DuracionPipe, ImagenRespaldoDirective],
   template: `
     <div class="cabecera">
       <h2>Películas</h2>
@@ -16,7 +17,7 @@ import { DuracionPipe } from '../../shared/pipes/duracion.pipe';
     <p class="meta">Solo las películas marcadas como "En cartelera" se muestran a los clientes.</p>
 
     @if (error()) {
-      <p class="alerta alerta-error">{{ error() }}</p>
+      <p class="alerta alerta-error" animate.enter="aparecer">{{ error() }}</p>
     }
 
     @if (cargando()) {
@@ -37,7 +38,7 @@ import { DuracionPipe } from '../../shared/pipes/duracion.pipe';
           <tbody>
             @for (pelicula of peliculas(); track pelicula.id) {
               <tr>
-                <td><img class="miniatura" [src]="pelicula.imagen_url" alt="" /></td>
+                <td><img class="miniatura" [src]="pelicula.imagen_url" alt="" appImagenRespaldo /></td>
                 <td>{{ pelicula.titulo }}</td>
                 <td>{{ pelicula.duracion_min | duracion }}</td>
                 <td>{{ nombresGeneros(pelicula) }}</td>

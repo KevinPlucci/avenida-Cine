@@ -1,4 +1,5 @@
 import { registerLocaleData } from '@angular/common';
+import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import localeEsAr from '@angular/common/locales/es-AR';
 import {
   ApplicationConfig,
@@ -11,6 +12,7 @@ import { provideRouter, TitleStrategy, withComponentInputBinding, withInMemorySc
 import { provideServiceWorker } from '@angular/service-worker';
 
 import { routes } from './app.routes';
+import { cargaInterceptor, conexionInterceptor } from './core/http/interceptores';
 import { TituloStrategy } from './core/titulo.strategy';
 
 // Fechas y precios en formato argentino (date y currency pipes).
@@ -19,8 +21,13 @@ registerLocaleData(localeEsAr);
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    // withComponentInputBinding: los parámetros de la ruta llegan como input() a los componentes.
-    provideRouter(routes, withComponentInputBinding(), withInMemoryScrolling({ scrollPositionRestoration: 'enabled' })),
+    provideRouter(
+      routes,
+      // Los parámetros de la ruta llegan como input() a los componentes.
+      withComponentInputBinding(),
+      withInMemoryScrolling({ scrollPositionRestoration: 'enabled' }),
+    ),
+    provideHttpClient(withFetch(), withInterceptors([cargaInterceptor, conexionInterceptor])),
     { provide: TitleStrategy, useClass: TituloStrategy },
     { provide: LOCALE_ID, useValue: 'es-AR' },
     { provide: DEFAULT_CURRENCY_CODE, useValue: 'ARS' },

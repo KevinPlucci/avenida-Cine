@@ -1,3 +1,8 @@
+<div class="encabezado-pagina">
+  <h1>Cartelera</h1>
+  <p class="meta">{{ hoy | date: "EEEE d 'de' MMMM" }}</p>
+</div>
+
 @if (cargando()) {
   <p class="cargando">Cargando cartelera...</p>
 } @else if (error()) {
@@ -6,9 +11,9 @@
   @if (masVendidas().length) {
     <section>
       <h2>Las más vendidas</h2>
-      <div class="grid-peliculas">
-        @for (pelicula of masVendidas(); track pelicula.id) {
-          <app-pelicula-card [pelicula]="pelicula" [mostrarVentas]="true" />
+      <div class="grid-peliculas destacadas">
+        @for (pelicula of masVendidas(); track pelicula.id; let i = $index) {
+          <app-pelicula-card [pelicula]="pelicula" [posicion]="i + 1" [mostrarVentas]="true" />
         }
       </div>
     </section>

@@ -1,55 +1,132 @@
 .ficha {
+  position: relative;
   display: grid;
-  grid-template-columns: 240px 1fr;
-  gap: 24px;
+  grid-template-columns: 220px 1fr;
+  gap: 30px;
   margin-bottom: 24px;
+  padding: 30px;
+  overflow: hidden;
+  color: #e8e4df;
+  background: var(--color-oscuro);
+  border-radius: 14px;
+}
+
+/* Póster desenfocado de fondo */
+.ficha-fondo {
+  position: absolute;
+  inset: -40px;
+  background-position: center;
+  background-size: cover;
+  filter: blur(30px) brightness(0.32) saturate(1.2);
+}
+
+.poster,
+.ficha-info {
+  position: relative;
 }
 
 .poster {
   width: 100%;
   aspect-ratio: 2 / 3;
   object-fit: cover;
-  border-radius: var(--radio);
-  background: #ddd;
+  background: #2b2a29;
+  border-radius: 8px;
+  box-shadow: 0 14px 34px rgb(0 0 0 / 50%);
 }
 
-.generos {
-  margin: 8px 0;
+.ficha h1 {
+  margin-bottom: 6px;
+  font-size: 2.4rem;
+  color: #fff;
+}
+
+.duracion {
+  margin: 0 0 12px;
+  color: #c9c4be;
+}
+
+.ficha .chip {
+  color: #f2eee9;
+  background: transparent;
+  border-color: rgb(255 255 255 / 35%);
 }
 
 .puntaje {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.promedio {
+  font-family: var(--fuente-titulos);
+  font-size: 2.6rem;
+  font-weight: 600;
+  line-height: 1;
+  color: #fff;
+}
+
+.cantidad {
+  display: block;
+  font-size: 0.85rem;
+  color: #c9c4be;
+}
+
+.sinopsis {
+  max-width: 62ch;
+  margin: 0;
+  line-height: 1.65;
+  color: #e2ddd7;
 }
 
 .dia + .dia {
-  margin-top: 16px;
+  margin-top: 18px;
+}
+
+.dia h3::first-letter {
+  text-transform: uppercase;
 }
 
 .horarios {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
 }
 
 .horario {
   display: flex;
   flex-direction: column;
+  gap: 2px;
   min-width: 160px;
-  padding: 8px 12px;
-  border: 1px solid var(--color-borde);
-  border-radius: var(--radio);
+  padding: 10px 14px;
   color: inherit;
   text-decoration: none;
+  border: 1px solid var(--color-borde);
+  border-radius: 10px;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    transform 0.15s;
 }
 
 .horario:hover {
   border-color: var(--color-primario);
+  box-shadow: 0 6px 16px rgb(166 27 27 / 14%);
+  transform: translateY(-2px);
 }
 
-.horario strong {
-  font-size: 1.1rem;
+.hora {
+  font-family: var(--fuente-titulos);
+  font-size: 1.4rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.detalle-horario {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.92rem;
 }
 
 .form-resenia {
@@ -58,12 +135,12 @@
 }
 
 .resenia {
-  padding: 12px 0;
+  padding: 14px 0;
   border-top: 1px solid var(--color-borde);
 }
 
 .resenia p {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
 }
 
 .resenia-cabecera {
@@ -76,9 +153,14 @@
 @media (max-width: 640px) {
   .ficha {
     grid-template-columns: 1fr;
+    padding: 20px;
   }
 
   .poster {
-    max-width: 220px;
+    max-width: 200px;
+  }
+
+  .ficha h1 {
+    font-size: 1.9rem;
   }
 }

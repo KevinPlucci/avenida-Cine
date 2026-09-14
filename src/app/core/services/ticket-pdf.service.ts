@@ -14,24 +14,27 @@ export class TicketPdfService {
     const [{ jsPDF }, qr] = await Promise.all([import('jspdf'), generarQr(compra.codigo)]);
     const doc = new jsPDF({ unit: 'mm', format: 'a5' });
     const inicio = new Date(compra.inicio);
-    let y = 20;
 
+    // Encabezado oscuro con línea roja, igual que en la app.
+    doc.setFillColor(21, 20, 20);
+    doc.rect(0, 0, ANCHO, 24, 'F');
+    doc.setFillColor(166, 27, 27);
+    doc.rect(0, 24, ANCHO, 1.5, 'F');
+    doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.text(NOMBRE_CINE, MARGEN, y);
+    doc.setFontSize(16);
+    doc.text(NOMBRE_CINE.toUpperCase(), MARGEN, 15);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    doc.text('Entrada', ANCHO - MARGEN, y, { align: 'right' });
-    y += 4;
-    doc.setDrawColor(160);
-    doc.line(MARGEN, y, ANCHO - MARGEN, y);
+    doc.setFontSize(10);
+    doc.text('ENTRADA', ANCHO - MARGEN, 15, { align: 'right' });
 
-    y += 10;
+    doc.setTextColor(28, 27, 26);
+    let y = 40;
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(15);
+    doc.setFontSize(16);
     const titulo: string[] = doc.splitTextToSize(compra.pelicula, ANCHO - MARGEN * 2);
     doc.text(titulo, MARGEN, y);
-    y += titulo.length * 7;
+    y += titulo.length * 7 + 2;
 
     const datos: [string, string][] = [
       ['Fecha', inicio.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })],
@@ -56,12 +59,20 @@ export class TicketPdfService {
       y += 6 * lineas.length;
     }
 
-    const tamanioQr = 58;
+    // Línea punteada como el talón de una entrada.
+    y += 4;
+    doc.setDrawColor(170, 165, 160);
+    doc.setLineDashPattern([2, 1.5], 0);
+    doc.line(MARGEN, y, ANCHO - MARGEN, y);
+    doc.setLineDashPattern([], 0);
+
+    const tamanioQr = 56;
     y += 6;
     doc.addImage(qr, 'PNG', (ANCHO - tamanioQr) / 2, y, tamanioQr, tamanioQr);
     y += tamanioQr + 6;
 
     doc.setFontSize(9);
+    doc.setTextColor(107, 102, 97);
     doc.text(`Código: ${compra.codigo}`, ANCHO / 2, y, { align: 'center' });
     y += 5;
     doc.text('Presentá este código QR en el ingreso a la sala.', ANCHO / 2, y, { align: 'center' });

@@ -1,6 +1,7 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, inject, input, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { NOMBRE_CINE } from '../../core/constantes';
 import { DetalleCompra } from '../../core/models/compra';
 import { ComprasService } from '../../core/services/compras.service';
 import { TicketPdfService } from '../../core/services/ticket-pdf.service';
@@ -21,6 +22,7 @@ export class VerCompra implements OnInit {
   private readonly comprasService = inject(ComprasService);
   private readonly ticketPdf = inject(TicketPdfService);
 
+  protected readonly nombreCine = NOMBRE_CINE;
   /** Viene en true cuando se llega desde la pantalla de compra. */
   protected readonly recienComprada = history.state?.recienComprada === true;
   protected readonly compra = signal<DetalleCompra | null>(null);

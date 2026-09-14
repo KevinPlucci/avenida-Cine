@@ -26,3 +26,8 @@ export interface FuncionConDetalle extends Funcion {
 }
 
 export type FuncionNueva = Pick<Funcion, 'pelicula_id' | 'sala_id' | 'inicio' | 'formato' | 'idioma' | 'precio'>;
+
+/** Función con la cantidad de entradas vendidas (panel de administración). */
+export interface FuncionAdmin extends FuncionConDetalle {
+  vendidas: number;
+}

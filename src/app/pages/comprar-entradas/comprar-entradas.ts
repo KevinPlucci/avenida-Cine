@@ -11,12 +11,22 @@ import { FuncionesService } from '../../core/services/funciones.service';
 import { mensajeError } from '../../core/utils/errores';
 import { ErrorCampo } from '../../shared/components/error-campo';
 import { MapaButacas } from '../../shared/components/mapa-butacas';
+import { MascaraDirective } from '../../shared/directives/mascara.directive';
 import { IdiomaPipe } from '../../shared/pipes/idioma.pipe';
 import { vencimientoTarjetaValidator } from '../../shared/validators';
 
 @Component({
   selector: 'app-comprar-entradas',
-  imports: [RouterLink, DatePipe, CurrencyPipe, ReactiveFormsModule, IdiomaPipe, MapaButacas, ErrorCampo],
+  imports: [
+    RouterLink,
+    DatePipe,
+    CurrencyPipe,
+    ReactiveFormsModule,
+    IdiomaPipe,
+    MapaButacas,
+    ErrorCampo,
+    MascaraDirective,
+  ],
   templateUrl: './comprar-entradas.html',
   styleUrl: './comprar-entradas.css',
 })

@@ -173,6 +173,7 @@ create trigger trg_auth_usuario_nuevo
   for each row execute function public.crear_perfil_usuario();
 
 -- Calcula el fin de la función según la duración de la película y el bloqueo de 30 minutos.
+-- También valida que el horario nuevo no esté en el pasado y que la sala esté activa.
 create or replace function public.calcular_horario_funcion()
 returns trigger
 language plpgsql
@@ -185,10 +186,13 @@ begin
     raise exception 'La película no existe';
   end if;
 
-  if tg_op = 'INSERT' then
+  if tg_op = 'INSERT' or new.inicio is distinct from old.inicio then
     if new.inicio <= now() then
-      raise exception 'No se pueden crear funciones en el pasado';
+      raise exception 'No se pueden programar funciones en el pasado';
     end if;
+  end if;
+
+  if tg_op = 'INSERT' or new.sala_id is distinct from old.sala_id then
     if not exists (select 1 from public.salas where id = new.sala_id and activa) then
       raise exception 'La sala no está activa';
     end if;
@@ -201,8 +205,28 @@ end;
 $$;
 
 create trigger trg_funciones_horario
-  before insert or update of inicio, pelicula_id on public.funciones
+  before insert or update of inicio, pelicula_id, sala_id on public.funciones
   for each row execute function public.calcular_horario_funcion();
+
+-- Una función con entradas vendidas no puede cambiar de horario, sala, película, formato ni idioma:
+-- los compradores ya tienen su entrada. El precio sí se puede cambiar (solo afecta a las ventas nuevas).
+create or replace function public.proteger_funcion_con_ventas()
+returns trigger
+language plpgsql
+as $$
+begin
+  if (new.inicio, new.sala_id, new.pelicula_id, new.formato, new.idioma)
+       is distinct from (old.inicio, old.sala_id, old.pelicula_id, old.formato, old.idioma)
+     and exists (select 1 from public.entradas where funcion_id = old.id) then
+    raise exception 'La función ya tiene entradas vendidas: solo se puede cambiar el precio';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger trg_funciones_con_ventas
+  before update on public.funciones
+  for each row execute function public.proteger_funcion_con_ventas();
 
 -- Si cambia la duración de una película se recalculan sus funciones.
 -- Si alguna pasa a superponerse, la restricción de la tabla rechaza el cambio.

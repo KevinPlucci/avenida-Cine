@@ -5,17 +5,18 @@ import { AuthService } from '../../core/auth/auth.service';
 import { PORCENTAJE_CUPON_BIENVENIDA } from '../../core/constantes';
 import { mensajeError } from '../../core/utils/errores';
 import { ErrorCampo } from '../../shared/components/error-campo';
+import { AutoFocoDirective } from '../../shared/directives/auto-foco.directive';
 
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, RouterLink, ErrorCampo],
+  imports: [ReactiveFormsModule, RouterLink, ErrorCampo, AutoFocoDirective],
   template: `
-    <div class="tarjeta form-chico">
+    <div class="tarjeta form-chico" animate.enter="aparecer">
       <h1>Ingresar</h1>
       <form [formGroup]="form" (ngSubmit)="ingresar()">
         <label class="campo">
           <span>Email</span>
-          <input type="email" formControlName="email" autocomplete="email" />
+          <input type="email" formControlName="email" autocomplete="email" appAutoFoco />
           <app-error-campo [control]="form.controls.email" />
         </label>
         <label class="campo">
@@ -24,7 +25,7 @@ import { ErrorCampo } from '../../shared/components/error-campo';
           <app-error-campo [control]="form.controls.password" />
         </label>
         @if (error()) {
-          <p class="alerta alerta-error">{{ error() }}</p>
+          <p class="alerta alerta-error" animate.enter="aparecer">{{ error() }}</p>
         }
         <button type="submit" class="btn btn-primario btn-bloque" [disabled]="enviando()">
           {{ enviando() ? 'Ingresando...' : 'Ingresar' }}

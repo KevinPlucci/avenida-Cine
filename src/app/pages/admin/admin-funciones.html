@@ -1,14 +1,33 @@
-<div class="tarjeta">
-  <h2>Nueva función</h2>
-  <p class="meta">
-    Entre el final de una función y el inicio de la siguiente en la misma sala tiene que haber al menos
-    {{ minutosEntreFunciones }} minutos.
-  </p>
+<div class="tarjeta" id="form-funcion">
+  <div class="cabecera">
+    <h2>{{ editando() ? 'Editar función' : 'Nueva función' }}</h2>
+    @if (editando()) {
+      <button type="button" class="btn btn-chico" (click)="cancelarEdicion()">Cancelar edición</button>
+    }
+  </div>
+
+  @if (editando(); as funcion) {
+    @if (funcion.vendidas > 0) {
+      <p class="alerta">
+        Esta función ya tiene {{ funcion.vendidas }} {{ funcion.vendidas === 1 ? 'entrada vendida' : 'entradas vendidas' }}:
+        solo se puede cambiar el precio, que se aplica a las ventas nuevas.
+      </p>
+    } @else {
+      <p class="meta">
+        Editando la función de "{{ funcion.pelicula?.titulo }}" del {{ funcion.inicio | date: "EEEE d/M 'a las' HH:mm" }}.
+      </p>
+    }
+  } @else {
+    <p class="meta">
+      Entre el final de una función y el inicio de la siguiente en la misma sala tiene que haber al menos
+      {{ minutosEntreFunciones }} minutos.
+    </p>
+  }
 
   @if (cargando()) {
     <p class="cargando">Cargando...</p>
   } @else {
-    <form [formGroup]="form" (ngSubmit)="crear()">
+    <form [formGroup]="form" (ngSubmit)="guardar()">
       <div class="fila-campos">
         <label class="campo">
           <span>Película</span>
@@ -39,7 +58,13 @@
         <span>Día</span>
         <div class="chips">
           @for (dia of dias; track dia.valor) {
-            <button type="button" class="chip" [class.activo]="valores().dia === dia.valor" (click)="elegirDia(dia.valor)">
+            <button
+              type="button"
+              class="chip"
+              [class.activo]="form.controls.dia.value === dia.valor"
+              [disabled]="form.controls.dia.disabled"
+              (click)="elegirDia(dia.valor)"
+            >
               {{ dia.fecha | date: 'EEE d/M' }}
             </button>
           }
@@ -102,7 +127,7 @@
       }
 
       @if (conflictos().length) {
-        <div class="alerta alerta-error">
+        <div class="alerta alerta-error" animate.enter="aparecer">
           La sala está ocupada en ese horario:
           <ul>
             @for (conflicto of conflictos(); track conflicto.id) {
@@ -115,14 +140,14 @@
         </div>
       }
       @if (error()) {
-        <p class="alerta alerta-error">{{ error() }}</p>
+        <p class="alerta alerta-error" animate.enter="aparecer">{{ error() }}</p>
       }
       @if (exito()) {
-        <p class="alerta alerta-exito">{{ exito() }}</p>
+        <p class="alerta alerta-exito" animate.enter="aparecer">{{ exito() }}</p>
       }
 
       <button type="submit" class="btn btn-primario" [disabled]="guardando()">
-        {{ guardando() ? 'Guardando...' : 'Crear función' }}
+        {{ guardando() ? 'Guardando...' : editando() ? 'Guardar cambios' : 'Crear función' }}
       </button>
     </form>
   }
@@ -150,26 +175,39 @@
           <th>Formato</th>
           <th>Idioma</th>
           <th>Precio</th>
+          <th>Vendidas</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
         @for (funcion of funcionesFiltradas(); track funcion.id) {
-          <tr>
+          <tr [class.fila-editando]="editando()?.id === funcion.id">
             <td>{{ funcion.inicio | date: 'EEE dd/MM' }}</td>
             <td>{{ funcion.inicio | date: 'HH:mm' }} a {{ funcion.fin | date: 'HH:mm' }}</td>
             <td>{{ funcion.pelicula?.titulo }}</td>
             <td>{{ funcion.sala.nombre }}</td>
-            <td>{{ funcion.formato }}</td>
+            <td><span class="formato" [attr.data-formato]="funcion.formato">{{ funcion.formato }}</span></td>
             <td>{{ funcion.idioma | idioma }}</td>
             <td>{{ funcion.precio | currency }}</td>
+            <td>{{ funcion.vendidas }}</td>
             <td class="acciones-tabla">
-              <button type="button" class="btn btn-chico btn-peligro" (click)="eliminar(funcion)">Eliminar</button>
+              @if (!empezo(funcion)) {
+                <button type="button" class="btn btn-chico" (click)="editar(funcion)">Editar</button>
+              }
+              <button
+                type="button"
+                class="btn btn-chico btn-peligro"
+                [disabled]="funcion.vendidas > 0"
+                [title]="funcion.vendidas > 0 ? 'No se puede eliminar: tiene entradas vendidas' : 'Eliminar función'"
+                (click)="eliminar(funcion)"
+              >
+                Eliminar
+              </button>
             </td>
           </tr>
         } @empty {
           <tr>
-            <td colspan="8" class="vacio">No hay funciones para mostrar.</td>
+            <td colspan="9" class="vacio">No hay funciones para mostrar.</td>
           </tr>
         }
       </tbody>

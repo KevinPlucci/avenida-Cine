@@ -1,4 +1,14 @@
+@if (estadoRed.cargando()) {
+  <div class="barra-carga" role="progressbar" aria-label="Cargando"></div>
+}
+
 <app-header />
+
+@if (estadoRed.sinConexion()) {
+  <div class="contenedor aviso">
+    <p class="alerta" animate.enter="aparecer">Sin conexión a internet. Se muestra la última información guardada.</p>
+  </div>
+}
 
 @if (!supabaseConfigurado) {
   <div class="contenedor aviso">
@@ -10,7 +20,7 @@
 
 @if (hayActualizacion()) {
   <div class="contenedor aviso">
-    <p class="alerta">
+    <p class="alerta" animate.enter="aparecer">
       Hay una nueva versión de la aplicación.
       <button type="button" class="link" (click)="recargar()">Actualizar</button>
     </p>
@@ -22,5 +32,8 @@
 </main>
 
 <footer>
-  <div class="contenedor">{{ nombreCine }} · Trabajo Práctico 1 · Programación IV</div>
+  <div class="contenedor">
+    <span class="marca">{{ nombreCine }}</span>
+    <span>Trabajo Práctico 1 · Programación IV</span>
+  </div>
 </footer>

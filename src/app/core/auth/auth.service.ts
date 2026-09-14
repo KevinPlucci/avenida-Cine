@@ -66,9 +66,13 @@ export class AuthService {
       this.usuarioActual.set(null);
     }
 
-    this.supabase.auth.onAuthStateChange((_evento, sesion) => {
+    this.supabase.auth.onAuthStateChange(() => {
       // Supabase recomienda no llamar a la API dentro de este callback, por eso se difiere.
-      setTimeout(() => this.actualizarSesion(sesion?.user ?? null));
+      // Se lee la sesión vigente (no la del evento) por si cambió mientras tanto, por ejemplo al salir.
+      setTimeout(async () => {
+        const { data } = await this.supabase.auth.getSession();
+        await this.actualizarSesion(data.session?.user ?? null);
+      });
     });
   }
 

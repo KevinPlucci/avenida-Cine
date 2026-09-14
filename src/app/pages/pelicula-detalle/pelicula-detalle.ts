@@ -15,12 +15,23 @@ import { mensajeError } from '../../core/utils/errores';
 import { agruparPorDia } from '../../core/utils/fechas';
 import { ErrorCampo } from '../../shared/components/error-campo';
 import { Estrellas } from '../../shared/components/estrellas';
+import { ImagenRespaldoDirective } from '../../shared/directives/imagen-respaldo.directive';
 import { DuracionPipe } from '../../shared/pipes/duracion.pipe';
 import { IdiomaPipe } from '../../shared/pipes/idioma.pipe';
 
 @Component({
   selector: 'app-pelicula-detalle',
-  imports: [RouterLink, DatePipe, CurrencyPipe, ReactiveFormsModule, DuracionPipe, IdiomaPipe, Estrellas, ErrorCampo],
+  imports: [
+    RouterLink,
+    DatePipe,
+    CurrencyPipe,
+    ReactiveFormsModule,
+    DuracionPipe,
+    IdiomaPipe,
+    Estrellas,
+    ErrorCampo,
+    ImagenRespaldoDirective,
+  ],
   templateUrl: './pelicula-detalle.html',
   styleUrl: './pelicula-detalle.css',
 })

@@ -3,7 +3,7 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 import { MINUTOS_ENTRE_FUNCIONES } from '../../core/constantes';
-import { Formato, FORMATOS, FuncionConDetalle, Idioma, IDIOMAS } from '../../core/models/funcion';
+import { Formato, FORMATOS, FuncionAdmin, FuncionConDetalle, Idioma, IDIOMAS } from '../../core/models/funcion';
 import { Pelicula } from '../../core/models/pelicula';
 import { Sala } from '../../core/models/sala';
 import { FuncionesService } from '../../core/services/funciones.service';
@@ -31,6 +31,9 @@ const horarioFuturoValidator: ValidatorFn = (grupo) => {
   return inicio && inicio <= new Date() ? { enElPasado: true } : null;
 };
 
+/** Campos que no se pueden cambiar si la función ya tiene entradas vendidas (la base aplica la misma regla). */
+const CAMPOS_BLOQUEADOS_CON_VENTAS = ['pelicula_id', 'sala_id', 'dia', 'hora', 'minuto', 'formato', 'idioma'] as const;
+
 @Component({
   selector: 'app-admin-funciones',
   imports: [ReactiveFormsModule, DatePipe, CurrencyPipe, IdiomaPipe, ErrorCampo],
@@ -52,8 +55,9 @@ export class AdminFunciones implements OnInit {
 
   protected readonly peliculas = signal<Pelicula[]>([]);
   protected readonly salas = signal<Sala[]>([]);
-  protected readonly funciones = signal<FuncionConDetalle[]>([]);
+  protected readonly funciones = signal<FuncionAdmin[]>([]);
   protected readonly conflictos = signal<FuncionConDetalle[]>([]);
+  protected readonly editando = signal<FuncionAdmin | null>(null);
   protected readonly cargando = signal(true);
   protected readonly guardando = signal(false);
   protected readonly error = signal('');
@@ -118,38 +122,86 @@ export class AdminFunciones implements OnInit {
     this.form.controls.dia.markAsTouched();
   }
 
-  protected async crear(): Promise<void> {
-    this.error.set('');
-    this.exito.set('');
+  protected empezo(funcion: FuncionAdmin): boolean {
+    return new Date(funcion.inicio) <= new Date();
+  }
+
+  protected editar(funcion: FuncionAdmin): void {
+    this.limpiarMensajes();
+    this.editando.set(funcion);
+    this.form.enable();
+
+    const inicio = new Date(funcion.inicio);
+    const minuto = String(inicio.getMinutes()).padStart(2, '0');
+    this.form.setValue({
+      pelicula_id: funcion.pelicula_id,
+      sala_id: funcion.sala_id,
+      dia: aFechaIso(inicio),
+      hora: String(inicio.getHours()).padStart(2, '0'),
+      minuto: this.minutos.includes(minuto) ? minuto : '00',
+      formato: funcion.formato,
+      idioma: funcion.idioma,
+      precio: funcion.precio,
+    });
+
+    if (funcion.vendidas > 0) {
+      CAMPOS_BLOQUEADOS_CON_VENTAS.forEach((campo) => this.form.controls[campo].disable());
+    }
+    document.getElementById('form-funcion')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  protected cancelarEdicion(): void {
+    this.editando.set(null);
     this.conflictos.set([]);
+    this.form.enable();
+    this.form.reset();
+  }
+
+  protected async guardar(): Promise<void> {
+    this.limpiarMensajes();
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
 
-    const pelicula = this.peliculaElegida();
-    const inicio = this.inicioElegido();
+    const editando = this.editando();
     const { sala_id, formato, idioma, precio } = this.form.getRawValue();
-    if (!pelicula || !inicio || sala_id === null || precio === null) return;
+    if (precio === null) return;
 
     this.guardando.set(true);
     try {
-      // Primero se buscan choques para explicar el problema; la base igual lo valida al insertar.
-      const conflictos = await this.funcionesService.buscarConflictos(sala_id, inicio, pelicula.duracion_min);
-      if (conflictos.length) {
-        this.conflictos.set(conflictos);
-        return;
+      if (editando && editando.vendidas > 0) {
+        await this.funcionesService.actualizar(editando.id, { precio });
+        this.exito.set(`Se actualizó el precio de la función de "${editando.pelicula?.titulo}".`);
+        this.cancelarEdicion();
+      } else {
+        const pelicula = this.peliculaElegida();
+        const inicio = this.inicioElegido();
+        if (!pelicula || !inicio || sala_id === null) return;
+
+        // Primero se buscan choques para explicar el problema; la base igual lo valida al guardar.
+        const conflictos = await this.funcionesService.buscarConflictos(
+          sala_id,
+          inicio,
+          pelicula.duracion_min,
+          editando?.id,
+        );
+        if (conflictos.length) {
+          this.conflictos.set(conflictos);
+          return;
+        }
+
+        const datos = { pelicula_id: pelicula.id, sala_id, inicio: inicio.toISOString(), formato, idioma, precio };
+        if (editando) {
+          await this.funcionesService.actualizar(editando.id, datos);
+          this.exito.set(`Se guardaron los cambios de la función de "${pelicula.titulo}".`);
+          this.cancelarEdicion();
+        } else {
+          await this.funcionesService.crear(datos);
+          this.exito.set(`Se creó la función de "${pelicula.titulo}".`);
+          this.form.controls.hora.reset();
+        }
       }
-      await this.funcionesService.crear({
-        pelicula_id: pelicula.id,
-        sala_id,
-        inicio: inicio.toISOString(),
-        formato,
-        idioma,
-        precio,
-      });
-      this.exito.set(`Se creó la función de "${pelicula.titulo}".`);
-      this.form.controls.hora.reset('');
       this.funciones.set(await this.funcionesService.listarProximas());
     } catch (e) {
       this.error.set(mensajeError(e));
@@ -158,14 +210,23 @@ export class AdminFunciones implements OnInit {
     }
   }
 
-  protected async eliminar(funcion: FuncionConDetalle): Promise<void> {
+  protected async eliminar(funcion: FuncionAdmin): Promise<void> {
     if (!confirm(`¿Eliminar la función de "${funcion.pelicula?.titulo}"?`)) return;
-    this.error.set('');
+    this.limpiarMensajes();
     try {
       await this.funcionesService.eliminar(funcion.id);
+      if (this.editando()?.id === funcion.id) {
+        this.cancelarEdicion();
+      }
       this.funciones.update((lista) => lista.filter((f) => f.id !== funcion.id));
     } catch (e) {
       this.error.set(mensajeError(e));
     }
+  }
+
+  private limpiarMensajes(): void {
+    this.error.set('');
+    this.exito.set('');
+    this.conflictos.set([]);
   }
 }

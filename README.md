@@ -7,7 +7,7 @@ Hecha con **Angular 21** y **Supabase**, instalable como **PWA**.
 |---|---|
 | **Deploy** | <https://avenida-cine.vercel.app> |
 | **Repositorio** | <https://github.com/KevinPlucci/Avenida-Cine> |
-| **Estado** | Consigna + emails del 01/01 y 16/01 implementados |
+| **Estado** | Consigna + emails del 01/01 y 16/01 implementados, con edición de funciones |
 
 ## Índice
 
@@ -37,7 +37,8 @@ Hecha con **Angular 21** y **Supabase**, instalable como **PWA**.
 
 2. Crear un proyecto en Supabase.
 3. En **SQL Editor**, ejecutar completo `supabase/schema.sql` y después `supabase/seed.sql` (datos de ejemplo: 4 salas, 6 películas y funciones para los próximos 7 días).
-4. En **Project Settings > API**, copiar la *Project URL* y la *anon public key* en `src/environments/environment.ts`.
+   Si la base se creó con una versión anterior del esquema, ejecutar también los archivos de `supabase/migraciones/` en orden.
+4. Copiar en `src/environments/environment.ts` la *Project URL* (**Project Settings > Data API**) y la *publishable key* (**Project Settings > API Keys**).
 5. Para probar sin confirmar emails: **Authentication > Sign In / Providers > Email** y desactivar *Confirm email*.
 6. Levantar la app:
 
@@ -61,7 +62,7 @@ Hecha con **Angular 21** y **Supabase**, instalable como **PWA**.
 |---|---|
 | `npm start` | Servidor de desarrollo en el puerto 4200 |
 | `npm run build` | Build de producción en `dist/tp1-cine/browser` (incluye el service worker) |
-| `npm run test:db` | Ejecuta `schema.sql` y `seed.sql` en un PostgreSQL en memoria y prueba las reglas de negocio |
+| `npm run test:db` | Ejecuta el esquema, los datos de ejemplo y las migraciones en un PostgreSQL en memoria y prueba las reglas de negocio |
 
 ### Probar la PWA
 
@@ -85,10 +86,11 @@ npx serve -s dist/tp1-cine/browser
 
 | Capa | Tecnología |
 |---|---|
-| Frontend | Angular 21: componentes standalone, signals, detección de cambios sin zone.js, formularios reactivos |
+| Frontend | Angular 21: componentes standalone, signals, detección de cambios sin zone.js, formularios reactivos, HttpClient |
 | Backend | Supabase: PostgreSQL, Auth, Storage, Row Level Security y funciones RPC |
 | PWA | `@angular/service-worker` + `manifest.webmanifest` |
 | PDF y QR | `jspdf` + `qrcode` |
+| Tipografía | Oswald incluida en el proyecto (`@fontsource/oswald`), funciona sin conexión |
 | Hosting | Vercel |
 
 ### Estructura de carpetas
@@ -97,12 +99,14 @@ npx serve -s dist/tp1-cine/browser
 supabase/
   schema.sql            tablas, restricciones, triggers, RPC y políticas RLS
   seed.sql              datos de ejemplo
+  migraciones/          cambios para bases creadas con una versión anterior
   pruebas.mjs           pruebas de la base (npm run test:db)
 src/
-  environments/         URL y anon key de Supabase
+  environments/         URL y publishable key de Supabase
   app/
     core/               lógica que no depende de la vista
       auth/             AuthService (sesión y perfil con signals) y guards
+      http/             adaptador HttpClient -> fetch, interceptores y estado de red
       models/           interfaces de los datos
       services/         acceso a Supabase por entidad + generación del PDF
       utils/            butacas, fechas, errores, QR
@@ -111,6 +115,7 @@ src/
       titulo.strategy.ts
     shared/             piezas reutilizables
       components/       header, mapa de butacas, estrellas, tarjeta de película, errores de formulario
+      directives/       appMascara, appImagenRespaldo, *appSiRol, appAutoFoco
       pipes/            duracion, idioma
       validators.ts     validadores propios
     pages/              una carpeta por pantalla (todas con lazy loading)
@@ -129,7 +134,7 @@ src/
 | `/compras/:codigo` | Entrada con QR y descarga del PDF | Quien tenga el código |
 | `/login`, `/registro` | Ingreso y registro | Solo sin sesión |
 | `/perfil` | Datos, cupón y compras | Registrados |
-| `/admin/...` | Películas, funciones, salas y géneros | Administradores |
+| `/admin/...` | Películas, funciones (alta, edición y baja), salas y géneros | Administradores |
 
 ### Modelo de datos
 
@@ -161,6 +166,17 @@ erDiagram
    crea la compra y las entradas, y devuelve el código de la compra.
 5. Se redirige a `/compras/:codigo`, que muestra el QR (con ese código) y permite descargar el PDF.
 
+### Cómo viajan las peticiones
+
+```text
+Componente -> Servicio (PeliculasService, ...) -> supabase-js -> fetch propio -> HttpClient
+                                                                                  |
+                                                        cargaInterceptor (barra de carga)
+                                                        conexionInterceptor (aviso sin conexión)
+                                                                                  |
+                                                                              Supabase
+```
+
 ---
 
 ## 3. Decisiones técnicas
@@ -173,8 +189,17 @@ erDiagram
 - **`withComponentInputBinding`**: los parámetros de la ruta (`:id`, `:codigo`, `?volver=`) llegan como `input()`.
 - **Formularios reactivos** con validadores propios: contraseñas iguales, fecha de nacimiento válida, vencimiento de tarjeta y horario futuro. Un componente `app-error-campo` muestra los mensajes.
 - **Servicios por entidad** (`PeliculasService`, `FuncionesService`, etc.). Los componentes no usan Supabase directamente.
+- **HttpClient e interceptores**: supabase-js permite recibir su propio `fetch`. Se le pasa uno hecho con `HttpClient` (`core/http/fetch-con-http-client.ts`), así todas las llamadas a la base, a la autenticación y a Storage pasan por los interceptores:
+  - `cargaInterceptor`: cuenta las peticiones en curso y muestra una barra de carga arriba de todo.
+  - `conexionInterceptor`: detecta la falta de conexión y muestra un aviso (junto con los eventos `online`/`offline` del navegador).
+- **Directivas propias**:
+  - `appMascara` (atributo): da formato mientras se escribe al número de tarjeta, al vencimiento `MM/AA` y a los campos solo numéricos.
+  - `appImagenRespaldo` (atributo): si un póster no carga, muestra una imagen genérica.
+  - `*appSiRol` (estructural): muestra contenido según el rol (`invitado`, `cliente`, `admin`); se usa en el menú.
+  - `appAutoFoco` (atributo): pone el foco en el primer campo del login y del registro.
 - **Pipes propios** (`duracion`, `idioma`), `TitleStrategy` propia y locale `es-AR` para fechas y precios.
-- **RxJS** donde aporta: búsqueda con `debounceTime` convertida a signal con `toSignal`.
+- **Animaciones** con `animate.enter` / `animate.leave` de Angular 21 (el paquete `@angular/animations` quedó deprecado): aparición de tarjetas, ficha de película, entrada, reseñas y avisos. Son cortas y se desactivan si el sistema pide reducir movimiento. No se usa `withViewTransitions()` porque, mientras dura la transición entre pantallas, el navegador no entrega los clics a la página (se detectó en las pruebas).
+- **RxJS** donde aporta: búsqueda con `debounceTime` convertida a signal con `toSignal`, interceptores y avisos del service worker.
 - **jsPDF se carga recién al descargar** el PDF (`import()` dinámico) para no sumar ~400 kB a la carga inicial.
 
 **Supabase y reglas de negocio**
@@ -183,23 +208,27 @@ erDiagram
   - 30 minutos entre funciones de una misma sala: restricción `EXCLUDE USING gist` sobre el rango `[inicio, fin + 30 min)`. Es imposible guardar funciones superpuestas, incluso con dos administradores a la vez.
   - Si cambia la duración de una película, un trigger recalcula sus funciones y la restricción rechaza el cambio si genera superposición.
   - Una butaca no se vende dos veces: `unique (funcion_id, fila, numero)`.
+  - Una función con entradas vendidas no puede cambiar de horario, sala, película, formato ni idioma (trigger `proteger_funcion_con_ventas`). Sí se puede cambiar el precio, que solo afecta a las ventas nuevas.
+  - No se pueden programar funciones en el pasado ni en salas inactivas, tanto al crear como al editar.
 - **La compra es una función RPC `security definer`**: el precio y el descuento nunca vienen del cliente, y el cupón se bloquea con `for update` para no usarlo dos veces.
-- **El frontend valida antes** para dar mejores mensajes: al crear una función lista las funciones que chocan y a qué hora queda libre la sala.
+- **El frontend valida antes** para dar mejores mensajes: al crear o editar una función lista las funciones que chocan y a qué hora queda libre la sala; si la función tiene ventas, bloquea los campos que no se pueden cambiar.
 - **Registro**: los datos del perfil viajan como metadata del `signUp` y un trigger sobre `auth.users` crea el perfil y el cupón.
 - **Row Level Security** en todas las tablas: el catálogo es de lectura pública y solo el admin lo modifica; cada usuario ve sus cupones, compras y perfil. `entradas` es de lectura pública porque solo tiene función, fila y número, y hace falta para el mapa de butacas.
 - **Compras anónimas**: la entrada se consulta con el código (UUID, no adivinable) mediante `obtener_compra()`.
 - **Storage**: bucket público `posters` para las imágenes; solo el admin puede subir.
-- **Pruebas de la base** con PGlite (PostgreSQL compilado a WebAssembly) para verificar el esquema y las reglas sin depender de un proyecto de Supabase.
+- **Migraciones**: `schema.sql` siempre tiene el esquema completo para una base nueva; los cambios posteriores también se publican en `supabase/migraciones/` para aplicarlos sobre una base existente.
+- **Pruebas de la base** con PGlite (PostgreSQL compilado a WebAssembly): verifican el esquema, las migraciones y las reglas sin depender de un proyecto de Supabase.
 
 **PWA**
 
 - Service worker con el *app shell* precargado y un `dataGroup` con estrategia *freshness* para la cartelera: con conexión trae datos nuevos y sin conexión muestra los últimos guardados.
-- Aviso de nueva versión disponible con `SwUpdate`.
-- Manifest e íconos propios.
+- Aviso de nueva versión disponible con `SwUpdate` y aviso de "sin conexión".
+- Manifest, íconos y tipografía propios incluidos en la app.
 
 **Interfaz**
 
-- CSS propio sin librerías de componentes, con variables CSS y un solo color principal. Diseño simple y legible.
+- Identidad propia sin librerías de componentes: fondo cálido, títulos en Oswald (tipografía de marquesina de cine), un rojo como color principal y variables CSS para mantener todo coherente.
+- Detalles de diseño: logo con forma de entrada, ficha de película con el póster desenfocado de fondo, distintivo de color para cada formato (2D, 3D, 4D, 5D), mapa de butacas con pantalla curva y la entrada con forma de ticket (talón con el QR y muescas).
 - Fechas sin calendario desplegable: la fecha de nacimiento se elige con tres listas (día, mes, año) y el día de una función con botones de los próximos 14 días.
 - El pago es **simulado**: se validan los datos de la tarjeta pero no se procesa ningún cobro.
 
@@ -220,10 +249,10 @@ Referencias: `[x]` implementado · `[ ]` pendiente.
 
 ### A considerar
 
-- [x] Estilo visual propio (simple y prolijo)
+- [x] Estilo visual único y producido
 - [ ] Aplicar los cambios que indiquen los profesores
 - [ ] La aprobación y/o promoción depende de la defensa oral
-- [x] Uso correcto de Angular, buenas prácticas y técnicas vistas en clase
+- [x] Uso correcto de Angular, buenas prácticas y técnicas vistas en clase (signals, routing, guards, formularios reactivos, pipes, directivas, HttpClient e interceptores, animaciones)
 - [x] Integración con Supabase (Auth, base de datos, RLS, RPC y Storage)
 - [x] Integración de PWA
 - [x] Lógica de negocio
@@ -235,7 +264,7 @@ Referencias: `[x]` implementado · `[ ]` pendiente.
 - [x] Compra de entradas que genera un PDF con los datos de la entrada y un QR para ingresar
 - [x] Salas de 20 filas identificadas con letras y 3 bloques de 4, 20 y 4 butacas
 - [x] Elegir qué películas aparecen al entrar a la página (marca "en cartelera")
-- [x] Definir los horarios de cada película (funciones)
+- [x] Definir los horarios de cada película (funciones: alta, edición y baja)
 - [x] Formato de la función: 2D, 3D, 4D o 5D
 - [x] Idioma de la función: castellano o subtitulada
 - [x] Película con duración, imagen, nombre y sinopsis
@@ -333,6 +362,7 @@ Puntos que los emails no definen y cómo se resolvieron:
 | Las 3 más vendidas | Por cantidad de entradas vendidas de películas en cartelera. Si ninguna tiene ventas la sección no se muestra. |
 | Cupón de primera compra | Se aplica solo en la primera compra del usuario registrado. No aplica a compras anónimas. |
 | Precio de la entrada | Se define en cada función (los emails no indican cómo se calcula). |
+| Editar una función | Sin entradas vendidas se puede cambiar todo. Con entradas vendidas solo el precio, que aplica a las ventas nuevas. Una función con ventas no se puede eliminar. |
 | Butacas por compra | Máximo 10. |
 | Datos en compras anónimas | Nombre y email. La entrada se consulta con el código de la compra. |
 | Pago | Simulado. |
@@ -349,6 +379,7 @@ Dudas ya detectadas para los próximos emails:
 
 | Fecha | Versión | Cambios |
 |---|---|---|
+| 14/09/2026 | 0.2.0 | Temas de clase: HttpClient con interceptores (barra de carga y aviso sin conexión) para todas las llamadas a Supabase, cuatro directivas propias (`appMascara`, `appImagenRespaldo`, `*appSiRol`, `appAutoFoco`) y animaciones con `animate.enter`/`animate.leave`. Nuevo estilo visual (Oswald, logo, ficha con póster de fondo, entrada tipo ticket, distintivos de formato, PDF con encabezado). Edición de funciones desde el panel de admin con la regla "con ventas solo cambia el precio" validada en la base (`supabase/migraciones/002_editar_funciones.sql`). Prueba completa en el navegador contra Supabase: registro, compras con y sin cupón, PDF, reseñas, compra anónima, buscador y filtros. |
 | 14/09/2026 | 0.1.4 | Primer deploy en <https://avenida-cine.vercel.app>. Verificado: rutas internas, datos de Supabase, manifest, service worker e íconos de la PWA. |
 | 14/09/2026 | 0.1.3 | Proyecto creado en Vercel (`avenida-cine`), conectado al repositorio para publicar automáticamente con cada cambio en `main`. |
 | 14/09/2026 | 0.1.2 | Código publicado en GitHub: <https://github.com/KevinPlucci/Avenida-Cine>. |

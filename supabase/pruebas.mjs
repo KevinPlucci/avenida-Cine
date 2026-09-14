@@ -109,5 +109,28 @@ await esperarError(
 await esperarError(`update peliculas set duracion_min = 300 where id = 3`, [], 'funciones_sin_superposicion', 'alargar una película que genera superposición');
 await esperarError(`delete from peliculas where id = 1`, [], 'foreign key', 'no se borra una película con funciones');
 
+// ---------- Edición de funciones ----------
+const [editable] = await q(
+  `insert into funciones (pelicula_id, sala_id, inicio, formato, idioma, precio) values (3, $1, ${base} + interval '1 day', '2D', 'castellano', 100) returning id`,
+  [sala.id],
+);
+await q(`update funciones set inicio = inicio + interval '1 hour', formato = '3D', precio = 150 where id = $1`, [editable.id]);
+ok(true, 'se edita una función sin entradas vendidas');
+await esperarError(`update funciones set inicio = now() - interval '1 hour' where id = $1`, [editable.id], 'pasado', 'no se mueve una función al pasado');
+const [cerrada] = await q(`insert into salas (nombre, activa) values ('Sala cerrada', false) returning id`);
+await esperarError(`update funciones set sala_id = $2 where id = $1`, [editable.id, cerrada.id], 'no está activa', 'no se mueve una función a una sala inactiva');
+await esperarError(`update funciones set inicio = inicio + interval '1 hour' where id = $1`, [funcion.id], 'entradas vendidas', 'no se cambia el horario de una función con ventas');
+await esperarError(
+  `update funciones set idioma = case when idioma = 'castellano' then 'subtitulada' else 'castellano' end where id = $1`,
+  [funcion.id], 'entradas vendidas', 'no se cambia el idioma de una función con ventas',
+);
+await q(`update funciones set precio = 7777 where id = $1`, [funcion.id]);
+ok((await q(`select precio::float p from funciones where id = $1`, [funcion.id]))[0].p === 7777, 'sí se cambia el precio de una función con ventas');
+ok((await q(`select total::float t from compras where codigo = $1`, [anonima.codigo]))[0].t === funcion.precio * 2, 'cambiar el precio no modifica las compras hechas');
+
+await db.exec(leer('./migraciones/002_editar_funciones.sql'));
+ok(true, 'la migración 002 se aplica sobre una base existente');
+await esperarError(`update funciones set inicio = inicio + interval '2 hours' where id = $1`, [funcion.id], 'entradas vendidas', 'después de la migración se mantiene la regla');
+
 console.log(fallos ? `\n${fallos} prueba(s) fallaron` : '\nTodas las pruebas pasaron');
 process.exit(fallos ? 1 : 0);

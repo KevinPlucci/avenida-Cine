@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
@@ -11,13 +12,14 @@ import { PeliculaCard } from '../../shared/components/pelicula-card';
 
 @Component({
   selector: 'app-inicio',
-  imports: [ReactiveFormsModule, PeliculaCard],
+  imports: [ReactiveFormsModule, DatePipe, PeliculaCard],
   templateUrl: './inicio.html',
   styleUrl: './inicio.css',
 })
 export class Inicio implements OnInit {
   private readonly peliculasService = inject(PeliculasService);
 
+  protected readonly hoy = new Date();
   protected readonly peliculas = signal<PeliculaCartelera[]>([]);
   protected readonly cargando = signal(true);
   protected readonly error = signal('');

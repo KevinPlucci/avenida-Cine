@@ -1,5 +1,10 @@
 .encabezado {
-  margin-bottom: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin: -4px 0 18px;
+  color: var(--color-texto-suave);
 }
 
 .compra {
@@ -13,7 +18,15 @@
   margin-top: 0;
 }
 
+/* El resumen acompaña el scroll mientras se eligen las butacas */
+.lateral {
+  position: sticky;
+  top: 16px;
+}
+
 .resumen {
+  /* La etiqueta puede ocupar dos líneas; el importe nunca se sale de la tarjeta */
+  grid-template-columns: minmax(0, 1fr) auto;
   margin-bottom: 16px;
 }
 
@@ -21,16 +34,26 @@
   text-align: right;
 }
 
+.descuento {
+  font-weight: 600;
+  color: var(--color-exito);
+}
+
 .total {
-  padding-top: 6px;
+  padding-top: 8px;
+  font-family: var(--fuente-titulos);
+  font-size: 1.25rem;
+  font-weight: 500;
   border-top: 1px solid var(--color-borde);
-  font-size: 1.1rem;
-  font-weight: 700;
 }
 
 @media (max-width: 1000px) {
   .compra {
     /* minmax(0, ...) para que el mapa de butacas se desplace dentro de su tarjeta y no ensanche la página */
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lateral {
+    position: static;
   }
 }

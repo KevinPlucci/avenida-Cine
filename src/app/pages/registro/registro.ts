@@ -6,11 +6,12 @@ import { PORCENTAJE_CUPON_BIENVENIDA } from '../../core/constantes';
 import { COLORES_OJOS, TIPOS_SANGRE } from '../../core/models/perfil';
 import { mensajeError } from '../../core/utils/errores';
 import { ErrorCampo } from '../../shared/components/error-campo';
+import { AutoFocoDirective } from '../../shared/directives/auto-foco.directive';
 import { fechaNacimientoValidator, passwordsIgualesValidator } from '../../shared/validators';
 
 @Component({
   selector: 'app-registro',
-  imports: [ReactiveFormsModule, RouterLink, ErrorCampo],
+  imports: [ReactiveFormsModule, RouterLink, ErrorCampo, AutoFocoDirective],
   templateUrl: './registro.html',
   styleUrl: './registro.css',
 })
