@@ -5,7 +5,7 @@ Hecha con **Angular 21** y **Supabase**, instalable como **PWA**.
 
 | | |
 |---|---|
-| **Deploy** | _pendiente_ |
+| **Deploy** | <https://avenida-cine.vercel.app> |
 | **Repositorio** | <https://github.com/KevinPlucci/Avenida-Cine> |
 | **Estado** | Consigna + emails del 01/01 y 16/01 implementados |
 
@@ -214,7 +214,7 @@ Referencias: `[x]` implementado · `[ ]` pendiente.
 - [x] Crear un documento que resuma todos los requerimientos (esta sección)
 - [ ] Crear la aplicación completa usando los temas vistos en clase (en curso)
 - [ ] Defender oralmente las decisiones el día de la entrega
-- [ ] Aplicación desplegada con URL funcional
+- [x] Aplicación desplegada con URL funcional (<https://avenida-cine.vercel.app>)
 - [x] Código en GitHub
 - [x] README con arquitectura y decisiones técnicas
 
@@ -349,6 +349,7 @@ Dudas ya detectadas para los próximos emails:
 
 | Fecha | Versión | Cambios |
 |---|---|---|
+| 14/09/2026 | 0.1.4 | Primer deploy en <https://avenida-cine.vercel.app>. Verificado: rutas internas, datos de Supabase, manifest, service worker e íconos de la PWA. |
 | 14/09/2026 | 0.1.3 | Proyecto creado en Vercel (`avenida-cine`), conectado al repositorio para publicar automáticamente con cada cambio en `main`. |
 | 14/09/2026 | 0.1.2 | Código publicado en GitHub: <https://github.com/KevinPlucci/Avenida-Cine>. |
 | 14/09/2026 | 0.1.1 | Proyecto de Supabase creado (región São Paulo) y configurado en `environment.ts` con la publishable key. Esquema y datos de ejemplo cargados; confirmación de email desactivada para pruebas. |
