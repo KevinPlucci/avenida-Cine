@@ -79,7 +79,7 @@ end $$;
 
 -- Candy bar (email 30/01): categorías y productos de ejemplo.
 insert into public.categorias_productos (nombre, orden)
-values ('Pochoclos', 1), ('Bebidas', 2), ('Golosinas', 3), ('Combos', 4);
+values ('Pochoclos', 1), ('Bebidas', 2), ('Golosinas', 3), ('Promociones', 4);
 
 insert into public.productos (categoria_id, nombre, descripcion, precio)
 select c.id, v.nombre, v.descripcion, v.precio
@@ -92,7 +92,7 @@ from (values
   ('Bebidas',   'Agua mineral',          'Botella de 500 ml.',                           2200),
   ('Golosinas', 'Chocolate',             'Tableta de 100 gramos.',                       2500),
   ('Golosinas', 'Nachos con queso',      'Porción de nachos con salsa de queso.',        5200),
-  ('Combos',    'Combo para uno',        'Pochoclos medianos y gaseosa grande.',         7200),
-  ('Combos',    'Combo para dos',        'Pochoclos grandes y dos gaseosas grandes.',   10500)
+  ('Promociones', 'Promo individual',    'Pochoclos medianos y gaseosa grande.',         7200),
+  ('Promociones', 'Promo para dos',      'Pochoclos grandes y dos gaseosas grandes.',   10500)
 ) as v (categoria, nombre, descripcion, precio)
 join public.categorias_productos c on c.nombre = v.categoria;

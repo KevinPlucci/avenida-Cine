@@ -8,7 +8,7 @@
   <section class="tarjeta">
     <h2>1. Leer el código</h2>
 
-    @if (hayLector()) {
+    @if (hayCamara) {
       <div class="lector" [class.activo]="escaneando()">
         <video #video muted playsinline></video>
         @if (!escaneando()) {

@@ -7,7 +7,7 @@ import { mensajeError } from '../../core/utils/errores';
 import { AutoFocoDirective } from '../../shared/directives/auto-foco.directive';
 import { IdiomaPipe } from '../../shared/pipes/idioma.pipe';
 
-/** Lector de códigos del navegador (Chrome y Android). Si no está, se usa el ingreso manual. */
+/** Lector de códigos que traen algunos navegadores (Chrome en Android y macOS). */
 interface CodigoDetectado {
   rawValue: string;
 }
@@ -16,7 +16,12 @@ interface DetectorCodigos {
 }
 type ConstructorDetector = new (opciones?: { formats?: string[] }) => DetectorCodigos;
 
+/** Devuelve el texto del QR que se ve en el video, o null si todavía no hay ninguno. */
+type LectorQr = (video: HTMLVideoElement) => Promise<string | null>;
+
 const MS_ENTRE_LECTURAS = 300;
+/** Ancho máximo del fotograma que analiza jsQR: alcanza para leer la entrada sin trabar el celular. */
+const ANCHO_MAXIMO_FOTOGRAMA = 800;
 
 @Component({
   selector: 'app-validar',
@@ -38,8 +43,8 @@ export class Validar implements OnDestroy {
   protected readonly error = signal('');
   protected readonly exito = signal('');
 
-  /** El lector solo funciona si el navegador tiene cámara y BarcodeDetector. */
-  protected readonly hayLector = signal(this.detector() !== null && !!navigator.mediaDevices?.getUserMedia);
+  /** La cámara solo se puede usar si el navegador la ofrece (hace falta HTTPS o localhost). */
+  protected readonly hayCamara = !!navigator.mediaDevices?.getUserMedia;
 
   protected readonly tieneProductos = computed(() => (this.compra()?.productos.length ?? 0) > 0);
 
@@ -49,11 +54,11 @@ export class Validar implements OnDestroy {
 
   protected async escanear(): Promise<void> {
     this.limpiar();
-    const Detector = this.detector();
     const elemento = this.video()?.nativeElement;
-    if (!Detector || !elemento) return;
+    if (!elemento) return;
 
     try {
+      const leer = await this.crearLector();
       this.camara = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment' },
         audio: false,
@@ -62,20 +67,19 @@ export class Validar implements OnDestroy {
       await elemento.play();
       this.escaneando.set(true);
 
-      const detector = new Detector({ formats: ['qr_code'] });
       this.temporizador = setInterval(async () => {
         try {
-          const [codigo] = await detector.detect(elemento);
-          if (codigo) {
+          const texto = await leer(elemento);
+          if (texto) {
             this.detenerCamara();
-            await this.buscar(codigo.rawValue);
+            await this.buscar(texto);
           }
         } catch {
           // Un fotograma que no se puede leer no interrumpe el escaneo.
         }
       }, MS_ENTRE_LECTURAS);
     } catch {
-      this.escaneando.set(false);
+      this.detenerCamara();
       this.error.set('No se pudo abrir la cámara. Ingresá el código a mano.');
     }
   }
@@ -164,9 +168,35 @@ export class Validar implements OnDestroy {
     }
   }
 
-  private detector(): ConstructorDetector | null {
-    const api = (globalThis as unknown as { BarcodeDetector?: ConstructorDetector }).BarcodeDetector;
-    return typeof api === 'function' ? api : null;
+  /**
+   * Usa el lector del navegador si lo tiene. Si no (Chrome en Windows, Safari, Firefox) usa jsQR,
+   * que se descarga recién al abrir la cámara.
+   */
+  private async crearLector(): Promise<LectorQr> {
+    const Detector = (globalThis as unknown as { BarcodeDetector?: ConstructorDetector }).BarcodeDetector;
+    if (typeof Detector === 'function') {
+      try {
+        const detector = new Detector({ formats: ['qr_code'] });
+        return async (video) => (await detector.detect(video))[0]?.rawValue ?? null;
+      } catch {
+        // El lector del navegador no lee QR: se usa jsQR.
+      }
+    }
+
+    const { default: jsQR } = await import('jsqr');
+    const lienzo = document.createElement('canvas');
+    const contexto = lienzo.getContext('2d', { willReadFrequently: true });
+    if (!contexto) throw new Error('El navegador no permite dibujar el video');
+
+    return async (video) => {
+      if (!video.videoWidth) return null;
+      const escala = Math.min(1, ANCHO_MAXIMO_FOTOGRAMA / video.videoWidth);
+      lienzo.width = Math.round(video.videoWidth * escala);
+      lienzo.height = Math.round(video.videoHeight * escala);
+      contexto.drawImage(video, 0, 0, lienzo.width, lienzo.height);
+      const imagen = contexto.getImageData(0, 0, lienzo.width, lienzo.height);
+      return jsQR(imagen.data, imagen.width, imagen.height, { inversionAttempts: 'dontInvert' })?.data ?? null;
+    };
   }
 
   private limpiar(): void {

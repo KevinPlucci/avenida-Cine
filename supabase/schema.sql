@@ -468,10 +468,11 @@ begin
       v_motivo     := 'primera_compra';
     end if;
 
-    -- Descuento por edad (email 30/01): no se consume, aplica en cada compra.
+    -- Descuento por edad (email 30/01): para quienes tienen más años que la edad configurada.
+    -- No se consume, aplica en cada compra.
     select * into v_regla from public.cupones_regla where tipo = 'mayores' and activo;
     if found and v_regla.edad_minima is not null
-       and public.edad(v_perfil.fecha_nacimiento) >= v_regla.edad_minima
+       and public.edad(v_perfil.fecha_nacimiento) > v_regla.edad_minima
        and v_regla.porcentaje > v_porcentaje then
       v_porcentaje := v_regla.porcentaje;
       v_motivo     := 'mayores';
@@ -606,7 +607,7 @@ as $$
                        from public.cupones_regla r
                        join public.perfiles pe on pe.id = auth.uid()
                        where r.tipo = 'mayores' and r.activo and r.edad_minima is not null
-                         and public.edad(pe.fecha_nacimiento) >= r.edad_minima)
+                         and public.edad(pe.fecha_nacimiento) > r.edad_minima)
   );
 $$;
 
@@ -677,10 +678,15 @@ begin
   end if;
   if v_compra.validada_en is not null then
     raise exception 'Esta entrada ya fue validada el %',
-      to_char(v_compra.validada_en, 'DD/MM/YYYY HH24:MI');
+      to_char(v_compra.validada_en at time zone 'America/Argentina/Buenos_Aires', 'DD/MM/YYYY HH24:MI');
   end if;
 
+  -- Se valida desde una hora antes del inicio hasta que termina la función.
   select * into v_funcion from public.funciones where id = v_compra.funcion_id;
+  if now() < v_funcion.inicio - interval '1 hour' then
+    raise exception 'La función empieza el % h. La entrada se puede validar desde una hora antes',
+      to_char(v_funcion.inicio at time zone 'America/Argentina/Buenos_Aires', 'DD/MM/YYYY HH24:MI');
+  end if;
   if now() > v_funcion.fin then
     raise exception 'La función ya terminó';
   end if;
@@ -699,7 +705,8 @@ returns json
 language plpgsql security definer set search_path = public
 as $$
 declare
-  v_compra public.compras%rowtype;
+  v_compra  public.compras%rowtype;
+  v_funcion public.funciones%rowtype;
 begin
   if not public.es_empleado() then
     raise exception 'Solo el personal del cine puede entregar productos';
@@ -714,7 +721,17 @@ begin
   end if;
   if v_compra.entregado_en is not null then
     raise exception 'Los productos de esta compra ya se entregaron el %',
-      to_char(v_compra.entregado_en, 'DD/MM/YYYY HH24:MI');
+      to_char(v_compra.entregado_en at time zone 'America/Argentina/Buenos_Aires', 'DD/MM/YYYY HH24:MI');
+  end if;
+
+  -- Mismo horario que el ingreso: desde una hora antes del inicio hasta que termina la función.
+  select * into v_funcion from public.funciones where id = v_compra.funcion_id;
+  if now() < v_funcion.inicio - interval '1 hour' then
+    raise exception 'La función empieza el % h. Los productos se entregan desde una hora antes',
+      to_char(v_funcion.inicio at time zone 'America/Argentina/Buenos_Aires', 'DD/MM/YYYY HH24:MI');
+  end if;
+  if now() > v_funcion.fin then
+    raise exception 'La función ya terminó';
   end if;
 
   update public.compras

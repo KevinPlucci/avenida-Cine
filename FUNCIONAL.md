@@ -68,13 +68,13 @@ Cada código sirve una sola vez para cada cosa.
 - Una función con entradas vendidas no cambia de horario, sala, película, formato ni idioma. Sí puede cambiar el precio, que rige para las ventas nuevas. Tampoco se puede eliminar.
 - No se programan funciones en el pasado ni en salas desactivadas.
 - El cupón de primera compra se aplica una sola vez y queda marcado como usado en la misma operación de compra.
-- El descuento por edad se aplica en todas las compras del usuario que supera la edad configurada.
+- El descuento por edad se aplica en todas las compras del usuario que tiene más años que la edad configurada (con 50, desde los 51 cumplidos).
 - Los dos descuentos no se acumulan: se aplica el más alto, y siempre sobre las entradas, no sobre el candy bar.
-- El porcentaje de los dos descuentos y la edad mínima los configura el administrador.
+- El porcentaje de los dos descuentos y la edad los configura el administrador.
 - Un producto que se da de baja deja de venderse, pero las compras ya hechas conservan su nombre y su precio.
 - El código QR sirve una sola vez para ingresar y una sola vez para retirar los productos.
 - Solo el personal del cine puede validar entradas y entregar productos.
-- Una entrada no se puede validar después de que la función terminó.
+- La entrada y los productos se validan desde una hora antes del inicio de la función hasta que termina.
 - El precio y el descuento se resuelven en el servidor: no se pueden alterar desde el navegador.
 - La entrada de una compra sin cuenta se recupera con el código de compra, que no es adivinable.
 
@@ -141,7 +141,7 @@ Referencias: `[x]` implementado · `[ ]` pendiente.
 
 ### Email 5 · 06/02/2020 · Roles y validación de QR
 
-- [x] Administrador que controla salas, funciones, distribución de butacas, productos, etc.
+- [x] Administrador que controla salas, funciones, distribución de butacas, productos, etc. (la distribución de butacas es fija y no se edita: ver criterios adoptados)
 - [x] Usuarios empleados que escanean los QR (cine y candy bar)
 - [x] Ingreso manual del código si falla el lector
 - [x] El QR deja de funcionar una vez validada la entrada o entregada la comida
@@ -210,13 +210,13 @@ Puntos que los emails no definen y cómo se resolvieron:
 | Butacas por compra | Máximo 10. |
 | Datos en compras anónimas | Nombre y email. La entrada se consulta con el código de la compra. |
 | Pago | Simulado. |
-| Descuento por edad | Es un beneficio permanente, no un cupón de un solo uso: se aplica en todas las compras del usuario mientras la regla esté activa. |
+| Descuento por edad | Es un beneficio permanente, no un cupón de un solo uso: se aplica en todas las compras del usuario mientras la regla esté activa. "Más de 50 años" se cuenta en años cumplidos: con la edad configurada en 50, aplica desde los 51. |
 | Descuentos juntos | No se acumulan. Si al usuario le corresponden los dos, se usa el más alto. |
 | Alcance del descuento | Solo sobre las entradas. El candy bar se cobra siempre a precio de lista. |
 | Cambiar el porcentaje del cupón | Afecta a los cupones nuevos. Los ya entregados mantienen el porcentaje con el que se emitieron. |
 | Productos por compra | Hasta 20 unidades de cada producto. Son opcionales: se puede comprar solo la entrada. |
-| Validar el QR | El empleado ve primero los datos de la entrada y después confirma, así no se quema un código por error. Se puede validar hasta que la función termina. |
-| Lector de QR | Se usa el lector del navegador (sin librerías externas). Donde no está disponible queda el ingreso manual del código, que el email pide igual. |
+| Validar el QR | El empleado ve primero los datos de la entrada y después confirma, así no se quema un código por error. Se puede validar desde una hora antes del inicio hasta que la función termina, y los productos del candy bar se retiran en el mismo horario. |
+| Lector de QR | Se usa el lector que trae el navegador y, donde no existe (Chrome en Windows, Safari, Firefox), la librería jsQR. El ingreso manual del código queda siempre disponible, como pide el email. |
 | Asignación automática de sala | Toma la primera sala activa que esté libre en ese horario, en orden alfabético. |
 | Programar varios días | Cada día se intenta por separado: los que se pueden crear se crean y la pantalla informa el motivo de los que no. |
 | Distribución de butacas | Es la misma en todas las salas (20 filas, bloques de 4, 20 y 4). El panel la muestra pero no se edita: la fijan los emails. |

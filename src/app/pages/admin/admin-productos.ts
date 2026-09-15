@@ -24,6 +24,8 @@ import { ErrorCampo } from '../../shared/components/error-campo';
 
       @if (cargando()) {
         <p class="cargando">Cargando...</p>
+      } @else if (errorCarga()) {
+        <p class="alerta alerta-error">{{ errorCarga() }}</p>
       } @else if (!categorias().length) {
         <p class="alerta">Primero creá una categoría para poder cargar productos.</p>
       } @else {
@@ -58,7 +60,7 @@ import { ErrorCampo } from '../../shared/components/error-campo';
               <input type="number" formControlName="precio" min="0" step="100" />
               <app-error-campo [control]="form.controls.precio" />
             </label>
-            <label class="campo check">
+            <label class="check">
               <input type="checkbox" formControlName="disponible" />
               <span>Disponible para la venta</span>
             </label>
@@ -138,12 +140,16 @@ import { ErrorCampo } from '../../shared/components/error-campo';
             <small class="error-texto">Este campo es obligatorio.</small>
           }
         </label>
-        <label class="campo campo-corto">
+        <label class="campo campo-orden">
           <span>Orden</span>
           <input type="number" name="orden" [(ngModel)]="ordenCategoria" min="0" max="99" />
         </label>
         <button type="submit" class="btn btn-primario" [disabled]="guardando()">Agregar</button>
       </form>
+
+      @if (errorCategorias()) {
+        <p class="alerta alerta-error" animate.enter="aparecer">{{ errorCategorias() }}</p>
+      }
 
       <div class="tabla-contenedor">
         <table>
@@ -177,6 +183,12 @@ import { ErrorCampo } from '../../shared/components/error-campo';
       </div>
     </section>
   `,
+  // El campo de orden es angosto para que nombre, orden y botón entren en una línea.
+  styles: `
+    .form-en-linea .campo-orden {
+      flex: 0 0 110px;
+    }
+  `,
 })
 export class AdminProductos implements OnInit {
   private readonly productosService = inject(ProductosService);
@@ -189,8 +201,11 @@ export class AdminProductos implements OnInit {
   protected readonly ordenCategoria = signal(0);
   protected readonly cargando = signal(true);
   protected readonly guardando = signal(false);
+  protected readonly errorCarga = signal('');
   protected readonly error = signal('');
   protected readonly exito = signal('');
+  /** Los errores de categorías se muestran junto a su formulario. */
+  protected readonly errorCategorias = signal('');
 
   protected readonly cantidadPorCategoria = computed(() => {
     const conteo = new Map<number, number>();
@@ -299,7 +314,7 @@ export class AdminProductos implements OnInit {
       formulario.resetForm({ nombre: '', orden: 0 });
       await this.cargar();
     } catch (e) {
-      this.error.set(mensajeError(e));
+      this.errorCategorias.set(mensajeError(e));
     } finally {
       this.guardando.set(false);
     }
@@ -312,10 +327,11 @@ export class AdminProductos implements OnInit {
       await this.productosService.eliminarCategoria(categoria.id);
       this.categorias.update((lista) => lista.filter((c) => c.id !== categoria.id));
     } catch (e) {
-      this.error.set(mensajeError(e));
+      this.errorCategorias.set(mensajeError(e));
     }
   }
 
+  /** Si la carga falla se muestra el error en lugar del formulario, no el aviso de "creá una categoría". */
   private async cargar(): Promise<void> {
     try {
       const [productos, categorias] = await Promise.all([
@@ -324,8 +340,9 @@ export class AdminProductos implements OnInit {
       ]);
       this.productos.set(productos);
       this.categorias.set(categorias);
+      this.errorCarga.set('');
     } catch (e) {
-      this.error.set(mensajeError(e));
+      this.errorCarga.set(mensajeError(e));
     } finally {
       this.cargando.set(false);
     }
@@ -334,5 +351,6 @@ export class AdminProductos implements OnInit {
   private limpiarMensajes(): void {
     this.error.set('');
     this.exito.set('');
+    this.errorCategorias.set('');
   }
 }

@@ -31,7 +31,7 @@ import { ErrorCampo } from '../../shared/components/error-campo';
                 <input type="number" formControlName="porcentaje" min="1" max="100" />
                 <app-error-campo [control]="form.controls.primera_compra.controls.porcentaje" />
               </label>
-              <label class="campo check">
+              <label class="check">
                 <input type="checkbox" formControlName="activo" />
                 <span>Entregar el cupón a los usuarios nuevos</span>
               </label>
@@ -51,11 +51,11 @@ import { ErrorCampo } from '../../shared/components/error-campo';
                 <app-error-campo [control]="form.controls.mayores.controls.porcentaje" />
               </label>
               <label class="campo campo-corto">
-                <span>Desde los</span>
+                <span>Para mayores de</span>
                 <input type="number" formControlName="edad_minima" min="0" max="120" />
                 <app-error-campo [control]="form.controls.mayores.controls.edad_minima" />
               </label>
-              <label class="campo check">
+              <label class="check">
                 <input type="checkbox" formControlName="activo" />
                 <span>Aplicar este descuento</span>
               </label>

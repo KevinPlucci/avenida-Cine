@@ -52,7 +52,7 @@
 
 .producto.elegido {
   border-color: var(--color-primario);
-  background: #fdf7f6;
+  background: var(--color-primario-suave);
 }
 
 .producto-datos {

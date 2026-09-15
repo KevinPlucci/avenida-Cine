@@ -61,13 +61,10 @@ const ROLES: { valor: Rol; etiqueta: string; descripcion: string }[] = [
                     @if (usuario.id === auth.perfil()?.id) {
                       <span class="meta">Administrador (vos)</span>
                     } @else {
-                      <select
-                        [value]="usuario.rol"
-                        [attr.aria-label]="'Rol de ' + usuario.email"
-                        (change)="cambiarRol(usuario, $event)"
-                      >
+                      <!-- [selected] en cada opción: [value] en el select se aplica antes de que existan las opciones -->
+                      <select [attr.aria-label]="'Rol de ' + usuario.email" (change)="cambiarRol(usuario, $event)">
                         @for (rol of roles; track rol.valor) {
-                          <option [value]="rol.valor">{{ rol.etiqueta }}</option>
+                          <option [value]="rol.valor" [selected]="rol.valor === usuario.rol">{{ rol.etiqueta }}</option>
                         }
                       </select>
                     }

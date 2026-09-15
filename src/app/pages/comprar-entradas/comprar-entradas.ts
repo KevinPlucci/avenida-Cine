@@ -62,6 +62,8 @@ export class ComprarEntradas implements OnInit {
   // Candy bar (email 30/01): cantidad elegida de cada producto.
   protected readonly categorias = signal<CategoriaConProductos[]>([]);
   protected readonly carrito = signal<Record<number, number>>({});
+  /** Si el catálogo no carga se avisa, pero se pueden comprar las entradas igual. */
+  protected readonly candyNoDisponible = signal(false);
 
   private readonly porId = computed(() => {
     const mapa = new Map<number, Producto>();
@@ -101,7 +103,7 @@ export class ComprarEntradas implements OnInit {
     if (beneficios.mayores) {
       opciones.push({
         porcentaje: beneficios.mayores.porcentaje,
-        etiqueta: `Descuento desde los ${beneficios.mayores.edad_minima} años`,
+        etiqueta: `Descuento para mayores de ${beneficios.mayores.edad_minima} años`,
       });
     }
     return opciones.sort((a, b) => b.porcentaje - a.porcentaje)[0] ?? null;
@@ -131,10 +133,11 @@ export class ComprarEntradas implements OnInit {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     try {
       await this.auth.esperarSesion();
+      // El candy bar es opcional: si no carga, igual se pueden comprar las entradas.
       const [funcion, ocupadas, categorias] = await Promise.all([
         this.funcionesService.obtener(id),
         this.comprasService.butacasOcupadas(id),
-        this.productosService.disponiblesPorCategoria(),
+        this.productosService.disponiblesPorCategoria().catch(() => null),
       ]);
       if (!funcion?.pelicula) {
         this.error.set('La función no existe o la película ya no está en cartelera.');
@@ -146,7 +149,11 @@ export class ComprarEntradas implements OnInit {
       }
       this.funcion.set(funcion);
       this.ocupadas.set(ocupadas);
-      this.categorias.set(categorias);
+      if (categorias) {
+        this.categorias.set(categorias);
+      } else {
+        this.candyNoDisponible.set(true);
+      }
 
       if (this.auth.logueado()) {
         // Los datos del comprador se toman del perfil.

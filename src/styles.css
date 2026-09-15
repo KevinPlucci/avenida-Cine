@@ -9,6 +9,7 @@
   --color-oscuro: #151414;
   --color-primario: #a61b1b;
   --color-primario-oscuro: #861414;
+  --color-primario-suave: #fdf7f6;
   --color-dorado: #d9a21b;
   --color-exito: #1e6b3a;
   --color-error: #b42318;
@@ -369,6 +370,12 @@ legend {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 0 16px;
+}
+
+/* Casilla junto a otros campos: queda a la altura de los inputs */
+.fila-campos > .check {
+  min-height: 44px;
+  margin-top: 26px;
 }
 
 .opciones {

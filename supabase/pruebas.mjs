@@ -175,6 +175,20 @@ ok(
 await comoUsuario(uid);
 ok((await q(`select mis_beneficios() j`))[0].j.mayores === null, 'un usuario menor de 50 no tiene ese descuento');
 
+// "Más de 50 años": quien cumple 50 hoy todavía no tiene el descuento.
+const idCincuenta = '66666666-6666-6666-6666-666666666666';
+await q(`insert into auth.users (id, email, raw_user_meta_data) values ($1, 'carla@test.com', jsonb_build_object(
+  'nombre', 'Carla', 'apellido', 'Ruiz', 'fecha_nacimiento', (current_date - interval '50 years')::date,
+  'tipo_sangre', 'A+', 'color_ojos', 'Marrón', 'dias_vacaciones', 15))`, [idCincuenta]);
+await comoUsuario(idCincuenta);
+ok((await q(`select mis_beneficios() j`))[0].j.mayores === null, 'con 50 años recién cumplidos no tiene el descuento por edad');
+await q(`update cupones set usado = true where usuario_id = $1`, [idCincuenta]);
+const [cincuenta] = await q(`select comprar_entradas($1, array['E3']) codigo`, [funcion.id]);
+ok(
+  (await q(`select descuento::float d from compras where codigo = $1`, [cincuenta.codigo]))[0].d === 0,
+  'la compra de un usuario de 50 años no tiene descuento por edad',
+);
+
 // ---------- Roles y validación del QR (email 06/02) ----------
 const idAdmin = '33333333-3333-3333-3333-333333333333';
 const idEmpleado = '22222222-2222-2222-2222-222222222222';
@@ -197,15 +211,29 @@ await esperarError(`select cambiar_rol($1, 'jefe')`, [idEmpleado], 'Rol inválid
 await comoUsuario(uid);
 await esperarError(`select validar_entrada($1)`, [conCandy.codigo], 'Solo el personal', 'un cliente no valida entradas');
 
+// conCandy es de una función que empieza en más de una hora.
 await comoUsuario(idEmpleado);
-const [validada] = await q(`select validar_entrada($1) j`, [conCandy.codigo]);
-ok(validada.j.validada_en !== null, 'el empleado valida la entrada');
-await esperarError(`select validar_entrada($1)`, [conCandy.codigo], 'ya fue validada', 'el QR no sirve dos veces');
+await esperarError(`select validar_entrada($1)`, [conCandy.codigo], 'desde una hora antes', 'no se valida una entrada antes de tiempo');
+await esperarError(`select entregar_productos($1)`, [conCandy.codigo], 'desde una hora antes', 'no se entregan productos antes de tiempo');
+
+// Compra para una función que empieza en 30 minutos, en una sala sin otras funciones.
+await comoUsuario(null);
+const [salaValidacion] = await q(`insert into salas (nombre) values ('Sala de validación') returning id`);
+const [proxima] = await q(
+  `insert into funciones (pelicula_id, sala_id, inicio, formato, idioma, precio) values (1, $1, now() + interval '30 minutes', '2D', 'castellano', 100) returning id`,
+  [salaValidacion.id],
+);
+const [enHorario] = await q(`select comprar_entradas($1, array['A1'], 'ana@test.com', 'Ana', $2::jsonb) codigo`, [proxima.id, carrito]);
+
+await comoUsuario(idEmpleado);
+const [validada] = await q(`select validar_entrada($1) j`, [enHorario.codigo]);
+ok(validada.j.validada_en !== null, 'el empleado valida la entrada desde una hora antes de la función');
+await esperarError(`select validar_entrada($1)`, [enHorario.codigo], 'ya fue validada', 'el QR no sirve dos veces');
 await esperarError(`select validar_entrada($1)`, ['00000000-0000-0000-0000-000000000000'], 'No existe ninguna compra', 'código inexistente');
 
-const [entregada] = await q(`select entregar_productos($1) j`, [conCandy.codigo]);
+const [entregada] = await q(`select entregar_productos($1) j`, [enHorario.codigo]);
 ok(entregada.j.entregado_en !== null, 'el empleado entrega los productos con el mismo QR');
-await esperarError(`select entregar_productos($1)`, [conCandy.codigo], 'ya se entregaron', 'los productos se entregan una sola vez');
+await esperarError(`select entregar_productos($1)`, [enHorario.codigo], 'ya se entregaron', 'los productos se entregan una sola vez');
 await esperarError(`select entregar_productos($1)`, [anonima.codigo], 'no incluye productos', 'compra sin productos del candy bar');
 await comoUsuario(null);
 
@@ -274,12 +302,20 @@ await esperarError(`update funciones set inicio = inicio + interval '2 hours' wh
 await db.exec(leer('./migraciones/003_candybar_roles_qr.sql'));
 ok(true, 'la migración 003 se aplica sobre una base existente');
 await comoUsuario(idEmpleado);
-await esperarError(`select validar_entrada($1)`, [conCandy.codigo], 'ya fue validada', 'después de la migración 003 el QR usado sigue rechazado');
+await esperarError(`select validar_entrada($1)`, [enHorario.codigo], 'ya fue validada', 'después de la migración 003 el QR usado sigue rechazado');
 await comoUsuario(null);
 ok(
   (await q(`select count(*)::int n from compra_productos`))[0].n > 0,
   'la migración 003 conserva los productos ya comprados',
 );
+
+await db.exec(leer('./migraciones/004_descuento_edad_y_validacion.sql'));
+ok(true, 'la migración 004 se aplica sobre una base existente');
+await comoUsuario(idEmpleado);
+await esperarError(`select validar_entrada($1)`, [conCandy.codigo], 'desde una hora antes', 'después de la migración 004 no se valida antes de tiempo');
+await comoUsuario(idCincuenta);
+ok((await q(`select mis_beneficios() j`))[0].j.mayores === null, 'después de la migración 004 el descuento por edad es para más de 50 años');
+await comoUsuario(null);
 
 console.log(fallos ? `\n${fallos} prueba(s) fallaron` : '\nTodas las pruebas pasaron');
 process.exit(fallos ? 1 : 0);

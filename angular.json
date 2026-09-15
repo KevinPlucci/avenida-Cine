@@ -54,7 +54,7 @@
               "node_modules/@fontsource/oswald/latin-600.css",
               "src/styles.css"
             ],
-            "allowedCommonJsDependencies": ["qrcode", "html2canvas", "raf", "rgbcolor", "core-js"]
+            "allowedCommonJsDependencies": ["qrcode", "jsqr", "html2canvas", "raf", "rgbcolor", "core-js"]
           },
           "configurations": {
             "production": {

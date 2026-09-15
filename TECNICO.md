@@ -31,6 +31,7 @@ Qué hace la aplicación y para quién está en [FUNCIONAL.md](FUNCIONAL.md).
 3. En **SQL Editor**, ejecutar completo `supabase/schema.sql` y después `supabase/seed.sql` (datos de ejemplo: 4 salas, 6 películas, funciones para los próximos 7 días y 10 productos de candy bar).
    Si la base se creó con una versión anterior del esquema, ejecutar también los archivos de `supabase/migraciones/` en orden.
    **Importante:** una base creada antes del candy bar necesita `supabase/migraciones/003_candybar_roles_qr.sql`; sin eso, la compra y el panel fallan porque faltan tablas y funciones.
+   Una base que ya tiene la 003 necesita también `004_descuento_edad_y_validacion.sql`.
 4. Copiar en `src/environments/environment.ts` la *Project URL* (**Project Settings > Data API**) y la *publishable key* (**Project Settings > API Keys**).
 5. Para probar sin confirmar emails: **Authentication > Sign In / Providers > Email** y desactivar *Confirm email*.
 6. Levantar la app:
@@ -85,7 +86,7 @@ npx serve -s dist/tp1-cine/browser
 | Frontend | Angular 21: componentes standalone, signals, detección de cambios sin zone.js, formularios reactivos, HttpClient |
 | Backend | Supabase: PostgreSQL, Auth, Storage, Row Level Security y funciones RPC |
 | PWA | `@angular/service-worker` + `manifest.webmanifest` |
-| PDF y QR | `jspdf` + `qrcode` |
+| PDF y QR | `jspdf` + `qrcode` para generar la entrada, `jsqr` para leer el QR con la cámara |
 | Tipografía | Oswald incluida en el proyecto (`@fontsource/oswald`), funciona sin conexión |
 | Hosting | Vercel |
 
@@ -159,7 +160,7 @@ erDiagram
 - `entradas` tiene una fila por butaca con `unique (funcion_id, fila, numero)`.
 - `compra_productos` congela el nombre y el precio del producto: si después cambian, la compra no se altera.
 - `compras` guarda cuándo y quién validó el ingreso (`validada_en`, `validada_por`) y la entrega del candy bar (`entregado_en`, `entregado_por`).
-- `cupones_regla` tiene una fila por tipo de descuento (`primera_compra` y `mayores`) con el porcentaje, la edad mínima y si está activo.
+- `cupones_regla` tiene una fila por tipo de descuento (`primera_compra` y `mayores`) con el porcentaje, la edad (el descuento es para quienes la superan) y si está activo.
 - `puntajes_peliculas` es una vista con el promedio de estrellas por película.
 
 ### Flujo de compra
@@ -173,7 +174,8 @@ erDiagram
    productos, y devuelve el código de la compra.
 5. Se redirige a `/compras/:codigo`, que muestra el QR (con ese código) y permite descargar el PDF.
 6. En el cine, `validar_entrada()` y `entregar_productos()` marcan el código como usado. Las dos comprueban
-   el rol con `es_empleado()` y rechazan un código ya usado.
+   el rol con `es_empleado()`, rechazan un código ya usado y solo lo aceptan desde una hora antes del inicio
+   hasta que termina la función.
 
 ### Cómo viajan las peticiones
 
@@ -223,7 +225,7 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 - **Animaciones** con `animate.enter` / `animate.leave` de Angular 21 (el paquete `@angular/animations` quedó deprecado): aparición de tarjetas, ficha de película, entrada, reseñas y avisos. Son cortas y se desactivan si el sistema pide reducir movimiento. No se usa `withViewTransitions()` porque, mientras dura la transición entre pantallas, el navegador no entrega los clics a la página (se detectó en las pruebas).
 - **RxJS** donde aporta: búsqueda con `debounceTime` convertida a signal con `toSignal`, interceptores y avisos del service worker.
 - **jsPDF se carga recién al descargar** el PDF (`import()` dinámico) para no sumar ~400 kB a la carga inicial.
-- **Lector de QR sin librerías**: la pantalla de validación usa `BarcodeDetector` y `getUserMedia`, que ya trae el navegador, y lee un fotograma cada 300 ms. Donde la API no existe se oculta la cámara y queda el ingreso manual del código, que el email pide igual como alternativa. La cámara se apaga al encontrar un código y en `ngOnDestroy`.
+- **Lector de QR**: la pantalla de validación abre la cámara con `getUserMedia` y lee un fotograma cada 300 ms. Si el navegador trae `BarcodeDetector` (Chrome en Android y macOS) usa ese lector; si no (Chrome en Windows, Safari, Firefox), dibuja el fotograma en un `canvas` y lo lee con `jsqr`. Igual que jsPDF, jsQR se carga con `import()` recién al abrir la cámara. El ingreso manual del código queda siempre como alternativa. La cámara se apaga al encontrar un código y en `ngOnDestroy`.
 
 **Supabase y reglas de negocio**
 
@@ -234,8 +236,8 @@ Todas las peticiones de HttpClient pasan por los interceptores:
   - Una función con entradas vendidas no puede cambiar de horario, sala, película, formato ni idioma (trigger `proteger_funcion_con_ventas`). Sí se puede cambiar el precio, que solo afecta a las ventas nuevas.
   - No se pueden programar funciones en el pasado ni en salas inactivas, tanto al crear como al editar.
 - **La compra es una función RPC `security definer`**: el precio y el descuento nunca vienen del cliente, y el cupón se bloquea con `for update` para no usarlo dos veces. Los productos del candy bar viajan como `jsonb` (solo id y cantidad) y la base les pone el precio.
-- **Descuentos configurables** (`cupones_regla`): el trigger de registro toma de ahí el porcentaje del cupón de bienvenida, y `comprar_entradas()` calcula el descuento por edad con `edad(fecha_nacimiento)`. Si aplican los dos se usa el mayor y se guarda el motivo en `compras.descuento_motivo`.
-- **Validación del QR**: `validar_entrada()` y `entregar_productos()` toman la compra con `for update`, comprueban `es_empleado()`, rechazan un código ya usado y guardan quién y cuándo lo validó. Los empleados no tienen acceso directo a `compras`: leen por `compra_para_validar()`, que devuelve solo lo necesario para la puerta.
+- **Descuentos configurables** (`cupones_regla`): el trigger de registro toma de ahí el porcentaje del cupón de bienvenida, y `comprar_entradas()` calcula el descuento por edad con `edad(fecha_nacimiento)`: aplica cuando la edad en años cumplidos supera la configurada ("más de 50 años"). Si aplican los dos se usa el mayor y se guarda el motivo en `compras.descuento_motivo`.
+- **Validación del QR**: `validar_entrada()` y `entregar_productos()` toman la compra con `for update`, comprueban `es_empleado()`, rechazan un código ya usado, solo aceptan hacerlo desde una hora antes del inicio hasta el final de la función y guardan quién y cuándo lo validó. Las fechas de los mensajes se pasan a hora de Argentina, porque la base trabaja en UTC. Los empleados no tienen acceso directo a `compras`: leen por `compra_para_validar()`, que devuelve solo lo necesario para la puerta.
 - **Asignación automática de sala**: `salas_libres()` cruza las salas activas con las funciones existentes usando el mismo rango `[inicio, fin + 30 min)` de la restricción. `programar_funciones()` crea un horario por día con un bloque `begin ... exception` por cada uno, así un choque no cancela el resto y la pantalla informa qué pasó con cada día.
 - **Roles**: `cambiar_rol()` valida que quien llama sea admin, que el rol exista y que un administrador no se quite a sí mismo el permiso.
 - **El frontend valida antes** para dar mejores mensajes: al crear o editar una función lista las funciones que chocan y a qué hora queda libre la sala; si la función tiene ventas, bloquea los campos que no se pueden cambiar.
@@ -265,6 +267,7 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 
 | Fecha | Versión | Cambios |
 |---|---|---|
+| 15/09/2026 | 0.3.1 | Correcciones de los emails del 30/01 y del 06/02. El descuento por edad aplica a quienes tienen más años que la edad configurada, como pide el email ("más de 50 años"). La entrada y los productos se validan desde una hora antes del inicio hasta que termina la función, y los mensajes muestran la hora de Argentina. El lector de QR usa `jsqr` donde el navegador no trae `BarcodeDetector` (Chrome en Windows, Safari, Firefox). La lista de usuarios muestra el rol real de cada uno. Si el catálogo del candy bar no carga, igual se pueden comprar entradas, y el panel del candy bar muestra el error en lugar de pedir que se cree una categoría. Ajustes de diseño en validación de QR, candy bar y descuentos. La categoría de ejemplo "Combos" pasa a "Promociones" para no confundirla con los combos del email del 03/03. Migración `004_descuento_edad_y_validacion.sql` y 7 pruebas nuevas en `npm run test:db`. |
 | 15/09/2026 | 0.3.0 | Emails del 30/01 y del 06/02. Candy bar: categorías y productos con su ABM, compra junto con la entrada y retiro con el mismo QR. Descuentos configurables: porcentaje del cupón de bienvenida y descuento por edad con su edad mínima. Rol de empleado y pantalla de validación de QR con cámara o código manual, que marca el ingreso y la entrega como usados. Panel de usuarios para asignar roles. Programación de la misma película en varios días y asignación automática de sala. Migración `003_candybar_roles_qr.sql` y 25 pruebas nuevas en `npm run test:db`. |
 | 15/09/2026 | 0.2.6 | La documentación se divide en tres archivos: `README.md` con lo esencial, `FUNCIONAL.md` con los requerimientos y criterios, y `TECNICO.md` con la arquitectura y las decisiones. |
 | 14/09/2026 | 0.2.5 | El panel de administración se protege con `canMatch` (su código no se descarga si el usuario no es admin) y `canActivateChild` (se vuelve a comprobar el rol en cada pantalla del panel). El formulario de película pide confirmación antes de salir con cambios sin guardar (`canDeactivate`). |
@@ -272,7 +275,7 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 | 14/09/2026 | 0.2.3 | La cartelera se obtiene con peticiones GET de HttpClient a la API REST de Supabase (`CarteleraService`), tipadas con interfaces. Si la API no responde, la pantalla muestra un mensaje en lugar de quedar cargando. |
 | 14/09/2026 | 0.2.2 | El mapa de butacas avisa cuando se intenta elegir más butacas de las permitidas por compra. La barra de carga aparece solo si la carga demora más de 200 ms. |
 | 14/09/2026 | 0.2.1 | Página 404 para direcciones que no existen. Los parámetros de las rutas (`:id`, `:codigo` y `?volver=`) se leen con `ActivatedRoute`. |
-| 14/09/2026 | 0.2.0 | Temas de clase: HttpClient con interceptores (barra de carga y aviso sin conexión) para todas las llamadas a Supabase, cuatro directivas propias (`appMascara`, `appImagenRespaldo`, `*appSiRol`, `appAutoFoco`) y animaciones con `animate.enter`/`animate.leave`. Nuevo estilo visual (Oswald, logo, ficha con póster de fondo, entrada tipo ticket, distintivos de formato, PDF con encabezado). Edición de funciones desde el panel de admin con la regla "con ventas solo cambia el precio" validada en la base (`supabase/migraciones/002_editar_funciones.sql`). Prueba completa en el navegador contra Supabase: registro, compras con y sin cupón, PDF, reseñas, compra anónima, buscador y filtros. |
+| 14/09/2026 | 0.2.0 | Mejoras técnicas: HttpClient con interceptores (barra de carga y aviso sin conexión) para todas las llamadas a Supabase, cuatro directivas propias (`appMascara`, `appImagenRespaldo`, `*appSiRol`, `appAutoFoco`) y animaciones con `animate.enter`/`animate.leave`. Nuevo estilo visual (Oswald, logo, ficha con póster de fondo, entrada tipo ticket, distintivos de formato, PDF con encabezado). Edición de funciones desde el panel de admin con la regla "con ventas solo cambia el precio" validada en la base (`supabase/migraciones/002_editar_funciones.sql`). Prueba completa en el navegador contra Supabase: registro, compras con y sin cupón, PDF, reseñas, compra anónima, buscador y filtros. |
 | 14/09/2026 | 0.1.4 | Primer deploy en <https://avenida-cine.vercel.app>. Verificado: rutas internas, datos de Supabase, manifest, service worker e íconos de la PWA. |
 | 14/09/2026 | 0.1.3 | Proyecto creado en Vercel (`avenida-cine`), conectado al repositorio para publicar automáticamente con cada cambio en `main`. |
 | 14/09/2026 | 0.1.2 | Código publicado en GitHub: <https://github.com/KevinPlucci/Avenida-Cine>. |
