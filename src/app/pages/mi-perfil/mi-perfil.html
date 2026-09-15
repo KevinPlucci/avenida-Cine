@@ -31,16 +31,28 @@
     <h2>Beneficios</h2>
     @if (cargando()) {
       <p class="cargando">Cargando...</p>
-    } @else if (cupon(); as c) {
-      @if (c.usado) {
-        <p class="meta">Ya usaste tu cupón de {{ c.porcentaje }}% de descuento de primera compra.</p>
-      } @else {
+    } @else if (beneficios(); as b) {
+      @if (b.primera_compra; as cupon) {
+        @if (cupon.usado) {
+          <p class="meta">Ya usaste tu cupón de {{ cupon.porcentaje }}% de descuento de primera compra.</p>
+        } @else {
+          <p class="alerta alerta-exito">
+            Tenés un cupón de <strong>{{ cupon.porcentaje }}% de descuento</strong>. Se aplica solo en tu primera compra.
+          </p>
+        }
+      }
+      @if (b.mayores; as mayores) {
         <p class="alerta alerta-exito">
-          Tenés un cupón de <strong>{{ c.porcentaje }}% de descuento</strong>. Se aplica solo en tu primera compra.
+          Por tener más de {{ mayores.edad_minima }} años tenés
+          <strong>{{ mayores.porcentaje }}% de descuento</strong> en todas tus compras.
         </p>
       }
+      @if (!b.primera_compra && !b.mayores) {
+        <p class="meta">No tenés descuentos disponibles.</p>
+      }
+      <p class="meta">Los descuentos se aplican sobre las entradas y no se acumulan: siempre se usa el más alto.</p>
     } @else {
-      <p class="meta">No tenés cupones disponibles.</p>
+      <p class="meta">No tenés descuentos disponibles.</p>
     }
   </section>
 </div>
@@ -59,6 +71,7 @@
             <th>Sala</th>
             <th>Entradas</th>
             <th>Total</th>
+            <th>Estado</th>
             <th></th>
           </tr>
         </thead>
@@ -70,11 +83,14 @@
               <td>{{ compra.sala }}</td>
               <td>{{ compra.cantidad }}</td>
               <td>{{ compra.total | currency }}</td>
+              <td>
+                {{ compra.validada_en ? 'Usada el ' + (compra.validada_en | date: 'dd/MM HH:mm') : 'Sin usar' }}
+              </td>
               <td><a [routerLink]="['/compras', compra.codigo]">Ver entrada</a></td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="6" class="vacio">Todavía no compraste entradas.</td>
+              <td colspan="7" class="vacio">Todavía no compraste entradas.</td>
             </tr>
           }
         </tbody>

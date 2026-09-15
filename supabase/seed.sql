@@ -76,3 +76,23 @@ begin
     end loop;
   end loop;
 end $$;
+
+-- Candy bar (email 30/01): categorías y productos de ejemplo.
+insert into public.categorias_productos (nombre, orden)
+values ('Pochoclos', 1), ('Bebidas', 2), ('Golosinas', 3), ('Combos', 4);
+
+insert into public.productos (categoria_id, nombre, descripcion, precio)
+select c.id, v.nombre, v.descripcion, v.precio
+from (values
+  ('Pochoclos', 'Pochoclos chicos',      'Balde de 45 gramos, dulces o salados.',        3500),
+  ('Pochoclos', 'Pochoclos medianos',    'Balde de 70 gramos, dulces o salados.',        4500),
+  ('Pochoclos', 'Pochoclos grandes',     'Balde de 120 gramos para compartir.',          5800),
+  ('Bebidas',   'Gaseosa chica',         'Vaso de 500 ml con hielo.',                    2800),
+  ('Bebidas',   'Gaseosa grande',        'Vaso de 750 ml con hielo.',                    3600),
+  ('Bebidas',   'Agua mineral',          'Botella de 500 ml.',                           2200),
+  ('Golosinas', 'Chocolate',             'Tableta de 100 gramos.',                       2500),
+  ('Golosinas', 'Nachos con queso',      'Porción de nachos con salsa de queso.',        5200),
+  ('Combos',    'Combo para uno',        'Pochoclos medianos y gaseosa grande.',         7200),
+  ('Combos',    'Combo para dos',        'Pochoclos grandes y dos gaseosas grandes.',   10500)
+) as v (categoria, nombre, descripcion, precio)
+join public.categorias_productos c on c.nombre = v.categoria;

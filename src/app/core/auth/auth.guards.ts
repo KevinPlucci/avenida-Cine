@@ -26,6 +26,29 @@ export const adminGuard: CanMatchFn = async (_route, segmentos) => {
 };
 
 /**
+ * canMatch: la pantalla de validación de QR solo coincide para empleados y administradores.
+ * Igual que con el panel, el código no se descarga para el resto de los usuarios.
+ */
+export const empleadoGuard: CanMatchFn = async (_route, segmentos) => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  await auth.esperarSesion();
+  if (!auth.logueado()) {
+    const volver = '/' + segmentos.map((segmento) => segmento.path).join('/');
+    return router.createUrlTree(['/login'], { queryParams: { volver } });
+  }
+  return auth.esEmpleado() || router.createUrlTree(['/']);
+};
+
+/** canActivate: vuelve a leer el rol desde la base antes de abrir la validación de QR. */
+export const rolEmpleadoVigenteGuard: CanActivateFn = async () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  await auth.refrescarPerfil();
+  return auth.esEmpleado() || router.createUrlTree(['/']);
+};
+
+/**
  * canActivateChild: antes de entrar a cada pantalla del panel vuelve a leer el rol desde la base,
  * por si se lo quitaron o se cerró la sesión mientras navegaba por el panel.
  */

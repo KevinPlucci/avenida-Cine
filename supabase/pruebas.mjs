@@ -92,6 +92,123 @@ const [puntaje] = await q(`select promedio::float from puntajes_peliculas where 
 ok(puntaje.promedio === 4, 'puntaje promedio');
 await esperarError(`insert into resenias (pelicula_id, estrellas, comentario) values (1, 5, 'Otra')`, [], 'duplicate key', 'una reseña por usuario y película');
 
+// ---------- Candy bar (email 30/01) ----------
+const [candy] = await q(`select (select count(*) from categorias_productos)::int categorias,
+  (select count(*) from productos)::int productos`);
+ok(candy.categorias === 4 && candy.productos === 10, 'candy bar de ejemplo cargado');
+
+const [pochoclos] = await q(`select id, precio::float precio from productos where nombre = 'Pochoclos medianos'`);
+const [gaseosa] = await q(`select id, precio::float precio from productos where nombre = 'Gaseosa grande'`);
+const carrito = JSON.stringify([
+  { producto_id: pochoclos.id, cantidad: 2 },
+  { producto_id: gaseosa.id, cantidad: 1 },
+]);
+const costoCandy = pochoclos.precio * 2 + gaseosa.precio;
+
+await comoUsuario(null);
+const [conCandy] = await q(`select comprar_entradas($1, array['D1'], 'ana@test.com', 'Ana', $2::jsonb) codigo`, [funcion.id, carrito]);
+const [compraCandy] = await q(
+  `select subtotal::float, subtotal_productos::float, total::float from compras where codigo = $1`, [conCandy.codigo]);
+ok(
+  compraCandy.subtotal_productos === costoCandy && compraCandy.total === funcion.precio + costoCandy,
+  'la compra suma los productos del candy bar',
+);
+ok(
+  (await q(`select count(*)::int n from compra_productos cp join compras c on c.id = cp.compra_id where c.codigo = $1`, [conCandy.codigo]))[0].n === 2,
+  'se guarda el detalle de los productos comprados',
+);
+ok(
+  (await q(`select obtener_compra($1) j`, [conCandy.codigo]))[0].j.productos.length === 2,
+  'obtener_compra devuelve los productos',
+);
+
+await esperarError(
+  `select comprar_entradas($1, array['D2'], 'ana@test.com', 'Ana', $2::jsonb)`,
+  [funcion.id, JSON.stringify([{ producto_id: pochoclos.id, cantidad: 1 }, { producto_id: pochoclos.id, cantidad: 2 }])],
+  'productos repetidos', 'productos repetidos en la misma compra',
+);
+await esperarError(
+  `select comprar_entradas($1, array['D2'], 'ana@test.com', 'Ana', $2::jsonb)`,
+  [funcion.id, JSON.stringify([{ producto_id: pochoclos.id, cantidad: 0 }])],
+  'Cantidad inválida', 'cantidad inválida de productos',
+);
+await q(`update productos set disponible = false where id = $1`, [gaseosa.id]);
+await esperarError(
+  `select comprar_entradas($1, array['D2'], 'ana@test.com', 'Ana', $2::jsonb)`,
+  [funcion.id, JSON.stringify([{ producto_id: gaseosa.id, cantidad: 1 }])],
+  'no está disponible', 'producto no disponible',
+);
+await q(`update productos set disponible = true where id = $1`, [gaseosa.id]);
+
+// ---------- Cupones configurables y descuento por edad (email 30/01) ----------
+await q(`update cupones_regla set porcentaje = 30 where tipo = 'primera_compra'`);
+const idNuevo = '55555555-5555-5555-5555-555555555555';
+await q(`insert into auth.users (id, email, raw_user_meta_data) values ($1, 'nuevo@test.com', $2)`, [
+  idNuevo,
+  { nombre: 'Nuevo', apellido: 'Cliente', fecha_nacimiento: '1995-03-10', tipo_sangre: 'B+', color_ojos: 'Verde', dias_vacaciones: 10 },
+]);
+ok((await q(`select porcentaje from cupones where usuario_id = $1`, [idNuevo]))[0].porcentaje === 30,
+  'el cupón de bienvenida usa el porcentaje configurado');
+await q(`update cupones_regla set porcentaje = 20 where tipo = 'primera_compra'`);
+
+const idMayor = '44444444-4444-4444-4444-444444444444';
+await q(`insert into auth.users (id, email, raw_user_meta_data) values ($1, 'elsa@test.com', $2)`, [
+  idMayor,
+  { nombre: 'Elsa', apellido: 'Gómez', fecha_nacimiento: '1960-04-02', tipo_sangre: '0+', color_ojos: 'Azul', dias_vacaciones: 21 },
+]);
+await comoUsuario(idMayor);
+const [beneficios] = await q(`select mis_beneficios() j`);
+ok(beneficios.j.mayores?.porcentaje === 15 && beneficios.j.mayores?.edad_minima === 50,
+  'mis_beneficios informa el descuento por edad');
+
+const [mayorPrimera] = await q(`select comprar_entradas($1, array['E1']) codigo`, [funcion.id]);
+ok(
+  (await q(`select descuento_motivo from compras where codigo = $1`, [mayorPrimera.codigo]))[0].descuento_motivo === 'primera_compra',
+  'con los dos descuentos disponibles se aplica el mayor',
+);
+const [mayorSegunda] = await q(`select comprar_entradas($1, array['E2']) codigo`, [funcion.id]);
+const [compraMayor] = await q(`select descuento::float, descuento_motivo from compras where codigo = $1`, [mayorSegunda.codigo]);
+ok(
+  compraMayor.descuento_motivo === 'mayores' && compraMayor.descuento === funcion.precio * 0.15,
+  'el descuento por edad se aplica en todas las compras',
+);
+await comoUsuario(uid);
+ok((await q(`select mis_beneficios() j`))[0].j.mayores === null, 'un usuario menor de 50 no tiene ese descuento');
+
+// ---------- Roles y validación del QR (email 06/02) ----------
+const idAdmin = '33333333-3333-3333-3333-333333333333';
+const idEmpleado = '22222222-2222-2222-2222-222222222222';
+for (const [id, email, nombre] of [[idAdmin, 'admin@test.com', 'Ada'], [idEmpleado, 'empleado@test.com', 'Beto']]) {
+  await q(`insert into auth.users (id, email, raw_user_meta_data) values ($1, $2, $3)`, [
+    id, email,
+    { nombre, apellido: 'López', fecha_nacimiento: '1992-07-15', tipo_sangre: 'A-', color_ojos: 'Marrón', dias_vacaciones: 12 },
+  ]);
+}
+await q(`update perfiles set rol = 'admin' where id = $1`, [idAdmin]);
+
+await comoUsuario(uid);
+await esperarError(`select cambiar_rol($1, 'empleado')`, [idEmpleado], 'Solo un administrador', 'un cliente no cambia roles');
+await comoUsuario(idAdmin);
+await q(`select cambiar_rol($1, 'empleado')`, [idEmpleado]);
+ok((await q(`select rol from perfiles where id = $1`, [idEmpleado]))[0].rol === 'empleado', 'el admin asigna el rol de empleado');
+await esperarError(`select cambiar_rol($1, 'cliente')`, [idAdmin], 'a vos mismo', 'el admin no se quita su propio rol');
+await esperarError(`select cambiar_rol($1, 'jefe')`, [idEmpleado], 'Rol inválido', 'rol inexistente');
+
+await comoUsuario(uid);
+await esperarError(`select validar_entrada($1)`, [conCandy.codigo], 'Solo el personal', 'un cliente no valida entradas');
+
+await comoUsuario(idEmpleado);
+const [validada] = await q(`select validar_entrada($1) j`, [conCandy.codigo]);
+ok(validada.j.validada_en !== null, 'el empleado valida la entrada');
+await esperarError(`select validar_entrada($1)`, [conCandy.codigo], 'ya fue validada', 'el QR no sirve dos veces');
+await esperarError(`select validar_entrada($1)`, ['00000000-0000-0000-0000-000000000000'], 'No existe ninguna compra', 'código inexistente');
+
+const [entregada] = await q(`select entregar_productos($1) j`, [conCandy.codigo]);
+ok(entregada.j.entregado_en !== null, 'el empleado entrega los productos con el mismo QR');
+await esperarError(`select entregar_productos($1)`, [conCandy.codigo], 'ya se entregaron', 'los productos se entregan una sola vez');
+await esperarError(`select entregar_productos($1)`, [anonima.codigo], 'no incluye productos', 'compra sin productos del candy bar');
+await comoUsuario(null);
+
 // ---------- Funciones: 30 minutos entre funciones ----------
 await comoUsuario(null);
 const [sala] = await q(`insert into salas (nombre) values ('Sala de prueba') returning id`);
@@ -128,9 +245,41 @@ await q(`update funciones set precio = 7777 where id = $1`, [funcion.id]);
 ok((await q(`select precio::float p from funciones where id = $1`, [funcion.id]))[0].p === 7777, 'sí se cambia el precio de una función con ventas');
 ok((await q(`select total::float t from compras where codigo = $1`, [anonima.codigo]))[0].t === funcion.precio * 2, 'cambiar el precio no modifica las compras hechas');
 
+// ---------- Programación de funciones (email 06/02) ----------
+await comoUsuario(idAdmin);
+const horario = (dias) => `date_trunc('day', now()) + interval '${dias} days 9 hours'`;
+const [programadas] = await q(`select programar_funciones(3, null,
+  array[${horario(5)}, ${horario(6)}, ${horario(7)}], '2D', 'castellano', 5000) r`);
+ok(
+  programadas.r.length === 3 && programadas.r.every((f) => f.creada),
+  'programa la misma película varios días a la misma hora con sala automática',
+);
+
+const [salaAsignada] = await q(`select id from salas where nombre = $1`, [programadas.r[0].sala]);
+const libres = await q(`select * from salas_libres(${horario(5)}, 3)`);
+ok(!libres.some((s) => s.id === salaAsignada.id), 'salas_libres deja afuera la sala que quedó ocupada');
+
+const [choque] = await q(`select programar_funciones(3, $1, array[${horario(5)}], '2D', 'castellano', 5000) r`, [salaAsignada.id]);
+ok(!choque.r[0].creada && choque.r[0].motivo.includes('otra función'), 'informa el horario que no se pudo programar');
+
+await comoUsuario(uid);
+await esperarError(`select programar_funciones(3, null, array[${horario(8)}], '2D', 'castellano', 5000)`, [],
+  'Solo un administrador', 'un cliente no programa funciones');
+await comoUsuario(null);
+
 await db.exec(leer('./migraciones/002_editar_funciones.sql'));
 ok(true, 'la migración 002 se aplica sobre una base existente');
 await esperarError(`update funciones set inicio = inicio + interval '2 hours' where id = $1`, [funcion.id], 'entradas vendidas', 'después de la migración se mantiene la regla');
+
+await db.exec(leer('./migraciones/003_candybar_roles_qr.sql'));
+ok(true, 'la migración 003 se aplica sobre una base existente');
+await comoUsuario(idEmpleado);
+await esperarError(`select validar_entrada($1)`, [conCandy.codigo], 'ya fue validada', 'después de la migración 003 el QR usado sigue rechazado');
+await comoUsuario(null);
+ok(
+  (await q(`select count(*)::int n from compra_productos`))[0].n > 0,
+  'la migración 003 conserva los productos ya comprados',
+);
 
 console.log(fallos ? `\n${fallos} prueba(s) fallaron` : '\nTodas las pruebas pasaron');
 process.exit(fallos ? 1 : 0);

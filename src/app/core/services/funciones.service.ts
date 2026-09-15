@@ -1,11 +1,20 @@
 import { inject, Injectable } from '@angular/core';
 import { SupabaseService } from '../supabase.service';
-import { FuncionAdmin, FuncionConDetalle, FuncionNueva } from '../models/funcion';
+import { Formato, FuncionAdmin, FuncionConDetalle, FuncionNueva, Idioma } from '../models/funcion';
+import { Sala } from '../models/sala';
 import { MINUTOS_ENTRE_FUNCIONES } from '../constantes';
 import { sumarMinutos } from '../utils/fechas';
 
 const COLUMNAS =
   '*, pelicula:peliculas(id, titulo, imagen_url, duracion_min, en_cartelera), sala:salas(id, nombre)';
+
+/** Resultado de programar un horario: la base informa cuáles se crearon y por qué falló el resto. */
+export interface ResultadoProgramacion {
+  inicio: string;
+  creada: boolean;
+  sala?: string;
+  motivo?: string;
+}
 
 @Injectable({ providedIn: 'root' })
 export class FuncionesService {
@@ -67,6 +76,42 @@ export class FuncionesService {
     const { data, error } = await consulta.order('inicio');
     if (error) throw error;
     return data as FuncionConDetalle[];
+  }
+
+  /** Salas activas libres para ese horario (email 06/02: asignación automática). */
+  async salasLibres(inicio: Date, peliculaId: number, excluirFuncion?: number): Promise<Sala[]> {
+    const { data, error } = await this.db.rpc('salas_libres', {
+      p_inicio: inicio.toISOString(),
+      p_pelicula_id: peliculaId,
+      p_excluir_funcion: excluirFuncion ?? null,
+    });
+    if (error) throw error;
+    return (data as { id: number; nombre: string }[]).map((s) => ({ ...s, activa: true }));
+  }
+
+  /**
+   * Programa la misma película en varios horarios de una sola vez (email 06/02).
+   * Con salaId en null la base asigna automáticamente la primera sala libre de cada horario.
+   * Devuelve un resultado por horario: si uno falla, los demás se crean igual.
+   */
+  async programar(
+    peliculaId: number,
+    salaId: number | null,
+    inicios: Date[],
+    formato: Formato,
+    idioma: Idioma,
+    precio: number,
+  ): Promise<ResultadoProgramacion[]> {
+    const { data, error } = await this.db.rpc('programar_funciones', {
+      p_pelicula_id: peliculaId,
+      p_sala_id: salaId,
+      p_inicios: inicios.map((fecha) => fecha.toISOString()),
+      p_formato: formato,
+      p_idioma: idioma,
+      p_precio: precio,
+    });
+    if (error) throw error;
+    return data as ResultadoProgramacion[];
   }
 
   async crear(funcion: FuncionNueva): Promise<void> {

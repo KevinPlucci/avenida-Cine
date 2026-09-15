@@ -1,7 +1,7 @@
 import { Directive, effect, inject, input, TemplateRef, ViewContainerRef } from '@angular/core';
 import { AuthService } from '../../core/auth/auth.service';
 
-export type RolVisible = 'invitado' | 'cliente' | 'admin';
+export type RolVisible = 'invitado' | 'cliente' | 'empleado' | 'admin';
 
 /**
  * Directiva estructural: muestra el contenido solo para ciertos roles.
@@ -20,7 +20,13 @@ export class SiRolDirective {
     // Se vuelve a evaluar cada vez que cambia la sesión o el rol.
     effect(() => {
       const roles = ([] as RolVisible[]).concat(this.appSiRol());
-      const rolActual: RolVisible = !this.auth.logueado() ? 'invitado' : this.auth.esAdmin() ? 'admin' : 'cliente';
+      const rolActual: RolVisible = !this.auth.logueado()
+        ? 'invitado'
+        : this.auth.esAdmin()
+          ? 'admin'
+          : this.auth.esEmpleado()
+            ? 'empleado'
+            : 'cliente';
       const mostrar = roles.includes(rolActual);
 
       if (mostrar && !this.visible) {

@@ -20,7 +20,8 @@
   } @else {
     <p class="meta">
       Entre el final de una función y el inicio de la siguiente en la misma sala tiene que haber al menos
-      {{ minutosEntreFunciones }} minutos.
+      {{ minutosEntreFunciones }} minutos. Podés marcar varios días para programar la misma película a la misma
+      hora, y dejar que el sistema elija la sala.
     </p>
   }
 
@@ -46,30 +47,46 @@
           <span>Sala</span>
           <select formControlName="sala_id">
             <option [ngValue]="null" disabled>Elegí una sala</option>
+            @if (!editando()) {
+              <option [ngValue]="salaAutomatica">Asignación automática</option>
+            }
             @for (sala of salasActivas(); track sala.id) {
               <option [ngValue]="sala.id">{{ sala.nombre }}</option>
             }
           </select>
           <app-error-campo [control]="form.controls.sala_id" />
+          @if (asignacionAutomatica()) {
+            <small class="meta">Se usa la primera sala activa que esté libre en ese horario.</small>
+          }
         </label>
       </div>
 
       <div class="campo">
-        <span>Día</span>
+        <span>{{ editando() ? 'Día' : 'Días' }}</span>
         <div class="chips">
           @for (dia of dias; track dia.valor) {
             <button
               type="button"
               class="chip"
-              [class.activo]="form.controls.dia.value === dia.valor"
-              [disabled]="form.controls.dia.disabled"
+              [class.activo]="diaElegido(dia.valor)"
+              [attr.aria-pressed]="diaElegido(dia.valor)"
+              [disabled]="form.controls.dias.disabled"
               (click)="elegirDia(dia.valor)"
             >
               {{ dia.fecha | date: 'EEE d/M' }}
             </button>
           }
         </div>
-        <app-error-campo [control]="form.controls.dia" />
+        @if (!editando()) {
+          <small class="meta">
+            {{
+              cantidadDias()
+                ? 'Se van a crear ' + cantidadDias() + (cantidadDias() === 1 ? ' función.' : ' funciones, una por día.')
+                : 'Podés marcar más de un día.'
+            }}
+          </small>
+        }
+        <app-error-campo [control]="form.controls.dias" />
       </div>
 
       <div class="fila-campos">
@@ -121,8 +138,14 @@
 
       @if (inicioElegido() && finElegido()) {
         <p class="alerta">
-          Empieza el {{ inicioElegido() | date: "EEEE d/M 'a las' HH:mm" }} y termina a las
-          {{ finElegido() | date: 'HH:mm' }}. La sala queda libre desde las {{ libreDesde() | date: 'HH:mm' }}.
+          @if (cantidadDias() > 1) {
+            Cada función empieza a las {{ inicioElegido() | date: 'HH:mm' }} y termina a las
+            {{ finElegido() | date: 'HH:mm' }} ({{ cantidadDias() }} días). La sala queda libre desde las
+            {{ libreDesde() | date: 'HH:mm' }}.
+          } @else {
+            Empieza el {{ inicioElegido() | date: "EEEE d/M 'a las' HH:mm" }} y termina a las
+            {{ finElegido() | date: 'HH:mm' }}. La sala queda libre desde las {{ libreDesde() | date: 'HH:mm' }}.
+          }
         </p>
       }
 
@@ -139,6 +162,19 @@
           </ul>
         </div>
       }
+      @if (resultados().length) {
+        <div class="alerta" animate.enter="aparecer">
+          Resultado por día:
+          <ul>
+            @for (resultado of resultados(); track resultado.inicio) {
+              <li>
+                {{ resultado.inicio | date: "EEE d/M 'a las' HH:mm" }}:
+                {{ resultado.creada ? 'creada en ' + resultado.sala : 'no se creó (' + resultado.motivo + ')' }}
+              </li>
+            }
+          </ul>
+        </div>
+      }
       @if (error()) {
         <p class="alerta alerta-error" animate.enter="aparecer">{{ error() }}</p>
       }
@@ -147,7 +183,15 @@
       }
 
       <button type="submit" class="btn btn-primario" [disabled]="guardando()">
-        {{ guardando() ? 'Guardando...' : editando() ? 'Guardar cambios' : 'Crear función' }}
+        {{
+          guardando()
+            ? 'Guardando...'
+            : editando()
+              ? 'Guardar cambios'
+              : cantidadDias() > 1
+                ? 'Crear ' + cantidadDias() + ' funciones'
+                : 'Crear función'
+        }}
       </button>
     </form>
   }

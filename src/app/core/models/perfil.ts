@@ -2,7 +2,7 @@ export const TIPOS_SANGRE = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', '0+', '0-'] a
 
 export const COLORES_OJOS = ['Marrón', 'Negro', 'Azul', 'Verde', 'Gris', 'Avellana', 'Otro'] as const;
 
-export type Rol = 'cliente' | 'admin';
+export type Rol = 'cliente' | 'empleado' | 'admin';
 
 export interface Perfil {
   id: string;

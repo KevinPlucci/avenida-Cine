@@ -2,7 +2,7 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
-import { CompraResumen, Cupon } from '../../core/models/compra';
+import { Beneficios, CompraResumen } from '../../core/models/compra';
 import { ComprasService } from '../../core/services/compras.service';
 import { mensajeError } from '../../core/utils/errores';
 
@@ -17,18 +17,18 @@ export class MiPerfil implements OnInit {
   protected readonly auth = inject(AuthService);
 
   protected readonly compras = signal<CompraResumen[]>([]);
-  protected readonly cupon = signal<Cupon | null>(null);
+  protected readonly beneficios = signal<Beneficios | null>(null);
   protected readonly cargando = signal(true);
   protected readonly error = signal('');
 
   async ngOnInit(): Promise<void> {
     try {
-      const [compras, cupon] = await Promise.all([
+      const [compras, beneficios] = await Promise.all([
         this.comprasService.misCompras(),
-        this.comprasService.cuponPrimeraCompra(),
+        this.comprasService.misBeneficios(),
       ]);
       this.compras.set(compras);
-      this.cupon.set(cupon);
+      this.beneficios.set(beneficios);
     } catch (e) {
       this.error.set(mensajeError(e));
     } finally {

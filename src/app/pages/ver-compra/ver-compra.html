@@ -39,13 +39,40 @@
           </div>
         </div>
 
+        @if (c.productos.length) {
+          <div class="candy">
+            <span class="etiqueta">Candy bar</span>
+            <ul>
+              @for (producto of c.productos; track producto.nombre) {
+                <li>
+                  <span>{{ producto.cantidad }} × {{ producto.nombre }}</span>
+                  <span>{{ producto.cantidad * producto.precio_unitario | currency }}</span>
+                </li>
+              }
+            </ul>
+            <small class="meta">
+              {{
+                c.entregado_en
+                  ? 'Retirados el ' + (c.entregado_en | date: 'dd/MM/yyyy HH:mm')
+                  : 'Se retiran en el candy bar con este mismo código.'
+              }}
+            </small>
+          </div>
+        }
+
         <dl class="datos">
           <dt>Comprador</dt>
           <dd>{{ c.nombre }} ({{ c.email }})</dd>
-          @if (c.descuento > 0) {
-            <dt>Subtotal</dt>
+          @if (c.descuento > 0 || c.subtotal_productos > 0) {
+            <dt>Entradas</dt>
             <dd>{{ c.subtotal | currency }}</dd>
-            <dt>Descuento</dt>
+          }
+          @if (c.subtotal_productos > 0) {
+            <dt>Candy bar</dt>
+            <dd>{{ c.subtotal_productos | currency }}</dd>
+          }
+          @if (c.descuento > 0) {
+            <dt>{{ c.descuento_motivo === 'mayores' ? 'Descuento por edad' : 'Cupón primera compra' }}</dt>
             <dd>- {{ c.descuento | currency }}</dd>
           }
           <dt>Total</dt>
@@ -59,9 +86,12 @@
 
       <div class="ticket-talon">
         @if (qr()) {
-          <img [src]="qr()" alt="Código QR de la entrada" width="200" height="200" />
+          <img [src]="qr()" alt="Código QR de la entrada" width="200" height="200" [class.usado]="c.validada_en" />
         }
         <small class="codigo">{{ c.codigo }}</small>
+        @if (c.validada_en) {
+          <small class="validada">Ingreso validado el {{ c.validada_en | date: 'dd/MM/yyyy HH:mm' }}</small>
+        }
       </div>
     </article>
 

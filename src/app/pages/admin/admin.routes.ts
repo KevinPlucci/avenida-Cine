@@ -41,6 +41,21 @@ export const ADMIN_ROUTES: Routes = [
         title: 'Géneros',
         loadComponent: () => import('./admin-generos').then((m) => m.AdminGeneros),
       },
+      {
+        path: 'candy-bar',
+        title: 'Candy bar',
+        loadComponent: () => import('./admin-productos').then((m) => m.AdminProductos),
+      },
+      {
+        path: 'descuentos',
+        title: 'Descuentos',
+        loadComponent: () => import('./admin-cupones').then((m) => m.AdminCupones),
+      },
+      {
+        path: 'usuarios',
+        title: 'Usuarios',
+        loadComponent: () => import('./admin-usuarios').then((m) => m.AdminUsuarios),
+      },
     ],
   },
 ];

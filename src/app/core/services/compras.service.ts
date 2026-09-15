@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { SupabaseService } from '../supabase.service';
-import { Comprador, CompraResumen, Cupon, DetalleCompra } from '../models/compra';
+import { Beneficios, Comprador, CompraResumen, DetalleCompra } from '../models/compra';
+import { ItemCarrito } from '../models/producto';
 import { idButaca } from '../utils/butacas';
 
 const FORMATO_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -16,16 +17,22 @@ export class ComprasService {
   }
 
   /**
-   * Confirma la compra llamando a la función comprar_entradas() de la base, que valida las butacas,
-   * calcula el total y aplica el cupón. Devuelve el código de la compra.
+   * Confirma la compra llamando a la función comprar_entradas() de la base, que valida las butacas
+   * y los productos, calcula el total y aplica el descuento. Devuelve el código de la compra.
    * Si el usuario está logueado, comprador va en null y se usan los datos de su perfil.
    */
-  async comprar(funcionId: number, butacas: string[], comprador: Comprador | null): Promise<string> {
+  async comprar(
+    funcionId: number,
+    butacas: string[],
+    comprador: Comprador | null,
+    productos: ItemCarrito[] = [],
+  ): Promise<string> {
     const { data, error } = await this.db.rpc('comprar_entradas', {
       p_funcion_id: funcionId,
       p_butacas: butacas,
       p_email: comprador?.email ?? null,
       p_nombre: comprador?.nombre ?? null,
+      p_productos: productos,
     });
     if (error) throw error;
     return data as string;
@@ -44,14 +51,11 @@ export class ComprasService {
     return data as CompraResumen[];
   }
 
-  /** Cupón de primera compra del usuario logueado (null si no tiene). */
-  async cuponPrimeraCompra(): Promise<Cupon | null> {
-    const { data, error } = await this.db
-      .from('cupones')
-      .select('id, tipo, porcentaje, usado')
-      .eq('tipo', 'primera_compra')
-      .maybeSingle();
+  /** Descuentos disponibles del usuario logueado: cupón de bienvenida y beneficio por edad. */
+  async misBeneficios(): Promise<Beneficios> {
+    const { data, error } = await this.db.rpc('mis_beneficios');
     if (error) throw error;
-    return data as Cupon | null;
+    return data as Beneficios;
   }
+
 }

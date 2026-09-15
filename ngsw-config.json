@@ -26,6 +26,8 @@
         "https://*.supabase.co/rest/v1/puntajes_peliculas**",
         "https://*.supabase.co/rest/v1/funciones**",
         "https://*.supabase.co/rest/v1/resenias**",
+        "https://*.supabase.co/rest/v1/categorias_productos**",
+        "https://*.supabase.co/rest/v1/productos**",
         "https://*.supabase.co/rest/v1/rpc/ranking_ventas**"
       ],
       "cacheConfig": {

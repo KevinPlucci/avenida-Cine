@@ -7,7 +7,7 @@ Hecha con **Angular 21** y **Supabase**, instalable como **PWA**.
 |---|---|
 | **Deploy** | <https://avenida-cine.vercel.app> |
 | **Repositorio** | <https://github.com/KevinPlucci/Avenida-Cine> |
-| **Estado** | Consigna + emails del 01/01 y 16/01 implementados, con edición de funciones |
+| **Estado** | Consigna y emails del 01/01, 16/01, 30/01 y 06/02 implementados |
 
 ## Documentación
 
@@ -20,9 +20,10 @@ Hecha con **Angular 21** y **Supabase**, instalable como **PWA**.
 
 - Cartelera con las 3 películas más vendidas, buscador y filtro por género.
 - Detalle de película con sinopsis, puntaje promedio, reseñas y funciones.
-- Compra de entradas con mapa de butacas y cupón de descuento, con cuenta o sin registrarse.
+- Compra de entradas con mapa de butacas, candy bar y descuentos, con cuenta o sin registrarse.
 - Entrada con código QR y descarga en PDF. El pago es simulado.
-- Panel de administración de películas, funciones, salas y géneros.
+- Validación del QR en la puerta y en el candy bar, para el personal del cine.
+- Panel de administración de películas, funciones, salas, géneros, candy bar, descuentos y usuarios.
 
 ## Stack
 

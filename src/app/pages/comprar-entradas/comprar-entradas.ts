@@ -3,11 +3,14 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
-import { MAX_BUTACAS_POR_COMPRA, PORCENTAJE_CUPON_BIENVENIDA } from '../../core/constantes';
-import { Cupon } from '../../core/models/compra';
+import { MAX_BUTACAS_POR_COMPRA, MAX_UNIDADES_POR_PRODUCTO, PORCENTAJE_CUPON_BIENVENIDA } from '../../core/constantes';
+import { Beneficios } from '../../core/models/compra';
 import { FuncionConDetalle } from '../../core/models/funcion';
+import { CategoriaConProductos, ItemCarrito, Producto } from '../../core/models/producto';
 import { ComprasService } from '../../core/services/compras.service';
+import { CuponesService } from '../../core/services/cupones.service';
 import { FuncionesService } from '../../core/services/funciones.service';
+import { ProductosService } from '../../core/services/productos.service';
 import { mensajeError } from '../../core/utils/errores';
 import { ErrorCampo } from '../../shared/components/error-campo';
 import { MapaButacas } from '../../shared/components/mapa-butacas';
@@ -34,32 +37,80 @@ export class ComprarEntradas implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly funcionesService = inject(FuncionesService);
   private readonly comprasService = inject(ComprasService);
+  private readonly productosService = inject(ProductosService);
+  private readonly cuponesService = inject(CuponesService);
   private readonly router = inject(Router);
   private readonly fb = inject(NonNullableFormBuilder);
   protected readonly auth = inject(AuthService);
 
   protected readonly maximo = MAX_BUTACAS_POR_COMPRA;
-  protected readonly porcentajeBienvenida = PORCENTAJE_CUPON_BIENVENIDA;
+  protected readonly maxUnidades = MAX_UNIDADES_POR_PRODUCTO;
 
   protected readonly funcion = signal<FuncionConDetalle | null>(null);
   protected readonly ocupadas = signal<ReadonlySet<string>>(new Set());
   protected readonly seleccionadas = signal<string[]>([]);
   /** Máximo de butacas que se intentó superar; lo informa el mapa con su output limiteAlcanzado (0 = sin aviso). */
   protected readonly avisoLimite = signal(0);
-  protected readonly cupon = signal<Cupon | null>(null);
+  protected readonly beneficios = signal<Beneficios | null>(null);
+  /** Porcentaje del cupón de bienvenida, para invitar a registrarse a quien compra sin cuenta. */
+  protected readonly porcentajeBienvenida = signal(PORCENTAJE_CUPON_BIENVENIDA);
   protected readonly cargando = signal(true);
   protected readonly error = signal('');
   protected readonly errorCompra = signal('');
   protected readonly procesando = signal(false);
 
+  // Candy bar (email 30/01): cantidad elegida de cada producto.
+  protected readonly categorias = signal<CategoriaConProductos[]>([]);
+  protected readonly carrito = signal<Record<number, number>>({});
+
+  private readonly porId = computed(() => {
+    const mapa = new Map<number, Producto>();
+    for (const categoria of this.categorias()) {
+      for (const producto of categoria.productos) mapa.set(producto.id, producto);
+    }
+    return mapa;
+  });
+
+  protected readonly items = computed<ItemCarrito[]>(() =>
+    Object.entries(this.carrito())
+      .filter(([, cantidad]) => cantidad > 0)
+      .map(([id, cantidad]) => ({ producto_id: Number(id), cantidad })),
+  );
+
+  protected readonly lineas = computed(() =>
+    this.items().map((item) => ({
+      producto: this.porId().get(item.producto_id)!,
+      cantidad: item.cantidad,
+    })),
+  );
+
   // El total que se muestra es orientativo: el importe real lo calcula la base al confirmar.
   protected readonly subtotal = computed(() => (this.funcion()?.precio ?? 0) * this.seleccionadas().length);
-  protected readonly porcentajeDescuento = computed(() => {
-    const cupon = this.cupon();
-    return cupon && !cupon.usado ? cupon.porcentaje : 0;
+  protected readonly subtotalProductos = computed(() =>
+    this.lineas().reduce((suma, linea) => suma + linea.producto.precio * linea.cantidad, 0),
+  );
+
+  /** Los dos descuentos no se acumulan: se aplica el más alto (la base hace el mismo cálculo). */
+  protected readonly descuentoAplicado = computed(() => {
+    const beneficios = this.beneficios();
+    if (!beneficios) return null;
+    const opciones: { porcentaje: number; etiqueta: string }[] = [];
+    if (beneficios.primera_compra && !beneficios.primera_compra.usado) {
+      opciones.push({ porcentaje: beneficios.primera_compra.porcentaje, etiqueta: 'Cupón primera compra' });
+    }
+    if (beneficios.mayores) {
+      opciones.push({
+        porcentaje: beneficios.mayores.porcentaje,
+        etiqueta: `Descuento desde los ${beneficios.mayores.edad_minima} años`,
+      });
+    }
+    return opciones.sort((a, b) => b.porcentaje - a.porcentaje)[0] ?? null;
   });
+
+  protected readonly porcentajeDescuento = computed(() => this.descuentoAplicado()?.porcentaje ?? 0);
+  /** El descuento se aplica solo sobre las entradas, no sobre el candy bar. */
   protected readonly descuento = computed(() => Math.round(this.subtotal() * this.porcentajeDescuento()) / 100);
-  protected readonly total = computed(() => this.subtotal() - this.descuento());
+  protected readonly total = computed(() => this.subtotal() + this.subtotalProductos() - this.descuento());
 
   protected readonly form = this.fb.group({
     comprador: this.fb.group({
@@ -80,9 +131,10 @@ export class ComprarEntradas implements OnInit {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     try {
       await this.auth.esperarSesion();
-      const [funcion, ocupadas] = await Promise.all([
+      const [funcion, ocupadas, categorias] = await Promise.all([
         this.funcionesService.obtener(id),
         this.comprasService.butacasOcupadas(id),
+        this.productosService.disponiblesPorCategoria(),
       ]);
       if (!funcion?.pelicula) {
         this.error.set('La función no existe o la película ya no está en cartelera.');
@@ -94,11 +146,15 @@ export class ComprarEntradas implements OnInit {
       }
       this.funcion.set(funcion);
       this.ocupadas.set(ocupadas);
+      this.categorias.set(categorias);
 
       if (this.auth.logueado()) {
         // Los datos del comprador se toman del perfil.
         this.form.controls.comprador.disable();
-        this.cupon.set(await this.comprasService.cuponPrimeraCompra());
+        this.beneficios.set(await this.comprasService.misBeneficios());
+      } else {
+        const regla = await this.cuponesService.obtenerRegla('primera_compra');
+        if (regla?.activo) this.porcentajeBienvenida.set(regla.porcentaje);
       }
     } catch (e) {
       this.error.set(mensajeError(e));
@@ -111,6 +167,19 @@ export class ComprarEntradas implements OnInit {
   protected cambiarSeleccion(butacas: string[]): void {
     this.seleccionadas.set(butacas);
     this.avisoLimite.set(0);
+  }
+
+  protected cantidad(producto: Producto): number {
+    return this.carrito()[producto.id] ?? 0;
+  }
+
+  protected sumar(producto: Producto, paso: number): void {
+    const cantidad = Math.min(Math.max(this.cantidad(producto) + paso, 0), MAX_UNIDADES_POR_PRODUCTO);
+    this.carrito.update((actual) => ({ ...actual, [producto.id]: cantidad }));
+  }
+
+  protected vaciarCarrito(): void {
+    this.carrito.set({});
   }
 
   protected async confirmar(): Promise<void> {
@@ -128,7 +197,12 @@ export class ComprarEntradas implements OnInit {
     const comprador = this.auth.logueado() ? null : this.form.controls.comprador.getRawValue();
     this.procesando.set(true);
     try {
-      const codigo = await this.comprasService.comprar(funcionId, this.seleccionadas(), comprador);
+      const codigo = await this.comprasService.comprar(
+        funcionId,
+        this.seleccionadas(),
+        comprador,
+        this.items(),
+      );
       await this.router.navigate(['/compras', codigo], { state: { recienComprada: true } });
     } catch (e) {
       this.errorCompra.set(mensajeError(e));

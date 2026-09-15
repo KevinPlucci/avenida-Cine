@@ -14,6 +14,11 @@ export class AuthService {
   readonly perfil = this.perfilActual.asReadonly();
   readonly logueado = computed(() => this.usuarioActual() !== null);
   readonly esAdmin = computed(() => this.perfilActual()?.rol === 'admin');
+  /** El personal del cine valida entradas; el admin también puede hacerlo (email 06/02). */
+  readonly esEmpleado = computed(() => {
+    const rol = this.perfilActual()?.rol;
+    return rol === 'empleado' || rol === 'admin';
+  });
 
   /** Se resuelve cuando ya se sabe si había una sesión guardada. */
   private readonly sesionInicial = this.inicializar();

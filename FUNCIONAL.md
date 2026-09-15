@@ -32,8 +32,8 @@ y decide qué se muestra en la cartelera.
 |---|---|---|
 | Visitante | Entra sin cuenta | Ver la cartelera y el detalle de las películas, comprar entradas dejando nombre y email, ver la entrada con el código de compra |
 | Cliente registrado | Se registró con sus datos | Todo lo anterior, más su perfil, su cupón de primera compra, el historial de compras y dejar reseñas |
-| Administrador | Personal del cine | Películas, funciones (alta, edición y baja), salas y géneros |
-| Empleado | Personal de puerta y candy bar | Todavía no existe: llega con el email del 06/02 (validación de QR) |
+| Empleado | Personal de puerta y candy bar | Validar los códigos QR del ingreso y entregar los productos del candy bar |
+| Administrador | Personal del cine | Películas, funciones, salas, géneros, candy bar, descuentos y roles de los usuarios. También puede validar QR |
 
 ## 3. Pantallas
 
@@ -41,20 +41,25 @@ y decide qué se muestra en la cartelera.
 |---|---|---|
 | Cartelera | Las 3 películas más vendidas arriba y el listado completo, con buscador y filtro por género | Todos |
 | Detalle de película | Sinopsis, duración, puntaje promedio, reseñas y funciones de los próximos días | Todos |
-| Compra de entradas | Mapa de butacas de la sala, resumen con el cupón aplicado y datos de pago | Todos |
-| Entrada | Código QR para ingresar y descarga del PDF | Quien tenga el código de compra |
+| Compra de entradas | Mapa de butacas, productos del candy bar, resumen con el descuento aplicado y datos de pago | Todos |
+| Entrada | Código QR para ingresar y retirar el candy bar, y descarga del PDF | Quien tenga el código de compra |
+| Validar entradas | Lectura del QR con la cámara o a mano, con el estado del ingreso y del candy bar | Empleados y administradores |
 | Ingreso y registro | Cuenta propia; después de ingresar vuelve a la pantalla donde estaba | Solo sin sesión iniciada |
 | Mi perfil | Datos personales, cupón disponible y compras realizadas | Clientes registrados |
-| Administración | Películas, funciones, salas y géneros | Administradores |
+| Administración | Películas, funciones, salas, géneros, candy bar, descuentos y usuarios | Administradores |
 
 ## 4. Flujo de compra
 
 1. El cliente elige una función desde el detalle de la película.
 2. Ve el mapa de la sala con las butacas ya vendidas y elige las suyas (hasta 10 por compra).
-3. Si tiene la sesión iniciada y le corresponde el cupón, el descuento aparece en el resumen.
+3. Si quiere, suma productos del candy bar: pochoclos, bebidas, golosinas o combos.
+4. Si tiene la sesión iniciada y le corresponde un descuento, aparece en el resumen.
    Si compra sin cuenta, deja nombre y email.
-4. Paga con tarjeta (simulado). El total lo calcula el sistema con el precio de la función, no el navegador.
-5. Recibe la entrada con el código QR y puede descargar el PDF.
+5. Paga con tarjeta (simulado). El total lo calcula el sistema con los precios de la base, no el navegador.
+6. Recibe la entrada con el código QR y puede descargar el PDF.
+
+En el cine, un empleado escanea ese QR en la puerta y, si la compra tenía productos, otra vez en el candy bar.
+Cada código sirve una sola vez para cada cosa.
 
 ## 5. Reglas de negocio
 
@@ -63,6 +68,13 @@ y decide qué se muestra en la cartelera.
 - Una función con entradas vendidas no cambia de horario, sala, película, formato ni idioma. Sí puede cambiar el precio, que rige para las ventas nuevas. Tampoco se puede eliminar.
 - No se programan funciones en el pasado ni en salas desactivadas.
 - El cupón de primera compra se aplica una sola vez y queda marcado como usado en la misma operación de compra.
+- El descuento por edad se aplica en todas las compras del usuario que supera la edad configurada.
+- Los dos descuentos no se acumulan: se aplica el más alto, y siempre sobre las entradas, no sobre el candy bar.
+- El porcentaje de los dos descuentos y la edad mínima los configura el administrador.
+- Un producto que se da de baja deja de venderse, pero las compras ya hechas conservan su nombre y su precio.
+- El código QR sirve una sola vez para ingresar y una sola vez para retirar los productos.
+- Solo el personal del cine puede validar entradas y entregar productos.
+- Una entrada no se puede validar después de que la función terminó.
 - El precio y el descuento se resuelven en el servidor: no se pueden alterar desde el navegador.
 - La entrada de una compra sin cuenta se recupera con el código de compra, que no es adivinable.
 
@@ -120,22 +132,22 @@ Referencias: `[x]` implementado · `[ ]` pendiente.
 
 ### Email 4 · 30/01/2020 · Cupones y candy bar
 
-- [ ] Porcentaje del cupón de primera compra configurable por el admin
-- [ ] Cupones que solo aplican a usuarios de más de 50 años
-- [ ] Productos del candy bar (pochoclos, bebidas, etc.) con categorías
-- [ ] Comprar productos junto con la entrada
-- [ ] Retirar los productos con el mismo QR
+- [x] Porcentaje del cupón de primera compra configurable por el admin
+- [x] Cupones que solo aplican a usuarios de más de 50 años (la edad también se configura)
+- [x] Productos del candy bar (pochoclos, bebidas, etc.) con categorías
+- [x] Comprar productos junto con la entrada
+- [x] Retirar los productos con el mismo QR
 - Mapa del cine con la sala de la entrada: **sin aprobación del cliente, no se implementa**
 
 ### Email 5 · 06/02/2020 · Roles y validación de QR
 
-- [ ] Administrador que controla salas, funciones, distribución de butacas, productos, etc. (ya existe el rol admin para películas, funciones, salas y géneros)
-- [ ] Usuarios empleados que escanean los QR (cine y candy bar)
-- [ ] Ingreso manual del código si falla el lector
-- [ ] El QR deja de funcionar una vez validada la entrada o entregada la comida
-- [ ] Asignación automática de sala
+- [x] Administrador que controla salas, funciones, distribución de butacas, productos, etc.
+- [x] Usuarios empleados que escanean los QR (cine y candy bar)
+- [x] Ingreso manual del código si falla el lector
+- [x] El QR deja de funcionar una vez validada la entrada o entregada la comida
+- [x] Asignación automática de sala
 - [x] Nunca dos funciones en la misma sala al mismo tiempo (garantizado por la base desde el email 1)
-- [ ] Programar una película varios días a la misma hora (ej.: lunes, martes y viernes a las 18 h)
+- [x] Programar una película varios días a la misma hora (ej.: lunes, martes y viernes a las 18 h)
 
 ### Email 6 · 12/02/2020 · Edad, accesibilidad y tiempo real
 
@@ -198,9 +210,20 @@ Puntos que los emails no definen y cómo se resolvieron:
 | Butacas por compra | Máximo 10. |
 | Datos en compras anónimas | Nombre y email. La entrada se consulta con el código de la compra. |
 | Pago | Simulado. |
+| Descuento por edad | Es un beneficio permanente, no un cupón de un solo uso: se aplica en todas las compras del usuario mientras la regla esté activa. |
+| Descuentos juntos | No se acumulan. Si al usuario le corresponden los dos, se usa el más alto. |
+| Alcance del descuento | Solo sobre las entradas. El candy bar se cobra siempre a precio de lista. |
+| Cambiar el porcentaje del cupón | Afecta a los cupones nuevos. Los ya entregados mantienen el porcentaje con el que se emitieron. |
+| Productos por compra | Hasta 20 unidades de cada producto. Son opcionales: se puede comprar solo la entrada. |
+| Validar el QR | El empleado ve primero los datos de la entrada y después confirma, así no se quema un código por error. Se puede validar hasta que la función termina. |
+| Lector de QR | Se usa el lector del navegador (sin librerías externas). Donde no está disponible queda el ingreso manual del código, que el email pide igual. |
+| Asignación automática de sala | Toma la primera sala activa que esté libre en ese horario, en orden alfabético. |
+| Programar varios días | Cada día se intenta por separado: los que se pueden crear se crean y la pantalla informa el motivo de los que no. |
+| Distribución de butacas | Es la misma en todas las salas (20 filas, bloques de 4, 20 y 4). El panel la muestra pero no se edita: la fijan los emails. |
 
 Dudas ya detectadas para los próximos emails:
 
 - Email 6: las filas J y K se reemplazan por **una** fila accesible o las dos quedan como accesibles.
-- Email 6 y email 4: cómo validar la edad (restricción por película y cupón para mayores de 50) en compras anónimas, que no tienen fecha de nacimiento.
+- Email 6: cómo validar la restricción de edad por película en compras anónimas, que no tienen fecha de nacimiento.
+  Para el cupón por edad del email 4 ya se resolvió: solo aplica a usuarios registrados.
 - Email 10: cómo dar crédito por cancelación en una compra anónima.

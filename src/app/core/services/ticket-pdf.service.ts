@@ -44,8 +44,21 @@ export class TicketPdfService {
       ['Butacas', compra.butacas.join(', ')],
       ['Comprador', compra.nombre],
     ];
+    if (compra.productos.length) {
+      datos.push([
+        'Candy bar',
+        compra.productos.map((p) => `${p.cantidad} x ${p.nombre}`).join(', '),
+      ]);
+    }
+    if (compra.descuento > 0 || compra.subtotal_productos > 0) {
+      datos.push(['Entradas', precio(compra.subtotal)]);
+    }
+    if (compra.subtotal_productos > 0) {
+      datos.push(['Productos', precio(compra.subtotal_productos)]);
+    }
     if (compra.descuento > 0) {
-      datos.push(['Subtotal', precio(compra.subtotal)], ['Descuento', `- ${precio(compra.descuento)}`]);
+      const etiqueta = compra.descuento_motivo === 'mayores' ? 'Descuento por edad' : 'Cupón 1ra compra';
+      datos.push([etiqueta, `- ${precio(compra.descuento)}`]);
     }
     datos.push(['Total', precio(compra.total)]);
 
@@ -75,7 +88,15 @@ export class TicketPdfService {
     doc.setTextColor(107, 102, 97);
     doc.text(`Código: ${compra.codigo}`, ANCHO / 2, y, { align: 'center' });
     y += 5;
-    doc.text('Presentá este código QR en el ingreso a la sala.', ANCHO / 2, y, { align: 'center' });
+    const aclaracion = compra.productos.length
+      ? 'Presentá este código QR en el ingreso a la sala y en el candy bar.'
+      : 'Presentá este código QR en el ingreso a la sala.';
+    doc.text(aclaracion, ANCHO / 2, y, { align: 'center' });
+    if (compra.validada_en) {
+      y += 5;
+      doc.setTextColor(166, 27, 27);
+      doc.text('Entrada ya validada: este código no sirve para ingresar de nuevo.', ANCHO / 2, y, { align: 'center' });
+    }
 
     doc.save(`entrada-${compra.codigo.slice(0, 8)}.pdf`);
   }

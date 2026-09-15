@@ -1,0 +1,134 @@
+<h1>Validar entradas</h1>
+<p class="meta">
+  Escaneá el código QR de la entrada o ingresá el código a mano. Cada código sirve una sola vez para el
+  ingreso y una sola vez para retirar los productos del candy bar.
+</p>
+
+<div class="validacion">
+  <section class="tarjeta">
+    <h2>1. Leer el código</h2>
+
+    @if (hayLector()) {
+      <div class="lector" [class.activo]="escaneando()">
+        <video #video muted playsinline></video>
+        @if (!escaneando()) {
+          <p class="lector-vacio">La cámara está apagada.</p>
+        }
+      </div>
+      <div class="acciones">
+        @if (escaneando()) {
+          <button type="button" class="btn" (click)="detenerCamara()">Apagar la cámara</button>
+        } @else {
+          <button type="button" class="btn btn-primario" (click)="escanear()">Escanear con la cámara</button>
+        }
+      </div>
+    } @else {
+      <p class="alerta">
+        Este navegador no puede leer códigos QR con la cámara. Usá el ingreso manual: el código está impreso
+        debajo del QR en la entrada.
+      </p>
+    }
+
+    <!-- Formulario template-driven: un solo campo con su validación en el template -->
+    <form class="form-en-linea" #formCodigo="ngForm" (ngSubmit)="buscarManual(formCodigo)">
+      <label class="campo">
+        <span>Código de la entrada</span>
+        <input
+          name="codigo"
+          [(ngModel)]="codigoManual"
+          #campoCodigo="ngModel"
+          required
+          maxlength="36"
+          appAutoFoco
+          autocomplete="off"
+          placeholder="00000000-0000-0000-0000-000000000000"
+        />
+        @if (campoCodigo.touched && !codigoManual().trim()) {
+          <small class="error-texto">Ingresá el código de la entrada.</small>
+        }
+      </label>
+      <button type="submit" class="btn btn-primario" [disabled]="procesando()">Buscar</button>
+    </form>
+
+    @if (error()) {
+      <p class="alerta alerta-error" animate.enter="aparecer">{{ error() }}</p>
+    }
+    @if (exito()) {
+      <p class="alerta alerta-exito" animate.enter="aparecer">{{ exito() }}</p>
+    }
+  </section>
+
+  <section class="tarjeta">
+    <h2>2. Entrada</h2>
+
+    @if (procesando() && !compra()) {
+      <p class="cargando">Buscando...</p>
+    } @else if (compra(); as c) {
+      <article animate.enter="aparecer">
+        <h3 class="pelicula">{{ c.pelicula }}</h3>
+        <p class="encabezado">
+          <span class="formato" [attr.data-formato]="c.formato">{{ c.formato }}</span>
+          <span>{{ c.idioma | idioma }}</span>
+          <span aria-hidden="true">·</span>
+          <span>{{ c.sala }}</span>
+          <span aria-hidden="true">·</span>
+          <span>{{ c.inicio | date: "EEE d/M 'a las' HH:mm" }} h</span>
+        </p>
+
+        <dl class="datos">
+          <dt>Comprador</dt>
+          <dd>{{ c.nombre }}</dd>
+          <dt>Butacas</dt>
+          <dd>{{ c.butacas.join(', ') }} ({{ c.cantidad }})</dd>
+          @if (tieneProductos()) {
+            <dt>Candy bar</dt>
+            <dd>
+              <ul class="lista-simple">
+                @for (producto of c.productos; track producto.nombre) {
+                  <li>{{ producto.cantidad }} × {{ producto.nombre }}</li>
+                }
+              </ul>
+            </dd>
+          }
+        </dl>
+
+        <div class="estados">
+          <p class="estado" [class.usado]="c.validada_en">
+            <strong>Ingreso:</strong>
+            {{ c.validada_en ? ('validado el ' + (c.validada_en | date: 'dd/MM/yyyy HH:mm')) : 'sin usar' }}
+          </p>
+          @if (tieneProductos()) {
+            <p class="estado" [class.usado]="c.entregado_en">
+              <strong>Candy bar:</strong>
+              {{ c.entregado_en ? ('entregado el ' + (c.entregado_en | date: 'dd/MM/yyyy HH:mm')) : 'sin retirar' }}
+            </p>
+          }
+        </div>
+
+        <div class="acciones">
+          <button
+            type="button"
+            class="btn btn-primario"
+            [disabled]="procesando() || !!c.validada_en"
+            (click)="validarEntrada()"
+          >
+            {{ c.validada_en ? 'Entrada ya validada' : 'Validar ingreso' }}
+          </button>
+          @if (tieneProductos()) {
+            <button
+              type="button"
+              class="btn"
+              [disabled]="procesando() || !!c.entregado_en"
+              (click)="entregarProductos()"
+            >
+              {{ c.entregado_en ? 'Productos entregados' : 'Entregar productos' }}
+            </button>
+          }
+          <button type="button" class="btn" (click)="nuevaBusqueda()">Leer otra entrada</button>
+        </div>
+      </article>
+    } @else {
+      <p class="vacio">Todavía no leíste ninguna entrada.</p>
+    }
+  </section>
+</div>

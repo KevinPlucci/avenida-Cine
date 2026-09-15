@@ -1,5 +1,11 @@
 import { Routes } from '@angular/router';
-import { adminGuard, authGuard, invitadoGuard } from './core/auth/auth.guards';
+import {
+  adminGuard,
+  authGuard,
+  empleadoGuard,
+  invitadoGuard,
+  rolEmpleadoVigenteGuard,
+} from './core/auth/auth.guards';
 
 // Todas las pantallas se cargan de forma diferida (lazy loading).
 export const routes: Routes = [
@@ -40,6 +46,13 @@ export const routes: Routes = [
     title: 'Mi perfil',
     canActivate: [authGuard],
     loadComponent: () => import('./pages/mi-perfil/mi-perfil').then((m) => m.MiPerfil),
+  },
+  {
+    path: 'validar',
+    title: 'Validar entradas',
+    canMatch: [empleadoGuard],
+    canActivate: [rolEmpleadoVigenteGuard],
+    loadComponent: () => import('./pages/validar/validar').then((m) => m.Validar),
   },
   {
     path: 'admin',

@@ -16,6 +16,7 @@
   </p>
 
   <div class="compra">
+    <div class="columna">
     <section class="tarjeta">
       <h2>1. Elegí tus butacas</h2>
       <p class="meta">Tocá una butaca para seleccionarla. Podés elegir hasta {{ maximo }}.</p>
@@ -31,18 +32,75 @@
       }
     </section>
 
+    @if (categorias().length) {
+      <section class="tarjeta">
+        <div class="cabecera">
+          <h2>2. Sumá algo del candy bar</h2>
+          @if (lineas().length) {
+            <button type="button" class="btn btn-chico" (click)="vaciarCarrito()">Vaciar</button>
+          }
+        </div>
+        <p class="meta">
+          Es opcional. Lo que elijas se retira en el candy bar con el mismo código QR de la entrada.
+        </p>
+
+        @for (categoria of categorias(); track categoria.id) {
+          <h3 class="categoria">{{ categoria.nombre }}</h3>
+          <ul class="productos">
+            @for (producto of categoria.productos; track producto.id) {
+              <li class="producto" [class.elegido]="cantidad(producto) > 0">
+                <div class="producto-datos">
+                  <strong>{{ producto.nombre }}</strong>
+                  @if (producto.descripcion) {
+                    <small class="meta">{{ producto.descripcion }}</small>
+                  }
+                  <span class="precio">{{ producto.precio | currency }}</span>
+                </div>
+                <div class="contador">
+                  <button
+                    type="button"
+                    class="btn btn-chico"
+                    [disabled]="cantidad(producto) === 0"
+                    [attr.aria-label]="'Quitar una unidad de ' + producto.nombre"
+                    (click)="sumar(producto, -1)"
+                  >
+                    −
+                  </button>
+                  <span class="cantidad" [attr.aria-label]="'Cantidad de ' + producto.nombre">{{ cantidad(producto) }}</span>
+                  <button
+                    type="button"
+                    class="btn btn-chico"
+                    [disabled]="cantidad(producto) >= maxUnidades"
+                    [attr.aria-label]="'Agregar una unidad de ' + producto.nombre"
+                    (click)="sumar(producto, 1)"
+                  >
+                    +
+                  </button>
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+    }
+    </div>
+
     <section class="tarjeta lateral">
-      <h2>2. Confirmá y pagá</h2>
+      <h2>{{ categorias().length ? '3.' : '2.' }} Confirmá y pagá</h2>
 
       <dl class="datos resumen">
         <dt>Butacas</dt>
         <dd>{{ seleccionadas().length ? seleccionadas().join(', ') : 'Ninguna' }}</dd>
         <dt>Precio por entrada</dt>
         <dd>{{ f.precio | currency }}</dd>
-        <dt>Subtotal</dt>
+        <dt>Subtotal entradas</dt>
         <dd>{{ subtotal() | currency }}</dd>
-        @if (porcentajeDescuento()) {
-          <dt>Cupón primera compra ({{ porcentajeDescuento() }}%)</dt>
+        @for (linea of lineas(); track linea.producto.id) {
+          <dt>{{ linea.cantidad }} × {{ linea.producto.nombre }}</dt>
+          <dd>{{ linea.producto.precio * linea.cantidad | currency }}</dd>
+        }
+        @if (descuentoAplicado(); as beneficio) {
+          <dt>{{ beneficio.etiqueta }} ({{ beneficio.porcentaje }}% de las entradas)</dt>
           <dd class="descuento">- {{ descuento() | currency }}</dd>
         }
         <dt class="total">Total</dt>
@@ -53,7 +111,7 @@
         <p class="alerta">
           Estás comprando sin cuenta.
           <a routerLink="/login" [queryParams]="{ volver: '/funciones/' + f.id + '/comprar' }">Ingresá</a> o
-          <a routerLink="/registro">registrate</a> para tener {{ porcentajeBienvenida }}% de descuento en tu primera
+          <a routerLink="/registro">registrate</a> para tener {{ porcentajeBienvenida() }}% de descuento en tu primera
           compra.
         </p>
       }
