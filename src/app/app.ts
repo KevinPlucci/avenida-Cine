@@ -13,6 +13,10 @@ import { Header } from './shared/components/header';
   imports: [RouterOutlet, Header],
   templateUrl: './app.html',
   styles: `
+    /* El pie queda al final de la ventana aunque la pantalla tenga poco contenido */
+    :host { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
+    :host > .contenedor { width: 100%; }
+    main { flex: 1 0 auto; }
     .barra-carga { position: fixed; inset: 0 0 auto; z-index: 100; height: 3px; overflow: hidden; }
     .barra-carga::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 35%; background: var(--color-dorado); animation: recorrer 1.1s ease-in-out infinite; }
     @keyframes recorrer { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
