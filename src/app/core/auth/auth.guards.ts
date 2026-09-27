@@ -12,7 +12,10 @@ export const authGuard: CanActivateFn = async (_route, state) => {
 
 /**
  * canMatch: la sección de administración solo coincide para administradores.
- * Se evalúa antes de cargar la ruta lazy, así el código del panel no se descarga para el resto de los usuarios.
+ * Se evalúa mientras Angular busca qué ruta coincide y antes de cargar la ruta lazy,
+ * así el código del panel no se descarga para el resto de los usuarios.
+ * Sin sesión manda al login. Con sesión pero sin el rol devuelve false: la ruta no coincide
+ * y Angular sigue buscando en el arreglo de rutas, hasta llegar a la página 404 ('**').
  */
 export const adminGuard: CanMatchFn = async (_route, segmentos) => {
   const auth = inject(AuthService);
@@ -22,12 +25,12 @@ export const adminGuard: CanMatchFn = async (_route, segmentos) => {
     const volver = '/' + segmentos.map((segmento) => segmento.path).join('/');
     return router.createUrlTree(['/login'], { queryParams: { volver } });
   }
-  return auth.esAdmin() || router.createUrlTree(['/']);
+  return auth.esAdmin();
 };
 
 /**
  * canMatch: la pantalla de validación de QR solo coincide para empleados y administradores.
- * Igual que con el panel, el código no se descarga para el resto de los usuarios.
+ * Igual que con el panel: sin sesión manda al login y, sin el rol, la ruta no coincide (404).
  */
 export const empleadoGuard: CanMatchFn = async (_route, segmentos) => {
   const auth = inject(AuthService);
@@ -37,7 +40,7 @@ export const empleadoGuard: CanMatchFn = async (_route, segmentos) => {
     const volver = '/' + segmentos.map((segmento) => segmento.path).join('/');
     return router.createUrlTree(['/login'], { queryParams: { volver } });
   }
-  return auth.esEmpleado() || router.createUrlTree(['/']);
+  return auth.esEmpleado();
 };
 
 /** canActivate: vuelve a leer el rol desde la base antes de abrir la validación de QR. */

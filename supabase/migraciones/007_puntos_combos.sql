@@ -71,7 +71,7 @@ create index if not exists movimientos_puntos_usuario_idx on public.movimientos_
 
 -- ---------------------------------------------------------------------
 --  2. Datos iniciales: la entrada gratis cuesta 500 puntos.
---     Si todavía no hay combos, se crean los de ejemplo con los productos de seed.sql que existan.
+--     Si todavía no hay combos y están los productos de seed.sql, se crean los combos de ejemplo.
 -- ---------------------------------------------------------------------
 insert into public.recompensas (tipo, puntos)
 select 'entrada', 500
@@ -85,7 +85,9 @@ where not exists (select 1 from public.recompensas where tipo = 'producto');
 
 do $$
 begin
-  if not exists (select 1 from public.combos) then
+  if not exists (select 1 from public.combos)
+     and (select count(*) from public.productos
+          where nombre in ('Pochoclos medianos', 'Pochoclos grandes', 'Gaseosa grande', 'Chocolate')) = 4 then
     insert into public.combos (nombre, descripcion, precio)
     values
       ('Combo clásico', 'Tu entrada con pochoclos medianos y gaseosa grande.', 11500),

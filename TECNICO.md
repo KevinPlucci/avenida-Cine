@@ -218,9 +218,9 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 - **Parámetros de ruta con `ActivatedRoute`**: `:id` y `:codigo` indican qué película, función o compra mostrar, y el query param `?volver=` indica a dónde volver después de ingresar (solo se aceptan rutas internas).
 - **Ruta comodín `**`**: cualquier dirección que no existe muestra una página 404 con un enlace a la cartelera.
 - **Guards funcionales** (esperan a que se resuelva la sesión guardada antes de decidir):
-  - `canActivate`: `authGuard` en el perfil (sin sesión manda al login con `?volver=`) e `invitadoGuard` en login y registro.
-  - `canMatch`: `adminGuard` en `/admin` y `empleadoGuard` en `/validar`. Si el usuario no tiene el rol la ruta no coincide, así el código de esa pantalla (lazy) ni siquiera se descarga.
-  - `canActivateChild`: `rolAdminVigenteGuard` en las pantallas del panel. Vuelve a leer el rol desde la base al entrar a cada una, por si se lo quitaron mientras navegaba. `rolEmpleadoVigenteGuard` hace lo mismo en `/validar`.
+  - `canActivate`: `authGuard` en el perfil (sin sesión manda al login con `?volver=`), `invitadoGuard` en login y registro, y `rolEmpleadoVigenteGuard` en `/validar`, que vuelve a leer el rol desde la base antes de abrir la pantalla.
+  - `canMatch`: `adminGuard` en `/admin` y `empleadoGuard` en `/validar`. Se evalúan mientras Angular busca qué ruta coincide: sin sesión mandan al login; con sesión pero sin el rol devuelven `false`, la ruta no coincide y Angular sigue buscando en el arreglo de rutas hasta la 404 (`**`). Como la ruta no coincide, el código de esa pantalla (lazy) ni siquiera se descarga.
+  - `canActivateChild`: `rolAdminVigenteGuard` en las pantallas del panel. Vuelve a leer el rol desde la base al entrar a cada una, por si se lo quitaron mientras navegaba.
   - `canDeactivate`: `cambiosSinGuardarGuard` en el formulario de película. Si hay cambios sin guardar pide confirmación antes de salir.
 - **Formularios**, con el enfoque que mejor encaja en cada caso y siempre con validaciones:
   - *Reactive Forms* en los formularios grandes (registro, compra, reseñas, películas y funciones), con validadores propios: contraseñas iguales, fecha de nacimiento válida, vencimiento de tarjeta y horario futuro. El componente `app-error-campo` muestra los mensajes.
