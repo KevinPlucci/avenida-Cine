@@ -16,6 +16,8 @@
 
 .columna {
   display: grid;
+  /* minmax(0, 1fr): la columna no se estira al ancho del mapa; el mapa se desplaza dentro de su tarjeta */
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   align-items: start;
   min-width: 0;
