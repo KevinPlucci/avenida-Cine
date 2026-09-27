@@ -6,6 +6,7 @@ import { ValidacionService } from '../../core/services/validacion.service';
 import { mensajeError } from '../../core/utils/errores';
 import { AutoFocoDirective } from '../../shared/directives/auto-foco.directive';
 import { IdiomaPipe } from '../../shared/pipes/idioma.pipe';
+import { RestriccionPipe } from '../../shared/pipes/restriccion.pipe';
 
 /** Lector de códigos que traen algunos navegadores (Chrome en Android y macOS). */
 interface CodigoDetectado {
@@ -25,7 +26,7 @@ const ANCHO_MAXIMO_FOTOGRAMA = 800;
 
 @Component({
   selector: 'app-validar',
-  imports: [FormsModule, DatePipe, IdiomaPipe, AutoFocoDirective],
+  imports: [FormsModule, DatePipe, IdiomaPipe, RestriccionPipe, AutoFocoDirective],
   templateUrl: './validar.html',
   styleUrl: './validar.css',
 })

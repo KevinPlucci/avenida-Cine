@@ -1,7 +1,7 @@
 import { Component, input } from '@angular/core';
 import { AbstractControl } from '@angular/forms';
 
-const MENSAJES: Record<string, (detalle: { requiredLength?: number; min?: number; max?: number }) => string> = {
+const MENSAJES: Record<string, (detalle: { requiredLength?: number; min?: number; max?: number; edad?: number }) => string> = {
   required: () => 'Este campo es obligatorio.',
   email: () => 'Ingresá un email válido.',
   minlength: (d) => `Tiene que tener al menos ${d.requiredLength} caracteres.`,
@@ -14,6 +14,7 @@ const MENSAJES: Record<string, (detalle: { requiredLength?: number; min?: number
   formatoVencimiento: () => 'Usá el formato MM/AA.',
   tarjetaVencida: () => 'La tarjeta está vencida.',
   enElPasado: () => 'El horario ya pasó.',
+  menorDeEdad: (d) => `Esta película es solo para mayores de ${d.edad} años.`,
 };
 
 /** Muestra el primer error de un control una vez que el usuario lo tocó. */

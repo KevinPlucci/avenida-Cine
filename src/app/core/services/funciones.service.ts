@@ -6,7 +6,7 @@ import { MINUTOS_ENTRE_FUNCIONES } from '../constantes';
 import { sumarMinutos } from '../utils/fechas';
 
 const COLUMNAS =
-  '*, pelicula:peliculas(id, titulo, imagen_url, duracion_min, en_cartelera), sala:salas(id, nombre)';
+  '*, pelicula:peliculas(id, titulo, imagen_url, duracion_min, en_cartelera, restriccion_edad), sala:salas(id, nombre)';
 
 /** Resultado de programar un horario: la base informa cuáles se crearon y por qué falló el resto. */
 export interface ResultadoProgramacion {

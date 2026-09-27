@@ -33,9 +33,32 @@ export class ComprasService {
       p_email: comprador?.email ?? null,
       p_nombre: comprador?.nombre ?? null,
       p_productos: productos,
+      p_fecha_nacimiento: comprador?.fecha_nacimiento ?? null,
     });
     if (error) throw error;
     return data as string;
+  }
+
+  /**
+   * Butacas en tiempo real (email 12/02): avisa cada butaca que se vende en la función mientras la
+   * pantalla está abierta, con Supabase Realtime. alConectar se llama cada vez que el canal queda
+   * conectado, para volver a leer lo vendido mientras tanto. Devuelve la función que deja de escuchar.
+   */
+  escucharVentas(funcionId: number, alVender: (butaca: string) => void, alConectar: () => void): () => void {
+    const canal = this.db
+      .channel(`ventas-funcion-${funcionId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'entradas', filter: `funcion_id=eq.${funcionId}` },
+        (cambio) => {
+          const entrada = cambio.new as { fila: string; numero: number };
+          alVender(idButaca(entrada.fila, entrada.numero));
+        },
+      )
+      .subscribe((estado) => {
+        if (estado === 'SUBSCRIBED') alConectar();
+      });
+    return () => void this.db.removeChannel(canal);
   }
 
   async obtener(codigo: string): Promise<DetalleCompra | null> {

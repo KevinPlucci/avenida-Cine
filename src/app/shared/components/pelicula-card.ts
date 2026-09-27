@@ -3,11 +3,12 @@ import { RouterLink } from '@angular/router';
 import { PeliculaCartelera } from '../../core/models/pelicula';
 import { ImagenRespaldoDirective } from '../directives/imagen-respaldo.directive';
 import { DuracionPipe } from '../pipes/duracion.pipe';
+import { RestriccionPipe } from '../pipes/restriccion.pipe';
 import { Estrellas } from './estrellas';
 
 @Component({
   selector: 'app-pelicula-card',
-  imports: [RouterLink, DuracionPipe, Estrellas, ImagenRespaldoDirective],
+  imports: [RouterLink, DuracionPipe, RestriccionPipe, Estrellas, ImagenRespaldoDirective],
   template: `
     <a class="card" [routerLink]="['/peliculas', pelicula().id]" animate.enter="aparecer">
       <div class="poster">
@@ -18,7 +19,10 @@ import { Estrellas } from './estrellas';
       </div>
       <div class="cuerpo">
         <h3>{{ pelicula().titulo }}</h3>
-        <p class="meta">{{ pelicula().duracion_min | duracion }}</p>
+        <p class="meta">
+          {{ pelicula().duracion_min | duracion }}
+          <span class="restriccion" [attr.data-edad]="pelicula().restriccion_edad">{{ pelicula().restriccion_edad | restriccion }}</span>
+        </p>
         <p class="meta">{{ generos() }}</p>
         @if (pelicula().promedio !== null) {
           <p class="puntaje">

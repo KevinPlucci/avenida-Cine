@@ -18,6 +18,7 @@ await db.exec(`
   create table storage.buckets (id text primary key, name text, public boolean);
   create table storage.objects (id uuid default gen_random_uuid(), bucket_id text, name text);
   alter table storage.objects enable row level security;
+  create publication supabase_realtime;
 `);
 
 let fallos = 0;
@@ -61,7 +62,9 @@ const [cupon] = await q(`select * from cupones where usuario_id = $1`, [uid]);
 ok(cupon?.porcentaje === 20 && !cupon.usado, 'al registrarse se crea el cupón de 20%');
 
 // ---------- Compras ----------
-const [funcion] = await q(`select id, precio::float precio from funciones where inicio > now() + interval '1 hour' order by inicio limit 1`);
+// Función de una película apta para todo público (las restringidas se prueban más abajo).
+const [funcion] = await q(`select f.id, f.precio::float precio from funciones f join peliculas p on p.id = f.pelicula_id
+  where p.restriccion_edad = 0 and f.inicio > now() + interval '1 hour' order by f.inicio limit 1`);
 
 await comoUsuario(null);
 const [anonima] = await q(`select comprar_entradas($1, array['A1','A2'], 'Ana@Test.com', 'Ana') codigo`, [funcion.id]);
@@ -139,6 +142,48 @@ await esperarError(
   'no está disponible', 'producto no disponible',
 );
 await q(`update productos set disponible = true where id = $1`, [gaseosa.id]);
+
+// ---------- Restricción de edad y fila accesible (email 12/02) ----------
+const funcionConEdad = async (edad) =>
+  (await q(`select f.id from funciones f join peliculas p on p.id = f.pelicula_id
+    where p.restriccion_edad = $1 and f.inicio > now() + interval '1 hour' order by f.inicio limit 1`, [edad]))[0];
+const funcion18 = await funcionConEdad(18);
+const funcion13 = await funcionConEdad(13);
+ok(funcion18 && funcion13, 'hay películas de ejemplo con restricción de +13 y +18');
+
+const idMenor = '77777777-7777-7777-7777-777777777777';
+await q(`insert into auth.users (id, email, raw_user_meta_data) values ($1, 'teo@test.com', jsonb_build_object(
+  'nombre', 'Teo', 'apellido', 'Paz', 'fecha_nacimiento', (current_date - interval '16 years')::date,
+  'tipo_sangre', 'A+', 'color_ojos', 'Marrón', 'dias_vacaciones', 90))`, [idMenor]);
+await comoUsuario(idMenor);
+await esperarError(`select comprar_entradas($1, array['A1'])`, [funcion18.id], 'solo para mayores de 18',
+  'un usuario de 16 años no compra entradas de una película +18');
+const [menorTrece] = await q(`select comprar_entradas($1, array['A1']) codigo`, [funcion13.id]);
+ok(!!menorTrece.codigo, 'un usuario de 16 años sí compra entradas de una película +13');
+
+await comoUsuario(null);
+await esperarError(`select comprar_entradas($1, array['A2'], 'x@test.com', 'X')`, [funcion18.id],
+  'ingresá tu fecha de nacimiento', 'sin cuenta hay que declarar la fecha de nacimiento para una película +18');
+await esperarError(
+  `select comprar_entradas($1, array['A2'], 'x@test.com', 'X', '[]'::jsonb, (current_date - interval '17 years')::date)`,
+  [funcion18.id], 'solo para mayores de 18', 'sin cuenta un menor de 18 no compra una película +18',
+);
+const [adultoSinCuenta] = await q(
+  `select comprar_entradas($1, array['A2'], 'x@test.com', 'X', '[]'::jsonb, '1990-01-01') codigo`, [funcion18.id]);
+ok(!!adultoSinCuenta.codigo, 'sin cuenta un adulto compra una película +18');
+ok((await q(`select obtener_compra($1) j`, [adultoSinCuenta.codigo]))[0].j.restriccion_edad === 18,
+  'la entrada informa la restricción de edad');
+const [sinRestriccion] = await q(`select comprar_entradas($1, array['A3'], 'x@test.com', 'X') codigo`, [funcion.id]);
+ok(!!sinRestriccion.codigo, 'una película ATP no pide fecha de nacimiento');
+
+await esperarError(`select comprar_entradas($1, array['K3'], 'x@test.com', 'X')`, [funcion.id], 'Butaca inválida', 'la fila K ya no existe');
+await esperarError(`select comprar_entradas($1, array['J15'], 'x@test.com', 'X')`, [funcion.id], 'Butaca inválida', 'la fila accesible tiene 14 butacas');
+const [accesibles] = await q(`select comprar_entradas($1, array['J1', 'J14'], 'x@test.com', 'X') codigo`, [funcion.id]);
+ok(!!accesibles.codigo, 'se venden las butacas accesibles de la fila J');
+ok(
+  (await q(`select count(*)::int n from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'entradas'`))[0].n === 1,
+  'las entradas nuevas se publican en tiempo real',
+);
 
 // ---------- Cupones configurables y descuento por edad (email 30/01) ----------
 await q(`update cupones_regla set porcentaje = 30 where tipo = 'primera_compra'`);
@@ -316,6 +361,16 @@ await esperarError(`select validar_entrada($1)`, [conCandy.codigo], 'desde una h
 await comoUsuario(idCincuenta);
 ok((await q(`select mis_beneficios() j`))[0].j.mayores === null, 'después de la migración 004 el descuento por edad es para más de 50 años');
 await comoUsuario(null);
+
+await db.exec(leer('./migraciones/005_edad_accesibles_tiempo_real.sql'));
+await db.exec(leer('./migraciones/005_edad_accesibles_tiempo_real.sql'));
+ok(true, 'la migración 005 se aplica sobre una base existente y se puede repetir');
+ok((await q(`select count(*)::int n from pg_proc where proname = 'comprar_entradas'`))[0].n === 1,
+  'después de la migración 005 queda una sola versión de comprar_entradas');
+await esperarError(`select comprar_entradas($1, array['K4'], 'x@test.com', 'X')`, [funcion.id], 'Butaca inválida',
+  'después de la migración 005 la fila K ya no se vende');
+await esperarError(`select comprar_entradas($1, array['A4'], 'x@test.com', 'X')`, [funcion18.id], 'fecha de nacimiento',
+  'después de la migración 005 se controla la edad');
 
 console.log(fallos ? `\n${fallos} prueba(s) fallaron` : '\nTodas las pruebas pasaron');
 process.exit(fallos ? 1 : 0);

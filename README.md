@@ -7,7 +7,7 @@ Hecha con **Angular 21** y **Supabase**, instalable como **PWA**.
 |---|---|
 | **Deploy** | <https://avenida-cine.vercel.app> |
 | **Repositorio** | <https://github.com/KevinPlucci/Avenida-Cine> |
-| **Estado** | Consigna y emails del 01/01, 16/01, 30/01 y 06/02 implementados |
+| **Estado** | Consigna y emails del 01/01 al 12/02 implementados |
 
 ## Documentación
 

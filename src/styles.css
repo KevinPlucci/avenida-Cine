@@ -13,6 +13,8 @@
   --color-dorado: #d9a21b;
   --color-exito: #1e6b3a;
   --color-error: #b42318;
+  --color-accesible: #1d5c8a;
+  --color-accesible-suave: #eaf2f8;
   --fuente-titulos: 'Oswald', 'Arial Narrow', Arial, sans-serif;
   --radio: 8px;
   --sombra: 0 1px 2px rgb(0 0 0 / 5%), 0 6px 18px rgb(0 0 0 / 6%);
@@ -210,6 +212,29 @@ section + section,
 
 .formato[data-formato='5D'] {
   background: #b35c14;
+}
+
+/* Restricción de edad de la película (email 12/02) */
+.restriccion {
+  display: inline-block;
+  min-width: 34px;
+  padding: 0 6px;
+  font: 600 0.75rem/1.45 var(--fuente-titulos);
+  letter-spacing: 0.04em;
+  color: var(--color-texto-suave);
+  text-align: center;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+}
+
+.restriccion[data-edad='13'],
+.restriccion[data-edad='18'] {
+  color: var(--color-error);
+}
+
+.aviso-edad {
+  font-weight: 600;
+  color: var(--color-error);
 }
 
 /* ---------- Botones ---------- */

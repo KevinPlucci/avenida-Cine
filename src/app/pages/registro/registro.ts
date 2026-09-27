@@ -5,6 +5,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { PORCENTAJE_CUPON_BIENVENIDA } from '../../core/constantes';
 import { COLORES_OJOS, TIPOS_SANGRE } from '../../core/models/perfil';
 import { mensajeError } from '../../core/utils/errores';
+import { aniosHastaHoy, DIAS_DEL_MES, fechaDeListas, MESES } from '../../core/utils/fechas';
 import { ErrorCampo } from '../../shared/components/error-campo';
 import { AutoFocoDirective } from '../../shared/directives/auto-foco.directive';
 import { fechaNacimientoValidator, passwordsIgualesValidator } from '../../shared/validators';
@@ -24,12 +25,9 @@ export class Registro {
   protected readonly tiposSangre = TIPOS_SANGRE;
   protected readonly coloresOjos = COLORES_OJOS;
   // Fecha con tres selects en lugar de un calendario: se elige el año directo, sin navegar mes por mes.
-  protected readonly dias = Array.from({ length: 31 }, (_, i) => i + 1);
-  protected readonly meses = [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-  ];
-  protected readonly anios = Array.from({ length: 101 }, (_, i) => new Date().getFullYear() - i);
+  protected readonly dias = DIAS_DEL_MES;
+  protected readonly meses = MESES;
+  protected readonly anios = aniosHastaHoy(101);
 
   protected readonly enviando = signal(false);
   protected readonly error = signal('');
@@ -80,7 +78,7 @@ export class Registro {
         password: valores.passwords.password,
         nombre: valores.nombre.trim(),
         apellido: valores.apellido.trim(),
-        fecha_nacimiento: `${anio}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`,
+        fecha_nacimiento: fechaDeListas(dia, mes, anio),
         tipo_sangre: valores.tipoSangre,
         color_ojos: valores.colorOjos,
         dias_vacaciones: valores.diasVacaciones ?? 0,

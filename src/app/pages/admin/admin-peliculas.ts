@@ -5,10 +5,11 @@ import { PeliculasService } from '../../core/services/peliculas.service';
 import { mensajeError } from '../../core/utils/errores';
 import { ImagenRespaldoDirective } from '../../shared/directives/imagen-respaldo.directive';
 import { DuracionPipe } from '../../shared/pipes/duracion.pipe';
+import { RestriccionPipe } from '../../shared/pipes/restriccion.pipe';
 
 @Component({
   selector: 'app-admin-peliculas',
-  imports: [RouterLink, DuracionPipe, ImagenRespaldoDirective],
+  imports: [RouterLink, DuracionPipe, RestriccionPipe, ImagenRespaldoDirective],
   template: `
     <div class="cabecera">
       <h2>Películas</h2>
@@ -30,6 +31,7 @@ import { DuracionPipe } from '../../shared/pipes/duracion.pipe';
               <th></th>
               <th>Título</th>
               <th>Duración</th>
+              <th>Edad</th>
               <th>Géneros</th>
               <th>En cartelera</th>
               <th></th>
@@ -41,6 +43,9 @@ import { DuracionPipe } from '../../shared/pipes/duracion.pipe';
                 <td><img class="miniatura" [src]="pelicula.imagen_url" alt="" appImagenRespaldo /></td>
                 <td>{{ pelicula.titulo }}</td>
                 <td>{{ pelicula.duracion_min | duracion }}</td>
+                <td>
+                  <span class="restriccion" [attr.data-edad]="pelicula.restriccion_edad">{{ pelicula.restriccion_edad | restriccion }}</span>
+                </td>
                 <td>{{ nombresGeneros(pelicula) }}</td>
                 <td>
                   <input
@@ -57,7 +62,7 @@ import { DuracionPipe } from '../../shared/pipes/duracion.pipe';
               </tr>
             } @empty {
               <tr>
-                <td colspan="6" class="vacio">No hay películas cargadas.</td>
+                <td colspan="7" class="vacio">No hay películas cargadas.</td>
               </tr>
             }
           </tbody>

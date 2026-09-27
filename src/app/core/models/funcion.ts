@@ -21,7 +21,7 @@ export interface Funcion {
 }
 
 export interface FuncionConDetalle extends Funcion {
-  pelicula: Pick<Pelicula, 'id' | 'titulo' | 'imagen_url' | 'duracion_min' | 'en_cartelera'> | null;
+  pelicula: Pick<Pelicula, 'id' | 'titulo' | 'imagen_url' | 'duracion_min' | 'en_cartelera' | 'restriccion_edad'> | null;
   sala: Pick<Sala, 'id' | 'nombre'>;
 }
 

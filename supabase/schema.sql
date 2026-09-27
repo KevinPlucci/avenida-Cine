@@ -23,7 +23,7 @@ create table public.perfiles (
   creado_en        timestamptz not null default now()
 );
 
--- Todas las salas tienen la misma distribución de butacas (ver src/app/core/utils/butacas.ts).
+-- Todas las salas tienen la misma distribución de butacas (ver butaca_valida() y src/app/core/utils/butacas.ts).
 create table public.salas (
   id        bigint generated always as identity primary key,
   nombre    text not null unique,
@@ -43,6 +43,8 @@ create table public.peliculas (
   duracion_min int  not null check (duracion_min between 1 and 600),
   imagen_url   text not null,
   en_cartelera boolean not null default true,  -- el admin elige qué películas se muestran
+  -- Edad mínima para ver la película (email 12/02): 0 = ATP, 13 o 18.
+  restriccion_edad int not null default 0 check (restriccion_edad in (0, 13, 18)),
   creado_en    timestamptz not null default now()
 );
 
@@ -142,6 +144,7 @@ create table public.compras (
 create index compras_usuario_idx on public.compras (usuario_id);
 
 -- Una fila por butaca vendida. El unique impide vender dos veces la misma butaca.
+-- Las butacas nuevas se validan con butaca_valida() al comprar; acá se aceptan también las de la distribución anterior.
 create table public.entradas (
   id         bigint generated always as identity primary key,
   compra_id  bigint not null references public.compras (id) on delete cascade,
@@ -209,6 +212,20 @@ returns int
 language sql stable
 as $$
   select case when p_fecha is null then null else extract(year from age(current_date, p_fecha))::int end;
+$$;
+
+-- Distribución de las salas (emails 01/01 y 12/02): filas A a T con bloques de 4, 20 y 4 butacas (1 a 28).
+-- Las filas J y K se reemplazaron por una sola fila accesible, la J, con bloques de 2, 10 y 2 butacas (1 a 14).
+create or replace function public.butaca_valida(p_butaca text)
+returns boolean
+language sql immutable
+as $$
+  select case
+    when p_butaca is null or p_butaca !~ '^[A-T][0-9]{1,2}$' then false
+    when left(p_butaca, 1) = 'K' then false
+    when left(p_butaca, 1) = 'J' then substring(p_butaca from 2)::int between 1 and 14
+    else substring(p_butaca from 2)::int between 1 and 28
+  end;
 $$;
 
 -- Al registrarse un usuario se crea su perfil (con los datos enviados en el signUp) y su cupón.
@@ -350,15 +367,16 @@ create trigger trg_resenias_autor
 --  RPC (lógica de negocio del lado del servidor)
 -- =====================================================================
 
--- Compra de entradas y productos del candy bar. Valida la función, las butacas y los productos,
+-- Compra de entradas y productos del candy bar. Valida la función, la edad, las butacas y los productos,
 -- calcula el precio y aplica el mejor descuento disponible. Devuelve el código de la compra (QR).
 -- Ni el precio ni el descuento vienen del cliente.
 create or replace function public.comprar_entradas(
-  p_funcion_id bigint,
-  p_butacas    text[],
-  p_email      text default null,
-  p_nombre     text default null,
-  p_productos  jsonb default '[]'::jsonb
+  p_funcion_id       bigint,
+  p_butacas          text[],
+  p_email            text default null,
+  p_nombre           text default null,
+  p_productos        jsonb default '[]'::jsonb,
+  p_fecha_nacimiento date default null
 )
 returns uuid
 language plpgsql security definer set search_path = public
@@ -366,7 +384,9 @@ as $$
 declare
   v_usuario     uuid := auth.uid();
   v_funcion     public.funciones%rowtype;
+  v_pelicula    public.peliculas%rowtype;
   v_perfil      public.perfiles%rowtype;
+  v_nacimiento  date;
   v_cupon       public.cupones%rowtype;
   v_regla       public.cupones_regla%rowtype;
   v_cantidad    int;
@@ -387,8 +407,36 @@ begin
   if v_funcion.inicio <= now() then
     raise exception 'La función ya comenzó, no se pueden comprar entradas';
   end if;
-  if not exists (select 1 from public.peliculas where id = v_funcion.pelicula_id and en_cartelera) then
+  select * into v_pelicula from public.peliculas where id = v_funcion.pelicula_id and en_cartelera;
+  if not found then
     raise exception 'La película no está en cartelera';
+  end if;
+
+  -- Datos del comprador: si está logueado se toman de su perfil.
+  if v_usuario is not null then
+    select * into v_perfil from public.perfiles where id = v_usuario;
+    p_email      := v_perfil.email;
+    p_nombre     := v_perfil.nombre || ' ' || v_perfil.apellido;
+    v_nacimiento := v_perfil.fecha_nacimiento;
+  else
+    if coalesce(trim(p_nombre), '') = '' then
+      raise exception 'Ingresá tu nombre';
+    end if;
+    if coalesce(trim(p_email), '') !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then
+      raise exception 'Ingresá un email válido';
+    end if;
+    v_nacimiento := p_fecha_nacimiento;
+  end if;
+
+  -- Restricción de edad (email 12/02). En una compra sin cuenta la fecha la declara el comprador.
+  if v_pelicula.restriccion_edad > 0 then
+    if v_nacimiento is null then
+      raise exception 'Esta película es para mayores de % años: ingresá tu fecha de nacimiento',
+        v_pelicula.restriccion_edad;
+    end if;
+    if public.edad(v_nacimiento) < v_pelicula.restriccion_edad then
+      raise exception 'Esta película es solo para mayores de % años', v_pelicula.restriccion_edad;
+    end if;
   end if;
 
   v_cantidad := coalesce(array_length(p_butacas, 1), 0);
@@ -403,7 +451,7 @@ begin
   end if;
 
   foreach v_butaca in array p_butacas loop
-    if v_butaca !~ '^[A-T]([1-9]|1[0-9]|2[0-8])$' then
+    if not public.butaca_valida(v_butaca) then
       raise exception 'Butaca inválida: %', v_butaca;
     end if;
   end loop;
@@ -437,20 +485,6 @@ begin
     select coalesce(sum(pr.precio * x.cantidad), 0) into v_productos
     from jsonb_to_recordset(p_productos) as x(producto_id bigint, cantidad int)
     join public.productos pr on pr.id = x.producto_id;
-  end if;
-
-  -- Datos del comprador: si está logueado se toman de su perfil.
-  if v_usuario is not null then
-    select * into v_perfil from public.perfiles where id = v_usuario;
-    p_email  := v_perfil.email;
-    p_nombre := v_perfil.nombre || ' ' || v_perfil.apellido;
-  else
-    if coalesce(trim(p_nombre), '') = '' then
-      raise exception 'Ingresá tu nombre';
-    end if;
-    if coalesce(trim(p_email), '') !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then
-      raise exception 'Ingresá un email válido';
-    end if;
   end if;
 
   v_subtotal := v_funcion.precio * v_cantidad;
@@ -534,6 +568,7 @@ as $$
     'descuento_motivo', c.descuento_motivo,
     'total',          c.total,
     'pelicula',       p.titulo,
+    'restriccion_edad', p.restriccion_edad,
     'imagen_url',     p.imagen_url,
     'duracion_min',   p.duracion_min,
     'sala',           s.nombre,
@@ -635,6 +670,7 @@ begin
     'butacas',      coalesce((select json_agg(e.fila || e.numero order by e.fila, e.numero)
                               from public.entradas e where e.compra_id = c.id), '[]'::json),
     'pelicula',     p.titulo,
+    'restriccion_edad', p.restriccion_edad,
     'sala',         s.nombre,
     'inicio',       f.inicio,
     'fin',          f.fin,
@@ -943,7 +979,7 @@ create policy "compra_productos_lectura" on public.compra_productos
 grant usage on schema public to anon, authenticated;
 grant select on all tables in schema public to anon, authenticated;
 grant insert, update, delete on all tables in schema public to authenticated;
-grant execute on function public.comprar_entradas(bigint, text[], text, text, jsonb) to anon, authenticated;
+grant execute on function public.comprar_entradas(bigint, text[], text, text, jsonb, date) to anon, authenticated;
 grant execute on function public.obtener_compra(uuid) to anon, authenticated;
 grant execute on function public.ranking_ventas() to anon, authenticated;
 grant execute on function public.mis_compras() to authenticated;
@@ -954,6 +990,21 @@ grant execute on function public.entregar_productos(uuid) to authenticated;
 grant execute on function public.salas_libres(timestamptz, bigint, bigint) to authenticated;
 grant execute on function public.programar_funciones(bigint, bigint, timestamptz[], text, text, numeric) to authenticated;
 grant execute on function public.cambiar_rol(uuid, text) to authenticated;
+
+-- =====================================================================
+--  TIEMPO REAL (email 12/02)
+--  La pantalla de compra escucha las entradas nuevas de su función para marcar al instante
+--  las butacas que compra otra persona. Solo se agrega si existe la publicación de Supabase.
+-- =====================================================================
+
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime')
+     and not exists (select 1 from pg_publication_tables
+                     where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'entradas') then
+    alter publication supabase_realtime add table public.entradas;
+  end if;
+end $$;
 
 -- =====================================================================
 --  STORAGE: pósters de películas

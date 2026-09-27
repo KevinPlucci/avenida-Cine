@@ -2,7 +2,7 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { Sala } from '../../core/models/sala';
 import { SalasService } from '../../core/services/salas.service';
-import { BLOQUES, FILAS } from '../../core/utils/butacas';
+import { BLOQUES, BLOQUES_ACCESIBLES, FILA_ACCESIBLE, FILAS, TOTAL_BUTACAS } from '../../core/utils/butacas';
 import { mensajeError } from '../../core/utils/errores';
 
 @Component({
@@ -12,8 +12,9 @@ import { mensajeError } from '../../core/utils/errores';
     <div class="tarjeta">
       <h2>Salas</h2>
       <p class="meta">
-        Todas las salas tienen la misma distribución: {{ filas }} filas (A a T) con bloques de
-        {{ bloques.join(', ') }} butacas ({{ totalButacas }} butacas en total).
+        Todas las salas tienen la misma distribución: {{ filas }} filas (A a T, sin la K) con bloques de
+        {{ bloques.join(', ') }} butacas, salvo la fila {{ filaAccesible }}, accesible para personas con discapacidad,
+        con bloques de {{ bloquesAccesibles.join(', ') }} ({{ totalButacas }} butacas en total).
         Las salas inactivas no se pueden usar para funciones nuevas.
       </p>
 
@@ -78,7 +79,9 @@ export class AdminSalas implements OnInit {
 
   protected readonly filas = FILAS.length;
   protected readonly bloques = BLOQUES;
-  protected readonly totalButacas = FILAS.length * BLOQUES.reduce((suma, cantidad) => suma + cantidad, 0);
+  protected readonly bloquesAccesibles = BLOQUES_ACCESIBLES;
+  protected readonly filaAccesible = FILA_ACCESIBLE;
+  protected readonly totalButacas = TOTAL_BUTACAS;
 
   protected readonly nombre = signal('');
   protected readonly salas = signal<Sala[]>([]);

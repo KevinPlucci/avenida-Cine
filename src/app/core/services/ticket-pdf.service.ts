@@ -36,6 +36,15 @@ export class TicketPdfService {
     doc.text(titulo, MARGEN, y);
     y += titulo.length * 7 + 2;
 
+    // Email 12/02: toda entrada de una película con restricción de edad aclara que debe ir un adulto.
+    if (compra.restriccion_edad) {
+      doc.setFontSize(11);
+      doc.setTextColor(180, 35, 24);
+      doc.text(`Película para mayores de ${compra.restriccion_edad} años. Debe ir un adulto.`, MARGEN, y);
+      doc.setTextColor(28, 27, 26);
+      y += 8;
+    }
+
     const datos: [string, string][] = [
       ['Fecha', inicio.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })],
       ['Hora', inicio.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })],

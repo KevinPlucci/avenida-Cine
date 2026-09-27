@@ -40,8 +40,8 @@ y decide qué se muestra en la cartelera.
 | Pantalla | Qué ofrece | Quién entra |
 |---|---|---|
 | Cartelera | Las 3 películas más vendidas arriba y el listado completo, con buscador y filtro por género | Todos |
-| Detalle de película | Sinopsis, duración, puntaje promedio, reseñas y funciones de los próximos días | Todos |
-| Compra de entradas | Mapa de butacas, productos del candy bar, resumen con el descuento aplicado y datos de pago | Todos |
+| Detalle de película | Sinopsis, duración, restricción de edad, puntaje promedio, reseñas y funciones de los próximos días | Todos |
+| Compra de entradas | Mapa de butacas en tiempo real con la fila accesible, productos del candy bar, resumen con el descuento aplicado y datos de pago | Todos |
 | Entrada | Código QR para ingresar y retirar el candy bar, y descarga del PDF | Quien tenga el código de compra |
 | Validar entradas | Lectura del QR con la cámara o a mano, con el estado del ingreso y del candy bar | Empleados y administradores |
 | Ingreso y registro | Cuenta propia; después de ingresar vuelve a la pantalla donde estaba | Solo sin sesión iniciada |
@@ -52,6 +52,8 @@ y decide qué se muestra en la cartelera.
 
 1. El cliente elige una función desde el detalle de la película.
 2. Ve el mapa de la sala con las butacas ya vendidas y elige las suyas (hasta 10 por compra).
+   Si otra persona compra una butaca mientras tanto, el mapa la marca como ocupada al instante.
+   Si la película tiene restricción de edad y el cliente no llega a la edad, no puede comprar.
 3. Si quiere, suma productos del candy bar: pochoclos, bebidas, golosinas o combos.
 4. Si tiene la sesión iniciada y le corresponde un descuento, aparece en el resumen.
    Si compra sin cuenta, deja nombre y email.
@@ -75,6 +77,9 @@ Cada código sirve una sola vez para cada cosa.
 - El código QR sirve una sola vez para ingresar y una sola vez para retirar los productos.
 - Solo el personal del cine puede validar entradas y entregar productos.
 - La entrada y los productos se validan desde una hora antes del inicio de la función hasta que termina.
+- Las películas son ATP, +13 o +18. Quien no tiene la edad no puede comprar entradas: si está registrado se usa la fecha de nacimiento de su perfil y, si compra sin cuenta, tiene que declararla.
+- Toda entrada de una película +13 o +18 aclara que debe ir un adulto (en pantalla, en el PDF y en la validación del empleado).
+- La fila K ya no existe: su lugar lo ocupa la fila J, accesible para personas con discapacidad, con 2, 10 y 2 butacas.
 - El precio y el descuento se resuelven en el servidor: no se pueden alterar desde el navegador.
 - La entrada de una compra sin cuenta se recupera con el código de compra, que no es adivinable.
 
@@ -151,12 +156,12 @@ Referencias: `[x]` implementado · `[ ]` pendiente.
 
 ### Email 6 · 12/02/2020 · Edad, accesibilidad y tiempo real
 
-- [ ] Restricción de edad por película: ATP, +13 o +18
-- [ ] Los menores de la edad indicada no pueden comprar
-- [ ] Las entradas de esas películas aclaran que debe ir un adulto
-- [ ] Filas J y K reemplazadas por butacas para personas con discapacidad (2, 10 y 2 por bloque)
-- [ ] Butacas en tiempo real: ver las que ocupa otra compra en ese momento
-- [ ] Butacas accesibles resaltadas visualmente
+- [x] Restricción de edad por película: ATP, +13 o +18 (se elige en el formulario de la película)
+- [x] Los menores de la edad indicada no pueden comprar
+- [x] Las entradas de esas películas aclaran que debe ir un adulto (pantalla, PDF y validación)
+- [x] Filas J y K reemplazadas por butacas para personas con discapacidad (2, 10 y 2 por bloque)
+- [x] Butacas en tiempo real: ver las que ocupa otra compra en ese momento
+- [x] Butacas accesibles resaltadas visualmente
 
 ### Email 7 · 28/02/2020 · Usabilidad y reporte
 
@@ -219,11 +224,13 @@ Puntos que los emails no definen y cómo se resolvieron:
 | Lector de QR | Se usa el lector que trae el navegador y, donde no existe (Chrome en Windows, Safari, Firefox), la librería jsQR. El ingreso manual del código queda siempre disponible, como pide el email. |
 | Asignación automática de sala | Toma la primera sala activa que esté libre en ese horario, en orden alfabético. |
 | Programar varios días | Cada día se intenta por separado: los que se pueden crear se crean y la pantalla informa el motivo de los que no. |
-| Distribución de butacas | Es la misma en todas las salas (20 filas, bloques de 4, 20 y 4). El panel la muestra pero no se edita: la fijan los emails. |
+| Distribución de butacas | Es la misma en todas las salas (bloques de 4, 20 y 4, salvo la fila accesible). El panel la muestra pero no se edita: la fijan los emails. |
+| Filas J y K | El email dice que se quitaron "para dar espacio a **una** fila" y que "en cada columna quedaron 2, 10 y 2 butacas". Se toma como una sola fila accesible, la J, que ocupa el lugar de las dos: la K ya no existe y el resto de las letras no cambia. Cada butaca accesible ocupa el ancho de dos comunes. |
+| Quién compra butacas accesibles | Cualquiera: el email no pide validar la discapacidad. El mapa y el resumen avisan para quién son. |
+| Edad en compras sin cuenta | Se pide la fecha de nacimiento solo si la película es +13 o +18, con las mismas tres listas del registro. Es una declaración del comprador, igual que en el registro. |
+| "Debe ir un adulto" | Se imprime en toda entrada de una película +13 o +18, como pide el email, y el empleado lo ve al validar. |
+| Tiempo real | El mapa marca al instante las butacas de las compras confirmadas por otras personas. Si una de ellas estaba elegida, se quita de la selección y se avisa. Las butacas que otra persona está eligiendo sin pagar no se bloquean. |
 
 Dudas ya detectadas para los próximos emails:
 
-- Email 6: las filas J y K se reemplazan por **una** fila accesible o las dos quedan como accesibles.
-- Email 6: cómo validar la restricción de edad por película en compras anónimas, que no tienen fecha de nacimiento.
-  Para el cupón por edad del email 4 ya se resolvió: solo aplica a usuarios registrados.
 - Email 10: cómo dar crédito por cancelación en una compra anónima.

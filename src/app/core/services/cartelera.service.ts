@@ -21,7 +21,7 @@ export class CarteleraService {
       peliculas: this.http.get<Pelicula[]>(`${this.api}/peliculas`, {
         headers: this.headers,
         params: {
-          select: 'id,titulo,sinopsis,duracion_min,imagen_url,en_cartelera,generos(id,nombre)',
+          select: 'id,titulo,sinopsis,duracion_min,imagen_url,en_cartelera,restriccion_edad,generos(id,nombre)',
           en_cartelera: 'eq.true',
           order: 'titulo',
         },

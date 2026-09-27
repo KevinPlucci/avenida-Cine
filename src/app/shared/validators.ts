@@ -1,4 +1,5 @@
 import { AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
+import { edadCumplida, fechaDeListas } from '../core/utils/fechas';
 
 /** Grupo con controles "password" y "confirmacion". */
 export const passwordsIgualesValidator: ValidatorFn = (grupo: AbstractControl): ValidationErrors | null => {
@@ -20,6 +21,15 @@ export const fechaNacimientoValidator: ValidatorFn = (grupo: AbstractControl): V
   if (fecha > new Date()) return { fechaFutura: true };
   return null;
 };
+
+/** Grupo "dia", "mes" y "anio": la persona tiene que tener al menos esa edad (email 12/02). */
+export function edadMinimaValidator(edadMinima: number): ValidatorFn {
+  return (grupo: AbstractControl): ValidationErrors | null => {
+    const { dia, mes, anio } = grupo.value as { dia?: string; mes?: string; anio?: string };
+    if (!dia || !mes || !anio) return null;
+    return edadCumplida(fechaDeListas(dia, mes, anio)) >= edadMinima ? null : { menorDeEdad: { edad: edadMinima } };
+  };
+}
 
 /** Vencimiento de tarjeta en formato MM/AA que no esté vencido. */
 export const vencimientoTarjetaValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {

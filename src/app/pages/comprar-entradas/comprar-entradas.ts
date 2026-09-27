@@ -1,22 +1,25 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { MAX_BUTACAS_POR_COMPRA, MAX_UNIDADES_POR_PRODUCTO, PORCENTAJE_CUPON_BIENVENIDA } from '../../core/constantes';
-import { Beneficios } from '../../core/models/compra';
+import { Beneficios, Comprador } from '../../core/models/compra';
 import { FuncionConDetalle } from '../../core/models/funcion';
 import { CategoriaConProductos, ItemCarrito, Producto } from '../../core/models/producto';
 import { ComprasService } from '../../core/services/compras.service';
 import { CuponesService } from '../../core/services/cupones.service';
 import { FuncionesService } from '../../core/services/funciones.service';
 import { ProductosService } from '../../core/services/productos.service';
+import { esAccesible, FILA_ACCESIBLE } from '../../core/utils/butacas';
 import { mensajeError } from '../../core/utils/errores';
+import { aniosHastaHoy, DIAS_DEL_MES, edadCumplida, fechaDeListas, MESES } from '../../core/utils/fechas';
 import { ErrorCampo } from '../../shared/components/error-campo';
 import { MapaButacas } from '../../shared/components/mapa-butacas';
 import { MascaraDirective } from '../../shared/directives/mascara.directive';
 import { IdiomaPipe } from '../../shared/pipes/idioma.pipe';
-import { vencimientoTarjetaValidator } from '../../shared/validators';
+import { RestriccionPipe } from '../../shared/pipes/restriccion.pipe';
+import { edadMinimaValidator, fechaNacimientoValidator, vencimientoTarjetaValidator } from '../../shared/validators';
 
 @Component({
   selector: 'app-comprar-entradas',
@@ -26,6 +29,7 @@ import { vencimientoTarjetaValidator } from '../../shared/validators';
     CurrencyPipe,
     ReactiveFormsModule,
     IdiomaPipe,
+    RestriccionPipe,
     MapaButacas,
     ErrorCampo,
     MascaraDirective,
@@ -41,16 +45,23 @@ export class ComprarEntradas implements OnInit {
   private readonly cuponesService = inject(CuponesService);
   private readonly router = inject(Router);
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly auth = inject(AuthService);
 
   protected readonly maximo = MAX_BUTACAS_POR_COMPRA;
   protected readonly maxUnidades = MAX_UNIDADES_POR_PRODUCTO;
+  protected readonly filaAccesible = FILA_ACCESIBLE;
+  protected readonly dias = DIAS_DEL_MES;
+  protected readonly meses = MESES;
+  protected readonly anios = aniosHastaHoy(101);
 
   protected readonly funcion = signal<FuncionConDetalle | null>(null);
   protected readonly ocupadas = signal<ReadonlySet<string>>(new Set());
   protected readonly seleccionadas = signal<string[]>([]);
   /** Máximo de butacas que se intentó superar; lo informa el mapa con su output limiteAlcanzado (0 = sin aviso). */
   protected readonly avisoLimite = signal(0);
+  /** Butacas elegidas que compró otra persona mientras tanto (tiempo real, email 12/02). */
+  protected readonly butacasPerdidas = signal<string[]>([]);
   protected readonly beneficios = signal<Beneficios | null>(null);
   /** Porcentaje del cupón de bienvenida, para invitar a registrarse a quien compra sin cuenta. */
   protected readonly porcentajeBienvenida = signal(PORCENTAJE_CUPON_BIENVENIDA);
@@ -64,6 +75,15 @@ export class ComprarEntradas implements OnInit {
   protected readonly carrito = signal<Record<number, number>>({});
   /** Si el catálogo no carga se avisa, pero se pueden comprar las entradas igual. */
   protected readonly candyNoDisponible = signal(false);
+
+  /** Edad mínima de la película (email 12/02): 0 es apta para todo público. */
+  protected readonly restriccion = computed(() => this.funcion()?.pelicula?.restriccion_edad ?? 0);
+  /** Un usuario registrado menor de la edad indicada no puede comprar: se avisa antes de elegir butacas. */
+  protected readonly edadInsuficiente = computed(() => {
+    const perfil = this.auth.perfil();
+    return this.restriccion() > 0 && !!perfil && edadCumplida(perfil.fecha_nacimiento) < this.restriccion();
+  });
+  protected readonly hayAccesibles = computed(() => this.seleccionadas().some(esAccesible));
 
   private readonly porId = computed(() => {
     const mapa = new Map<number, Producto>();
@@ -118,6 +138,12 @@ export class ComprarEntradas implements OnInit {
     comprador: this.fb.group({
       nombre: ['', [Validators.required, Validators.maxLength(80)]],
       email: ['', [Validators.required, Validators.email]],
+      // Solo se usa si la película tiene restricción de edad: sin cuenta no hay fecha de nacimiento.
+      nacimiento: this.fb.group({
+        dia: ['', Validators.required],
+        mes: ['', Validators.required],
+        anio: ['', Validators.required],
+      }),
     }),
     // Pago simulado: se validan los datos pero no se procesa ningún cobro.
     pago: this.fb.group({
@@ -149,10 +175,18 @@ export class ComprarEntradas implements OnInit {
       }
       this.funcion.set(funcion);
       this.ocupadas.set(ocupadas);
+      this.escucharVentas(id);
       if (categorias) {
         this.categorias.set(categorias);
       } else {
         this.candyNoDisponible.set(true);
+      }
+
+      const nacimiento = this.form.controls.comprador.controls.nacimiento;
+      if (this.restriccion() > 0) {
+        nacimiento.setValidators([fechaNacimientoValidator, edadMinimaValidator(this.restriccion())]);
+      } else {
+        nacimiento.disable();
       }
 
       if (this.auth.logueado()) {
@@ -174,6 +208,33 @@ export class ComprarEntradas implements OnInit {
   protected cambiarSeleccion(butacas: string[]): void {
     this.seleccionadas.set(butacas);
     this.avisoLimite.set(0);
+    this.butacasPerdidas.set([]);
+  }
+
+  /** Marca al instante las butacas que compra otra persona y deja de escuchar al salir de la pantalla. */
+  private escucharVentas(funcionId: number): void {
+    const dejarDeEscuchar = this.comprasService.escucharVentas(
+      funcionId,
+      (butaca) => this.marcarOcupadas(new Set([...this.ocupadas(), butaca])),
+      async () => {
+        // Al conectarse (o reconectarse) se vuelve a leer lo vendido, por si algo se compró mientras tanto.
+        try {
+          this.marcarOcupadas(await this.comprasService.butacasOcupadas(funcionId));
+        } catch {
+          // Si falla, el mapa sigue con lo que tenía; la base igual rechaza una butaca ya vendida.
+        }
+      },
+    );
+    this.destroyRef.onDestroy(dejarDeEscuchar);
+  }
+
+  private marcarOcupadas(ocupadas: ReadonlySet<string>): void {
+    this.ocupadas.set(ocupadas);
+    const perdidas = this.seleccionadas().filter((b) => ocupadas.has(b));
+    if (perdidas.length) {
+      this.seleccionadas.update((butacas) => butacas.filter((b) => !ocupadas.has(b)));
+      this.butacasPerdidas.set(perdidas);
+    }
   }
 
   protected cantidad(producto: Producto): number {
@@ -201,7 +262,15 @@ export class ComprarEntradas implements OnInit {
     }
 
     const funcionId = this.funcion()!.id;
-    const comprador = this.auth.logueado() ? null : this.form.controls.comprador.getRawValue();
+    let comprador: Comprador | null = null;
+    if (!this.auth.logueado()) {
+      const { nombre, email, nacimiento } = this.form.controls.comprador.getRawValue();
+      comprador = {
+        nombre,
+        email,
+        fecha_nacimiento: this.restriccion() > 0 ? fechaDeListas(nacimiento.dia, nacimiento.mes, nacimiento.anio) : null,
+      };
+    }
     this.procesando.set(true);
     try {
       const codigo = await this.comprasService.comprar(
@@ -214,9 +283,11 @@ export class ComprarEntradas implements OnInit {
     } catch (e) {
       this.errorCompra.set(mensajeError(e));
       // Puede que otra persona haya comprado alguna de las butacas mientras tanto.
-      const ocupadas = await this.comprasService.butacasOcupadas(funcionId);
-      this.ocupadas.set(ocupadas);
-      this.seleccionadas.update((butacas) => butacas.filter((b) => !ocupadas.has(b)));
+      try {
+        this.marcarOcupadas(await this.comprasService.butacasOcupadas(funcionId));
+      } catch {
+        // Queda el mensaje de error de la compra.
+      }
     } finally {
       this.procesando.set(false);
     }

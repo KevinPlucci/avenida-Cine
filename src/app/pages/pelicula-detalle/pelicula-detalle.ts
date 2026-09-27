@@ -18,6 +18,7 @@ import { Estrellas } from '../../shared/components/estrellas';
 import { ImagenRespaldoDirective } from '../../shared/directives/imagen-respaldo.directive';
 import { DuracionPipe } from '../../shared/pipes/duracion.pipe';
 import { IdiomaPipe } from '../../shared/pipes/idioma.pipe';
+import { RestriccionPipe } from '../../shared/pipes/restriccion.pipe';
 
 @Component({
   selector: 'app-pelicula-detalle',
@@ -28,6 +29,7 @@ import { IdiomaPipe } from '../../shared/pipes/idioma.pipe';
     ReactiveFormsModule,
     DuracionPipe,
     IdiomaPipe,
+    RestriccionPipe,
     Estrellas,
     ErrorCampo,
     ImagenRespaldoDirective,

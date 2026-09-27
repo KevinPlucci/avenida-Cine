@@ -21,8 +21,12 @@
         <h1>{{ c.pelicula }}</h1>
         <p class="ticket-funcion">
           <span class="formato" [attr.data-formato]="c.formato">{{ c.formato }}</span>
+          <span class="restriccion" [attr.data-edad]="c.restriccion_edad">{{ c.restriccion_edad | restriccion }}</span>
           {{ c.idioma | idioma }} · {{ c.sala }}
         </p>
+        @if (c.restriccion_edad) {
+          <p class="aviso-edad">Película para mayores de {{ c.restriccion_edad }} años. Debe ir un adulto.</p>
+        }
 
         <div class="ticket-destacados">
           <div>

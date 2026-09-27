@@ -121,3 +121,19 @@
     position: static;
   }
 }
+
+.nota-accesible {
+  margin: -6px 0 16px;
+  color: var(--color-accesible);
+}
+
+/* Fecha de nacimiento con tres listas, como en el registro. En la columna angosta el año va abajo. */
+.fecha {
+  display: grid;
+  grid-template-columns: 4.6rem 1fr;
+  gap: 8px;
+}
+
+.fecha select:last-child {
+  grid-column: 1 / -1;
+}

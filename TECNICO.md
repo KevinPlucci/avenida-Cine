@@ -31,7 +31,7 @@ Qué hace la aplicación y para quién está en [FUNCIONAL.md](FUNCIONAL.md).
 3. En **SQL Editor**, ejecutar completo `supabase/schema.sql` y después `supabase/seed.sql` (datos de ejemplo: 4 salas, 6 películas, funciones para los próximos 7 días y 10 productos de candy bar).
    Si la base se creó con una versión anterior del esquema, ejecutar también los archivos de `supabase/migraciones/` en orden.
    **Importante:** una base creada antes del candy bar necesita `supabase/migraciones/003_candybar_roles_qr.sql`; sin eso, la compra y el panel fallan porque faltan tablas y funciones.
-   Una base que ya tiene la 003 necesita también `004_descuento_edad_y_validacion.sql`.
+   Una base que ya tiene la 003 necesita también, en orden, las migraciones siguientes (`004_...`, `005_...`, etc.).
 4. Copiar en `src/environments/environment.ts` la *Project URL* (**Project Settings > Data API**) y la *publishable key* (**Project Settings > API Keys**).
 5. Para probar sin confirmar emails: **Authentication > Sign In / Providers > Email** y desactivar *Confirm email*.
 6. Levantar la app:
@@ -156,6 +156,7 @@ erDiagram
   peliculas ||--o{ resenias : "recibe"
 ```
 
+- `peliculas.restriccion_edad` guarda la edad mínima: 0 (ATP), 13 o 18.
 - `funciones` guarda `fin` y `bloqueada_hasta` (fin + 30 min), calculados por un trigger a partir de la duración de la película.
 - `entradas` tiene una fila por butaca con `unique (funcion_id, fila, numero)`.
 - `compra_productos` congela el nombre y el precio del producto: si después cambian, la compra no se altera.
@@ -238,6 +239,9 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 - **La compra es una función RPC `security definer`**: el precio y el descuento nunca vienen del cliente, y el cupón se bloquea con `for update` para no usarlo dos veces. Los productos del candy bar viajan como `jsonb` (solo id y cantidad) y la base les pone el precio.
 - **Descuentos configurables** (`cupones_regla`): el trigger de registro toma de ahí el porcentaje del cupón de bienvenida, y `comprar_entradas()` calcula el descuento por edad con `edad(fecha_nacimiento)`: aplica cuando la edad en años cumplidos supera la configurada ("más de 50 años"). Si aplican los dos se usa el mayor y se guarda el motivo en `compras.descuento_motivo`.
 - **Validación del QR**: `validar_entrada()` y `entregar_productos()` toman la compra con `for update`, comprueban `es_empleado()`, rechazan un código ya usado, solo aceptan hacerlo desde una hora antes del inicio hasta el final de la función y guardan quién y cuándo lo validó. Las fechas de los mensajes se pasan a hora de Argentina, porque la base trabaja en UTC. Los empleados no tienen acceso directo a `compras`: leen por `compra_para_validar()`, que devuelve solo lo necesario para la puerta.
+- **Distribución de la sala en un solo lugar por capa**: `butaca_valida()` en la base y `core/utils/butacas.ts` en el frontend definen las filas A a T sin la K, con la J accesible (2, 10 y 2 butacas). El mapa dibuja cada butaca accesible con el ancho de dos comunes y la fila con el alto de dos, así la sala se ve como es.
+- **Restricción de edad**: `comprar_entradas()` compara `edad()` de la fecha de nacimiento (la del perfil o, sin cuenta, la que declara el comprador) con `peliculas.restriccion_edad`. La pantalla de compra hace el mismo cálculo antes, para avisar sin llegar a pagar.
+- **Butacas en tiempo real** con Supabase Realtime: la pantalla de compra se suscribe a los `INSERT` de `entradas` filtrados por `funcion_id`. Cada vez que el canal se conecta vuelve a leer las butacas vendidas, por si se perdió algún aviso. Al salir de la pantalla el canal se cierra (`DestroyRef.onDestroy`). Igual la base es la que decide: si dos personas pagan la misma butaca, `unique (funcion_id, fila, numero)` rechaza la segunda.
 - **Asignación automática de sala**: `salas_libres()` cruza las salas activas con las funciones existentes usando el mismo rango `[inicio, fin + 30 min)` de la restricción. `programar_funciones()` crea un horario por día con un bloque `begin ... exception` por cada uno, así un choque no cancela el resto y la pantalla informa qué pasó con cada día.
 - **Roles**: `cambiar_rol()` valida que quien llama sea admin, que el rol exista y que un administrador no se quite a sí mismo el permiso.
 - **El frontend valida antes** para dar mejores mensajes: al crear o editar una función lista las funciones que chocan y a qué hora queda libre la sala; si la función tiene ventas, bloquea los campos que no se pueden cambiar.
@@ -267,6 +271,7 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 
 | Fecha | Versión | Cambios |
 |---|---|---|
+| 27/09/2026 | 0.4.0 | Email del 12/02. Restricción de edad por película (ATP, +13, +18): el admin la elige en el formulario, se muestra en la cartelera, el detalle, la compra y la entrada, y la base no deja comprar a quien no tiene la edad (sin cuenta se declara la fecha de nacimiento). Toda entrada de esas películas aclara que debe ir un adulto, también en el PDF y en la validación. Nueva distribución de la sala: la fila J es accesible (2, 10 y 2 butacas) y la K ya no existe. Butacas en tiempo real con Supabase Realtime. Migración `005_edad_accesibles_tiempo_real.sql` y 16 pruebas nuevas en `npm run test:db`. |
 | 15/09/2026 | 0.3.2 | El pie de página queda siempre al final de la ventana, también en las pantallas con poco contenido (perfil, login, validación de QR, página 404). |
 | 15/09/2026 | 0.3.1 | Correcciones de los emails del 30/01 y del 06/02. El descuento por edad aplica a quienes tienen más años que la edad configurada, como pide el email ("más de 50 años"). La entrada y los productos se validan desde una hora antes del inicio hasta que termina la función, y los mensajes muestran la hora de Argentina. El lector de QR usa `jsqr` donde el navegador no trae `BarcodeDetector` (Chrome en Windows, Safari, Firefox). La lista de usuarios muestra el rol real de cada uno. Si el catálogo del candy bar no carga, igual se pueden comprar entradas, y el panel del candy bar muestra el error en lugar de pedir que se cree una categoría. Ajustes de diseño en validación de QR, candy bar y descuentos. La categoría de ejemplo "Combos" pasa a "Promociones" para no confundirla con los combos del email del 03/03. Migración `004_descuento_edad_y_validacion.sql` y 7 pruebas nuevas en `npm run test:db`. |
 | 15/09/2026 | 0.3.0 | Emails del 30/01 y del 06/02. Candy bar: categorías y productos con su ABM, compra junto con la entrada y retiro con el mismo QR. Descuentos configurables: porcentaje del cupón de bienvenida y descuento por edad con su edad mínima. Rol de empleado y pantalla de validación de QR con cámara o código manual, que marca el ingreso y la entrega como usados. Panel de usuarios para asignar roles. Programación de la misma película en varios días y asignación automática de sala. Migración `003_candybar_roles_qr.sql` y 25 pruebas nuevas en `npm run test:db`. |

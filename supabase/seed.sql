@@ -31,6 +31,10 @@ values
    'La tripulación de la primera base en Marte pierde contacto con la Tierra y tiene que decidir si volver o quedarse.',
    125, 'https://picsum.photos/seed/horizonte-rojo/400/600');
 
+-- Restricción de edad (email 12/02). El resto son aptas para todo público.
+update public.peliculas set restriccion_edad = 18 where titulo = 'La casa del fondo';
+update public.peliculas set restriccion_edad = 13 where titulo = 'Operación Medianoche';
+
 insert into public.pelicula_generos (pelicula_id, genero_id)
 select p.id, g.id
 from (values

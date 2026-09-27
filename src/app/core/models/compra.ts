@@ -1,10 +1,13 @@
 import { Formato, Idioma } from './funcion';
+import { RestriccionEdad } from './pelicula';
 import { LineaProducto } from './producto';
 
 /** Datos que se piden cuando la compra es anónima. */
 export interface Comprador {
   nombre: string;
   email: string;
+  /** AAAA-MM-DD. Solo para películas con restricción de edad (email 12/02). */
+  fecha_nacimiento: string | null;
 }
 
 /** Lo que devuelve la función obtener_compra() de la base. Se usa para la pantalla y el PDF. */
@@ -23,6 +26,7 @@ export interface DetalleCompra {
   descuento_motivo: MotivoDescuento | null;
   total: number;
   pelicula: string;
+  restriccion_edad: RestriccionEdad;
   imagen_url: string;
   duracion_min: number;
   sala: string;
@@ -69,6 +73,7 @@ export interface CompraParaValidar {
   cantidad: number;
   butacas: string[];
   pelicula: string;
+  restriccion_edad: RestriccionEdad;
   sala: string;
   inicio: string;
   fin: string;

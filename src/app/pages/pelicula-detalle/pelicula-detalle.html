@@ -11,7 +11,15 @@
     <img class="poster" [src]="p.imagen_url" [alt]="'Póster de ' + p.titulo" appImagenRespaldo />
     <div class="ficha-info">
       <h1>{{ p.titulo }}</h1>
-      <p class="duracion">{{ p.duracion_min | duracion }}</p>
+      <p class="duracion">
+        {{ p.duracion_min | duracion }}
+        <span class="restriccion" [attr.data-edad]="p.restriccion_edad">{{ p.restriccion_edad | restriccion }}</span>
+      </p>
+      @if (p.restriccion_edad) {
+        <p class="aviso-restriccion">
+          Solo para mayores de {{ p.restriccion_edad }} años. Las entradas indican que debe ir un adulto.
+        </p>
+      }
       <div class="chips">
         @for (genero of p.generos; track genero.id) {
           <span class="chip">{{ genero.nombre }}</span>

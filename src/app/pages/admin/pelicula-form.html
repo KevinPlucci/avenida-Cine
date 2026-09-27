@@ -19,11 +19,24 @@
         <app-error-campo [control]="form.controls.sinopsis" />
       </label>
 
-      <label class="campo campo-corto">
-        <span>Duración (minutos)</span>
-        <input type="number" formControlName="duracion_min" min="1" max="600" />
-        <app-error-campo [control]="form.controls.duracion_min" />
-      </label>
+      <div class="fila-campos">
+        <label class="campo">
+          <span>Duración (minutos)</span>
+          <input type="number" formControlName="duracion_min" min="1" max="600" />
+          <app-error-campo [control]="form.controls.duracion_min" />
+        </label>
+        <div class="campo">
+          <span>Restricción de edad</span>
+          <div class="opciones">
+            @for (opcion of restricciones; track opcion.valor) {
+              <label [title]="opcion.descripcion">
+                <input type="radio" formControlName="restriccion_edad" [value]="opcion.valor" />
+                {{ opcion.etiqueta }}
+              </label>
+            }
+          </div>
+        </div>
+      </div>
 
       <div class="campo">
         <span>Póster</span>

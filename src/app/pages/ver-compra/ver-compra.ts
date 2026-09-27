@@ -8,10 +8,11 @@ import { TicketPdfService } from '../../core/services/ticket-pdf.service';
 import { mensajeError } from '../../core/utils/errores';
 import { generarQr } from '../../core/utils/qr';
 import { IdiomaPipe } from '../../shared/pipes/idioma.pipe';
+import { RestriccionPipe } from '../../shared/pipes/restriccion.pipe';
 
 @Component({
   selector: 'app-ver-compra',
-  imports: [RouterLink, DatePipe, CurrencyPipe, IdiomaPipe],
+  imports: [RouterLink, DatePipe, CurrencyPipe, IdiomaPipe, RestriccionPipe],
   templateUrl: './ver-compra.html',
   styleUrl: './ver-compra.css',
 })

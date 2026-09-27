@@ -68,12 +68,17 @@
         <h3 class="pelicula">{{ c.pelicula }}</h3>
         <p class="encabezado">
           <span class="formato" [attr.data-formato]="c.formato">{{ c.formato }}</span>
+          <span class="restriccion" [attr.data-edad]="c.restriccion_edad">{{ c.restriccion_edad | restriccion }}</span>
           <span>{{ c.idioma | idioma }}</span>
           <span aria-hidden="true">·</span>
           <span>{{ c.sala }}</span>
           <span aria-hidden="true">·</span>
           <span>{{ c.inicio | date: "EEE d/M 'a las' HH:mm" }} h</span>
         </p>
+
+        @if (c.restriccion_edad) {
+          <p class="aviso-edad">Película para mayores de {{ c.restriccion_edad }} años: debe ir un adulto.</p>
+        }
 
         <dl class="datos">
           <dt>Comprador</dt>

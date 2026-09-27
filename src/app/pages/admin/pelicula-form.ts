@@ -3,6 +3,7 @@ import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ConCambiosSinGuardar } from '../../core/auth/auth.guards';
 import { Genero } from '../../core/models/genero';
+import { RESTRICCIONES_EDAD, RestriccionEdad } from '../../core/models/pelicula';
 import { GenerosService } from '../../core/services/generos.service';
 import { PeliculasService } from '../../core/services/peliculas.service';
 import { mensajeError } from '../../core/utils/errores';
@@ -24,6 +25,7 @@ export class PeliculaForm implements OnInit, ConCambiosSinGuardar {
   /** Parámetro :id de la ruta /admin/peliculas/:id. Es null en /admin/peliculas/nueva. */
   protected readonly id = inject(ActivatedRoute).snapshot.paramMap.get('id');
 
+  protected readonly restricciones = RESTRICCIONES_EDAD;
   protected readonly generos = signal<Genero[]>([]);
   protected readonly cargando = signal(true);
   protected readonly guardando = signal(false);
@@ -38,6 +40,7 @@ export class PeliculaForm implements OnInit, ConCambiosSinGuardar {
     duracion_min: this.fb.control<number | null>(null, [Validators.required, Validators.min(1), Validators.max(600)]),
     imagen_url: ['', [Validators.required, Validators.pattern(/^https?:\/\/\S+$/)]],
     en_cartelera: [true],
+    restriccion_edad: this.fb.control<RestriccionEdad>(0),
     generos: this.fb.control<number[]>([], Validators.required),
   });
 
@@ -56,6 +59,7 @@ export class PeliculaForm implements OnInit, ConCambiosSinGuardar {
           duracion_min: pelicula.duracion_min,
           imagen_url: pelicula.imagen_url,
           en_cartelera: pelicula.en_cartelera,
+          restriccion_edad: pelicula.restriccion_edad,
           generos: pelicula.generos.map((g) => g.id),
         });
       }
@@ -114,12 +118,19 @@ export class PeliculaForm implements OnInit, ConCambiosSinGuardar {
       return;
     }
 
-    const { generos, duracion_min, titulo, sinopsis, imagen_url, en_cartelera } = this.form.getRawValue();
+    const { generos, duracion_min, titulo, sinopsis, imagen_url, en_cartelera, restriccion_edad } = this.form.getRawValue();
     this.guardando.set(true);
     try {
       await this.peliculasService.guardar(
         this.id ? Number(this.id) : null,
-        { titulo: titulo.trim(), sinopsis: sinopsis.trim(), duracion_min: duracion_min ?? 0, imagen_url, en_cartelera },
+        {
+          titulo: titulo.trim(),
+          sinopsis: sinopsis.trim(),
+          duracion_min: duracion_min ?? 0,
+          imagen_url,
+          en_cartelera,
+          restriccion_edad,
+        },
         generos,
       );
       this.guardado = true;
