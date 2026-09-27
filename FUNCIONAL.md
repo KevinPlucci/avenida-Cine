@@ -33,7 +33,7 @@ y decide qué se muestra en la cartelera.
 | Visitante | Entra sin cuenta | Ver la cartelera y el detalle de las películas, comprar entradas dejando nombre y email, ver la entrada con el código de compra |
 | Cliente registrado | Se registró con sus datos | Todo lo anterior, más su perfil, su cupón de primera compra, el historial de compras y dejar reseñas |
 | Empleado | Personal de puerta y candy bar | Validar los códigos QR del ingreso y entregar los productos del candy bar |
-| Administrador | Personal del cine | Películas, funciones, salas, géneros, candy bar, descuentos y roles de los usuarios. También puede validar QR |
+| Administrador | Personal del cine | Películas, funciones, salas, géneros, candy bar, descuentos, roles de los usuarios y reporte de ventas. También puede validar QR |
 
 ## 3. Pantallas
 
@@ -46,7 +46,7 @@ y decide qué se muestra en la cartelera.
 | Validar entradas | Lectura del QR con la cámara o a mano, con el estado del ingreso y del candy bar | Empleados y administradores |
 | Ingreso y registro | Cuenta propia; después de ingresar vuelve a la pantalla donde estaba | Solo sin sesión iniciada |
 | Mi perfil | Datos personales, cupón disponible y compras realizadas | Clientes registrados |
-| Administración | Películas, funciones, salas, géneros, candy bar, descuentos y usuarios | Administradores |
+| Administración | Películas, funciones, salas, géneros, candy bar, descuentos, usuarios y reporte de ventas por día | Administradores |
 
 ## 4. Flujo de compra
 
@@ -165,10 +165,10 @@ Referencias: `[x]` implementado · `[ ]` pendiente.
 
 ### Email 7 · 28/02/2020 · Usabilidad y reporte
 
-- [ ] Interfaces fáciles de navegar para clientes y empleados
-- [x] Ingreso de fechas y horas sin calendarios lentos (aplicado en registro y alta de funciones)
-- [ ] Evitar el scroll excesivo
-- [ ] Reporte de facturación por día y cantidad de entradas vendidas
+- [x] Interfaces fáciles de navegar para clientes y empleados (menú según el rol, compra en pasos numerados, el empleado entra directo a validar)
+- [x] Ingreso de fechas y horas sin calendarios lentos (registro, compra sin cuenta, alta de funciones y período del reporte)
+- [x] Evitar el scroll excesivo (funciones de a un día, reseñas de a tres, candy bar por categoría y reporte sin días vacíos)
+- [x] Reporte de facturación por día y cantidad de entradas vendidas
 
 ### Email 8 · 03/03/2020 · Fidelización y combos
 
@@ -228,6 +228,9 @@ Puntos que los emails no definen y cómo se resolvieron:
 | Filas J y K | El email dice que se quitaron "para dar espacio a **una** fila" y que "en cada columna quedaron 2, 10 y 2 butacas". Se toma como una sola fila accesible, la J, que ocupa el lugar de las dos: la K ya no existe y el resto de las letras no cambia. Cada butaca accesible ocupa el ancho de dos comunes. |
 | Quién compra butacas accesibles | Cualquiera: el email no pide validar la discapacidad. El mapa y el resumen avisan para quién son. |
 | Edad en compras sin cuenta | Se pide la fecha de nacimiento solo si la película es +13 o +18, con las mismas tres listas del registro. Es una declaración del comprador, igual que en el registro. |
+| Reporte de ventas | Cada compra cuenta en el día (de Argentina) en que se hizo, no en el de la función. "Facturado" es lo que pagó el cliente: entradas y candy bar, con el descuento ya restado. El período se elige con botones (7 días, 30 días, este mes, mes anterior). |
+| Menos scroll | El detalle muestra las funciones de un día por vez, con botones para cambiar de día; las reseñas, de a tres; el candy bar, una categoría por vez; y el reporte oculta los días sin ventas salvo que se pidan. |
+| Pantalla inicial del empleado | Al ingresar, un empleado va directo a validar entradas, que es lo que usa. Los demás vuelven a la cartelera o a la pantalla donde estaban. |
 | "Debe ir un adulto" | Se imprime en toda entrada de una película +13 o +18, como pide el email, y el empleado lo ve al validar. |
 | Tiempo real | El mapa marca al instante las butacas de las compras confirmadas por otras personas. Si una de ellas estaba elegida, se quita de la selección y se avisa. Las butacas que otra persona está eligiendo sin pagar no se bloquean. |
 

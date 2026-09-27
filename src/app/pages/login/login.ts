@@ -78,9 +78,11 @@ export class Login {
   /**
    * Query param ?volver=/ruta: a dónde regresar después de ingresar (lo agregan los guards y los links "Ingresá").
    * Solo se aceptan rutas internas, para no redirigir a otro sitio.
+   * Sin ese dato, el empleado va directo a validar entradas, que es lo único que usa (email 28/02).
    */
   private destinoSeguro(): string {
     const destino = this.route.snapshot.queryParamMap.get('volver');
-    return destino?.startsWith('/') && !destino.startsWith('//') ? destino : '/';
+    if (destino?.startsWith('/') && !destino.startsWith('//')) return destino;
+    return this.auth.perfil()?.rol === 'empleado' ? '/validar' : '/';
   }
 }

@@ -120,7 +120,7 @@ src/
       login/  registro/  mi-perfil/  no-encontrada/
       validar/          lectura del QR para el personal del cine
       admin/            layout con pestañas + películas, funciones, salas, géneros,
-                        candy bar, descuentos y usuarios
+                        candy bar, descuentos, usuarios y reportes
 ```
 
 ### Rutas
@@ -134,7 +134,7 @@ src/
 | `/login`, `/registro` | Ingreso y registro (`/login?volver=/ruta` vuelve a esa ruta después de ingresar) | Solo sin sesión |
 | `/perfil` | Datos, descuentos y compras | Registrados |
 | `/validar` | Validación de QR del ingreso y del candy bar | Empleados y administradores |
-| `/admin/...` | Películas, funciones, salas, géneros, candy bar, descuentos y usuarios | Administradores |
+| `/admin/...` | Películas, funciones, salas, géneros, candy bar, descuentos, usuarios y reportes | Administradores |
 | Cualquier otra | Página 404 | Todos |
 
 ### Modelo de datos
@@ -243,6 +243,7 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 - **Restricción de edad**: `comprar_entradas()` compara `edad()` de la fecha de nacimiento (la del perfil o, sin cuenta, la que declara el comprador) con `peliculas.restriccion_edad`. La pantalla de compra hace el mismo cálculo antes, para avisar sin llegar a pagar.
 - **Butacas en tiempo real** con Supabase Realtime: la pantalla de compra se suscribe a los `INSERT` de `entradas` filtrados por `funcion_id`. Cada vez que el canal se conecta vuelve a leer las butacas vendidas, por si se perdió algún aviso. Al salir de la pantalla el canal se cierra (`DestroyRef.onDestroy`). Igual la base es la que decide: si dos personas pagan la misma butaca, `unique (funcion_id, fila, numero)` rechaza la segunda.
 - **Asignación automática de sala**: `salas_libres()` cruza las salas activas con las funciones existentes usando el mismo rango `[inicio, fin + 30 min)` de la restricción. `programar_funciones()` crea un horario por día con un bloque `begin ... exception` por cada uno, así un choque no cancela el resto y la pantalla informa qué pasó con cada día.
+- **Reporte de ventas**: `reporte_ventas(desde, hasta)` es `security definer` y solo responde al admin. Arma los días con `generate_series` y los cruza con `compras` por fecha de Argentina (`creado_en at time zone 'America/Argentina/Buenos_Aires'`), así aparecen también los días sin ventas. La pantalla suma los totales del período.
 - **Roles**: `cambiar_rol()` valida que quien llama sea admin, que el rol exista y que un administrador no se quite a sí mismo el permiso.
 - **El frontend valida antes** para dar mejores mensajes: al crear o editar una función lista las funciones que chocan y a qué hora queda libre la sala; si la función tiene ventas, bloquea los campos que no se pueden cambiar.
 - **Registro**: los datos del perfil viajan como metadata del `signUp` y un trigger sobre `auth.users` crea el perfil y el cupón.
@@ -262,7 +263,8 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 
 - Identidad propia sin librerías de componentes: fondo cálido, títulos en Oswald (tipografía de marquesina de cine), un rojo como color principal y variables CSS para mantener todo coherente.
 - Detalles de diseño: logo con forma de entrada, ficha de película con el póster desenfocado de fondo, distintivo de color para cada formato (2D, 3D, 4D, 5D), mapa de butacas con pantalla curva y la entrada con forma de ticket (talón con el QR y muescas).
-- Fechas sin calendario desplegable: la fecha de nacimiento se elige con tres listas (día, mes, año) y el día de una función con botones de los próximos 14 días.
+- Fechas sin calendario desplegable (email 28/02): la fecha de nacimiento se elige con tres listas (día, mes, año), el día de una función con botones de los próximos 14 días y el período del reporte con botones.
+- Menos scroll (email 28/02): el detalle de la película muestra un día de funciones por vez y tres reseñas, el candy bar de la compra una categoría por vez, y el reporte oculta los días sin ventas.
 - El pago es **simulado**: se validan los datos de la tarjeta pero no se procesa ningún cobro.
 
 ---
@@ -271,6 +273,7 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 
 | Fecha | Versión | Cambios |
 |---|---|---|
+| 27/09/2026 | 0.5.0 | Email del 28/02. Reporte de ventas en el panel (pestaña Reportes): facturación, compras y entradas vendidas por día, con el período elegido con botones. Menos scroll: funciones de a un día en el detalle de la película, reseñas de a tres, candy bar por categoría en la compra. El empleado entra directo a validar entradas. Migración `006_reporte_ventas.sql` y 6 pruebas nuevas en `npm run test:db`. |
 | 27/09/2026 | 0.4.0 | Email del 12/02. Restricción de edad por película (ATP, +13, +18): el admin la elige en el formulario, se muestra en la cartelera, el detalle, la compra y la entrada, y la base no deja comprar a quien no tiene la edad (sin cuenta se declara la fecha de nacimiento). Toda entrada de esas películas aclara que debe ir un adulto, también en el PDF y en la validación. Nueva distribución de la sala: la fila J es accesible (2, 10 y 2 butacas) y la K ya no existe. Butacas en tiempo real con Supabase Realtime. Migración `005_edad_accesibles_tiempo_real.sql` y 16 pruebas nuevas en `npm run test:db`. |
 | 15/09/2026 | 0.3.2 | El pie de página queda siempre al final de la ventana, también en las pantallas con poco contenido (perfil, login, validación de QR, página 404). |
 | 15/09/2026 | 0.3.1 | Correcciones de los emails del 30/01 y del 06/02. El descuento por edad aplica a quienes tienen más años que la edad configurada, como pide el email ("más de 50 años"). La entrada y los productos se validan desde una hora antes del inicio hasta que termina la función, y los mensajes muestran la hora de Argentina. El lector de QR usa `jsqr` donde el navegador no trae `BarcodeDetector` (Chrome en Windows, Safari, Firefox). La lista de usuarios muestra el rol real de cada uno. Si el catálogo del candy bar no carga, igual se pueden comprar entradas, y el panel del candy bar muestra el error en lugar de pedir que se cree una categoría. Ajustes de diseño en validación de QR, candy bar y descuentos. La categoría de ejemplo "Combos" pasa a "Promociones" para no confundirla con los combos del email del 03/03. Migración `004_descuento_edad_y_validacion.sql` y 7 pruebas nuevas en `npm run test:db`. |

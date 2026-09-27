@@ -42,23 +42,35 @@
 
   <section class="tarjeta">
     <h2>Funciones</h2>
-    @for (dia of funcionesPorDia(); track dia.clave) {
-      <div class="dia">
-        <h3>{{ dia.fecha | date: "EEEE d 'de' MMMM" }}</h3>
-        <div class="horarios">
-          @for (funcion of dia.items; track funcion.id) {
-            <a class="horario" [routerLink]="['/funciones', funcion.id, 'comprar']">
-              <span class="hora">{{ funcion.inicio | date: 'HH:mm' }}</span>
-              <span class="detalle-horario">
-                <span class="formato" [attr.data-formato]="funcion.formato">{{ funcion.formato }}</span>
-                {{ funcion.idioma | idioma }}
-              </span>
-              <span class="meta">{{ funcion.sala.nombre }} · {{ funcion.precio | currency }}</span>
-            </a>
-          }
-        </div>
+    @if (diaVisible(); as dia) {
+      <!-- Un día a la vez: se elige con un click en lugar de recorrer toda la semana (email 28/02) -->
+      <div class="chips filtro-dias" role="group" aria-label="Día de la función">
+        @for (opcion of funcionesPorDia(); track opcion.clave) {
+          <button
+            type="button"
+            class="chip"
+            [class.activo]="opcion.clave === dia.clave"
+            [attr.aria-pressed]="opcion.clave === dia.clave"
+            (click)="diaElegido.set(opcion.clave)"
+          >
+            {{ opcion.fecha | date: 'EEE d/M' }}
+          </button>
+        }
       </div>
-    } @empty {
+      <h3 class="dia">{{ dia.fecha | date: "EEEE d 'de' MMMM" }}</h3>
+      <div class="horarios">
+        @for (funcion of dia.items; track funcion.id) {
+          <a class="horario" [routerLink]="['/funciones', funcion.id, 'comprar']">
+            <span class="hora">{{ funcion.inicio | date: 'HH:mm' }}</span>
+            <span class="detalle-horario">
+              <span class="formato" [attr.data-formato]="funcion.formato">{{ funcion.formato }}</span>
+              {{ funcion.idioma | idioma }}
+            </span>
+            <span class="meta">{{ funcion.sala.nombre }} · {{ funcion.precio | currency }}</span>
+          </a>
+        }
+      </div>
+    } @else {
       <p class="vacio">No hay funciones programadas por el momento.</p>
     }
   </section>
@@ -103,7 +115,7 @@
       <p class="alerta alerta-error" animate.enter="aparecer">{{ errorResenia() }}</p>
     }
 
-    @for (resenia of resenias(); track resenia.id) {
+    @for (resenia of reseniasVisibles(); track resenia.id) {
       <div class="resenia" animate.enter="aparecer" animate.leave="desaparecer">
         <div class="resenia-cabecera">
           <app-estrellas [valor]="resenia.estrellas" />
@@ -114,6 +126,11 @@
       </div>
     } @empty {
       <p class="vacio">Todavía nadie opinó sobre esta película.</p>
+    }
+    @if (resenias().length > reseniasIniciales) {
+      <button type="button" class="btn btn-chico ver-mas" (click)="verTodasLasResenias.set(!verTodasLasResenias())">
+        {{ verTodasLasResenias() ? 'Ver menos' : 'Ver las ' + resenias().length + ' reseñas' }}
+      </button>
     }
   </section>
 }

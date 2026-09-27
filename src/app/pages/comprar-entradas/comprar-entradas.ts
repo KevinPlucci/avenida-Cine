@@ -73,6 +73,12 @@ export class ComprarEntradas implements OnInit {
   // Candy bar (email 30/01): cantidad elegida de cada producto.
   protected readonly categorias = signal<CategoriaConProductos[]>([]);
   protected readonly carrito = signal<Record<number, number>>({});
+  /** Categoría que se está mirando; si no se eligió ninguna se muestra la primera. */
+  protected readonly categoriaElegida = signal<number | null>(null);
+  protected readonly categoriaVisible = computed<CategoriaConProductos | null>(() => {
+    const categorias = this.categorias();
+    return categorias.find((c) => c.id === this.categoriaElegida()) ?? categorias[0] ?? null;
+  });
   /** Si el catálogo no carga se avisa, pero se pueden comprar las entradas igual. */
   protected readonly candyNoDisponible = signal(false);
 
@@ -235,6 +241,11 @@ export class ComprarEntradas implements OnInit {
       this.seleccionadas.update((butacas) => butacas.filter((b) => !ocupadas.has(b)));
       this.butacasPerdidas.set(perdidas);
     }
+  }
+
+  /** Unidades elegidas de una categoría, para mostrarlas en su botón. */
+  protected elegidosEn(categoria: CategoriaConProductos): number {
+    return categoria.productos.reduce((total, producto) => total + this.cantidad(producto), 0);
   }
 
   protected cantidad(producto: Producto): number {

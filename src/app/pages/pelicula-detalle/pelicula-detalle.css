@@ -90,12 +90,12 @@
   color: #e2ddd7;
 }
 
-.dia + .dia {
-  margin-top: 18px;
+.dia::first-letter {
+  text-transform: uppercase;
 }
 
-.dia h3::first-letter {
-  text-transform: uppercase;
+.ver-mas {
+  margin-top: 12px;
 }
 
 .horarios {

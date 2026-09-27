@@ -67,8 +67,25 @@
           Es opcional. Lo que elijas se retira en el candy bar con el mismo código QR de la entrada.
         </p>
 
-        @for (categoria of categorias(); track categoria.id) {
-          <h3 class="categoria">{{ categoria.nombre }}</h3>
+        <!-- Una categoría a la vez, así la lista no alarga la página (email 28/02) -->
+        <div class="chips categorias" role="group" aria-label="Categoría del candy bar">
+          @for (opcion of categorias(); track opcion.id) {
+            <button
+              type="button"
+              class="chip"
+              [class.activo]="opcion.id === categoriaVisible()?.id"
+              [attr.aria-pressed]="opcion.id === categoriaVisible()?.id"
+              (click)="categoriaElegida.set(opcion.id)"
+            >
+              {{ opcion.nombre }}
+              @if (elegidosEn(opcion)) {
+                ({{ elegidosEn(opcion) }})
+              }
+            </button>
+          }
+        </div>
+
+        @if (categoriaVisible(); as categoria) {
           <ul class="productos">
             @for (producto of categoria.productos; track producto.id) {
               <li class="producto" [class.elegido]="cantidad(producto) > 0">

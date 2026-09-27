@@ -282,6 +282,24 @@ await esperarError(`select entregar_productos($1)`, [enHorario.codigo], 'ya se e
 await esperarError(`select entregar_productos($1)`, [anonima.codigo], 'no incluye productos', 'compra sin productos del candy bar');
 await comoUsuario(null);
 
+// ---------- Reporte de ventas por día (email 28/02) ----------
+await comoUsuario(uid);
+await esperarError(`select * from reporte_ventas(current_date - 6, current_date)`, [], 'Solo un administrador', 'un cliente no ve el reporte');
+await comoUsuario(idAdmin);
+await esperarError(`select * from reporte_ventas(current_date, current_date - 1)`, [], 'no es válido', 'el período tiene que terminar después de empezar');
+const reporte = await q(`select dia::text, cantidad_compras, entradas_vendidas, facturado::float from reporte_ventas(current_date - 6, current_date)`);
+const [hoy] = await q(`select (now() at time zone 'America/Argentina/Buenos_Aires')::date::text d`);
+const [ventasHoy] = await q(`select count(*)::int compras, sum(cantidad)::int entradas, sum(total)::float total from compras
+  where (creado_en at time zone 'America/Argentina/Buenos_Aires')::date = $1::date`, [hoy.d]);
+const filaHoy = reporte.find((r) => r.dia === hoy.d);
+ok(reporte.length === 7, 'el reporte trae los 7 días del período, también los que no tienen ventas');
+ok(
+  filaHoy?.cantidad_compras === ventasHoy.compras && filaHoy.entradas_vendidas === ventasHoy.entradas && filaHoy.facturado === ventasHoy.total,
+  `el reporte suma las compras, las entradas y la facturación del día (${JSON.stringify(filaHoy)})`,
+);
+ok(reporte.filter((r) => r.dia !== hoy.d).every((r) => r.cantidad_compras === 0 && r.facturado === 0), 'los días sin ventas aparecen en cero');
+await comoUsuario(null);
+
 // ---------- Funciones: 30 minutos entre funciones ----------
 await comoUsuario(null);
 const [sala] = await q(`insert into salas (nombre) values ('Sala de prueba') returning id`);
@@ -371,6 +389,12 @@ await esperarError(`select comprar_entradas($1, array['K4'], 'x@test.com', 'X')`
   'después de la migración 005 la fila K ya no se vende');
 await esperarError(`select comprar_entradas($1, array['A4'], 'x@test.com', 'X')`, [funcion18.id], 'fecha de nacimiento',
   'después de la migración 005 se controla la edad');
+
+await db.exec(leer('./migraciones/006_reporte_ventas.sql'));
+await db.exec(leer('./migraciones/006_reporte_ventas.sql'));
+await comoUsuario(idAdmin);
+ok((await q(`select * from reporte_ventas(current_date, current_date)`)).length === 1, 'la migración 006 se aplica, se puede repetir y el reporte funciona');
+await comoUsuario(null);
 
 console.log(fallos ? `\n${fallos} prueba(s) fallaron` : '\nTodas las pruebas pasaron');
 process.exit(fallos ? 1 : 0);

@@ -53,6 +53,19 @@ export class PeliculaDetalle implements OnInit {
   protected readonly error = signal('');
 
   protected readonly funcionesPorDia = computed(() => agruparPorDia(this.funciones()));
+  /** Día elegido en los botones; si no se eligió ninguno se muestra el primero con funciones. */
+  protected readonly diaElegido = signal<string | null>(null);
+  protected readonly diaVisible = computed(() => {
+    const dias = this.funcionesPorDia();
+    return dias.find((dia) => dia.clave === this.diaElegido()) ?? dias[0] ?? null;
+  });
+
+  /** Se muestran las más recientes y el resto a pedido, para no alargar la página (email 28/02). */
+  protected readonly reseniasIniciales = 3;
+  protected readonly verTodasLasResenias = signal(false);
+  protected readonly reseniasVisibles = computed(() =>
+    this.verTodasLasResenias() ? this.resenias() : this.resenias().slice(0, this.reseniasIniciales),
+  );
   protected readonly miResenia = computed(
     () => this.resenias().find((r) => r.usuario_id === this.auth.usuario()?.id) ?? null,
   );
