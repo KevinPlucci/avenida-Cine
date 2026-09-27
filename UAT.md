@@ -223,6 +223,11 @@ lo verifica `npm run test:db`, donde un usuario con el rol `authenticated` no pu
 | 4 | A-13 | TECNICO.md decía que al **crear** una función la pantalla lista las funciones que chocan. Eso pasa solo al **editar**; al crear, la base informa el motivo por cada día. | Se corrigió el documento. | Documentación de la versión 0.6.2 |
 | 5 | E-05 | La primera corrida marcó falla por un error del script de prueba (miraba el botón de la cámara en vez del de la entrada). La aplicación funcionaba bien. | Se corrigió el script y se repitió el caso. | — |
 
+**Repetición después de la versión 0.6.3.** Esa versión cambió cómo se dibujan la grilla de la cartelera,
+las butacas, el fondo de la ficha y los contadores de la compra (ver TECNICO.md). En producción, sin cuenta, se
+repitieron C-01, A-16, C-04 y C-07 hasta el resumen de pago: todos OK. El canje de puntos (C-13) y el armado de
+combos (A-06) se repitieron con Supabase simulado, porque las cuentas del UAT ya se habían borrado: también OK.
+
 Antes del UAT se ajustaron también los guards `canMatch`: con sesión pero sin el rol ahora devuelven `false`,
 así la ruta no coincide y Angular sigue buscando en el arreglo de rutas hasta la 404 (commit `1b2a473`).
 
@@ -259,8 +264,8 @@ Todos los guards son funciones (`CanActivateFn`, `CanMatchFn`, `CanActivateChild
 ## 7. Limpieza de los datos de prueba
 
 El catálogo del candy bar, los combos, los puntos de las recompensas y las funciones que cargó el administrador
-quedan en la base porque la app los necesita. Para borrar las cuentas y las compras de prueba, ejecutar en
-**Supabase > SQL Editor**:
+quedan en la base porque la app los necesita. Las cuentas y las compras de prueba se borraron el 27/09/2026 con
+este SQL en **Supabase > SQL Editor**:
 
 ```sql
 -- Compras del UAT, con y sin cuenta (borra también sus entradas, productos, combos y movimientos de puntos).
