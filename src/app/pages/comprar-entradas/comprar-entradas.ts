@@ -150,9 +150,13 @@ export class ComprarEntradas implements OnInit {
       .filter((linea) => this.puntosPorProducto().has(linea.producto.id))
       .map((linea) => ({ ...linea, puntos: this.puntosPorProducto().get(linea.producto.id)! })),
   );
-  protected readonly puedeCanjear = computed(
-    () => this.saldoPuntos() !== null && (this.puntosEntrada() !== null || this.lineasCanjeables().length > 0),
-  );
+  /** El canje se ofrece solo si el saldo alcanza para alguna recompensa, así no ocupa lugar de más. */
+  protected readonly puedeCanjear = computed(() => {
+    const costos = [this.puntosEntrada(), ...this.lineasCanjeables().map((linea) => linea.puntos)].filter(
+      (costo): costo is number => costo !== null,
+    );
+    return this.saldoPuntos() !== null && costos.some((costo) => (this.saldoPuntos() ?? 0) >= costo);
+  });
   protected readonly puntosUsados = computed(
     () =>
       this.entradasConPuntos() * (this.puntosEntrada() ?? 0) +

@@ -33,7 +33,9 @@ import { Estrellas } from './estrellas';
           <p class="meta">Sin reseñas</p>
         }
         @if (mostrarVentas()) {
-          <p class="ventas">{{ pelicula().entradas_vendidas }} entradas vendidas</p>
+          <p class="ventas">
+            {{ pelicula().entradas_vendidas }} {{ pelicula().entradas_vendidas === 1 ? 'entrada vendida' : 'entradas vendidas' }}
+          </p>
         }
       </div>
     </a>
