@@ -75,6 +75,13 @@ npx serve -s dist/tp1-cine/browser
 1. Importar el repositorio en Vercel. `vercel.json` ya define el comando de build, la carpeta de salida y la redirección de rutas a `index.html`.
 2. En Supabase, **Authentication > URL Configuration**: poner la URL del deploy como *Site URL* (la usan los emails de confirmación).
 
+### Supabase pausado
+
+El plan gratuito de Supabase pausa el proyecto después de 7 días sin actividad: la dirección de la base deja de existir
+y la app no carga datos. Para evitarlo, `.github/workflows/mantener-supabase.yml` hace una consulta de solo lectura
+cada 3 días (también se puede correr a mano desde **Actions > Mantener Supabase activo > Run workflow**).
+Si igual se pausa: en el panel de Supabase abrir el proyecto y tocar **Restore project**; tarda unos minutos.
+
 ---
 
 ## 2. Arquitectura
@@ -284,6 +291,7 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 
 | Fecha | Versión | Cambios |
 |---|---|---|
+| 27/09/2026 | 0.6.1 | Tarea programada en GitHub Actions que consulta la base cada 3 días para que Supabase no pause el proyecto por inactividad, y pasos para restaurarlo si se pausa. |
 | 27/09/2026 | 0.6.0 | Email del 03/03. Programa de puntos: 1 punto por peso pagado, canje de entradas gratis y productos del candy bar al comprar, costo de cada recompensa configurable en la pestaña Puntos, saldo e historial de canjes en el perfil, y puntos intransferibles (sin escritura desde la API). Combos de entrada + candy bar a precio fijo, con su ABM en la pestaña Combos, destacados en la pantalla de compra, en la entrada, el PDF y la validación. Migración `007_puntos_combos.sql` y 30 pruebas nuevas en `npm run test:db`. |
 | 27/09/2026 | 0.5.0 | Email del 28/02. Reporte de ventas en el panel (pestaña Reportes): facturación, compras y entradas vendidas por día, con el período elegido con botones. Menos scroll: funciones de a un día en el detalle de la película, reseñas de a tres, candy bar por categoría en la compra. El empleado entra directo a validar entradas. Migración `006_reporte_ventas.sql` y 6 pruebas nuevas en `npm run test:db`. |
 | 27/09/2026 | 0.4.0 | Email del 12/02. Restricción de edad por película (ATP, +13, +18): el admin la elige en el formulario, se muestra en la cartelera, el detalle, la compra y la entrada, y la base no deja comprar a quien no tiene la edad (sin cuenta se declara la fecha de nacimiento). Toda entrada de esas películas aclara que debe ir un adulto, también en el PDF y en la validación. Nueva distribución de la sala: la fila J es accesible (2, 10 y 2 butacas) y la K ya no existe. Butacas en tiempo real con Supabase Realtime. Migración `005_edad_accesibles_tiempo_real.sql` y 16 pruebas nuevas en `npm run test:db`. |
