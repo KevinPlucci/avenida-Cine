@@ -1,4 +1,4 @@
-import { CurrencyPipe, DatePipe, NgStyle } from '@angular/common';
+import { CurrencyPipe, DatePipe, NgStyle, TitleCasePipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Title } from '@angular/platform-browser';
@@ -26,6 +26,7 @@ import { RestriccionPipe } from '../../shared/pipes/restriccion.pipe';
     RouterLink,
     DatePipe,
     CurrencyPipe,
+    TitleCasePipe,
     NgStyle,
     ReactiveFormsModule,
     DuracionPipe,

@@ -1,4 +1,4 @@
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, TitleCasePipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
@@ -46,7 +46,7 @@ const CAMPOS_BLOQUEADOS_CON_VENTAS = ['pelicula_id', 'sala_id', 'dias', 'hora', 
 
 @Component({
   selector: 'app-admin-funciones',
-  imports: [ReactiveFormsModule, DatePipe, CurrencyPipe, IdiomaPipe, ErrorCampo],
+  imports: [ReactiveFormsModule, DatePipe, CurrencyPipe, TitleCasePipe, IdiomaPipe, ErrorCampo],
   templateUrl: './admin-funciones.html',
 })
 export class AdminFunciones implements OnInit {

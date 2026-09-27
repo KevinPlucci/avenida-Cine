@@ -80,7 +80,7 @@
 
         <dl class="datos">
           <dt>Comprador</dt>
-          <dd>{{ c.nombre }} ({{ c.email }})</dd>
+          <dd>{{ c.nombre | titlecase }} ({{ c.email }})</dd>
           @if (c.descuento > 0 || c.subtotal_productos > 0 || c.subtotal_combos > 0 || c.entradas_canjeadas > 0) {
             <dt>Entradas</dt>
             <dd>{{ c.subtotal | currency }}</dd>

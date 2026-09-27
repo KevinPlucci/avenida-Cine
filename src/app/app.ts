@@ -1,8 +1,8 @@
-import { Component, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { AsyncPipe } from '@angular/common';
+import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { SwUpdate, VersionReadyEvent } from '@angular/service-worker';
-import { filter } from 'rxjs';
+import { filter, map, Observable, of } from 'rxjs';
 import { NOMBRE_CINE } from './core/constantes';
 import { EstadoRedService } from './core/http/estado-red.service';
 import { SupabaseService } from './core/supabase.service';
@@ -10,7 +10,7 @@ import { Header } from './shared/components/header';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, Header],
+  imports: [RouterOutlet, Header, AsyncPipe],
   templateUrl: './app.html',
   styles: `
     /* El pie queda al final de la ventana aunque la pantalla tenga poco contenido */
@@ -33,19 +33,17 @@ export class App {
   protected readonly estadoRed = inject(EstadoRedService);
   protected readonly nombreCine = NOMBRE_CINE;
   protected readonly supabaseConfigurado = inject(SupabaseService).configurado;
-  protected readonly hayActualizacion = signal(false);
 
-  constructor() {
-    // PWA: el service worker avisa cuando descargó una versión nueva de la app.
-    if (this.swUpdate.isEnabled) {
-      this.swUpdate.versionUpdates
-        .pipe(
-          filter((evento): evento is VersionReadyEvent => evento.type === 'VERSION_READY'),
-          takeUntilDestroyed(),
-        )
-        .subscribe(() => this.hayActualizacion.set(true));
-    }
-  }
+  /**
+   * PWA: emite true cuando el service worker terminó de descargar una versión nueva de la app.
+   * La plantilla lo lee con el pipe async, que se suscribe y se desuscribe solo.
+   */
+  protected readonly hayActualizacion$: Observable<boolean> = this.swUpdate.isEnabled
+    ? this.swUpdate.versionUpdates.pipe(
+        filter((evento): evento is VersionReadyEvent => evento.type === 'VERSION_READY'),
+        map(() => true),
+      )
+    : of(false);
 
   protected recargar(): void {
     document.location.reload();

@@ -18,7 +18,7 @@
   </div>
 }
 
-@if (hayActualizacion()) {
+@if (hayActualizacion$ | async) {
   <div class="contenedor aviso">
     <p class="alerta" animate.enter="aparecer">
       Hay una nueva versión de la aplicación.

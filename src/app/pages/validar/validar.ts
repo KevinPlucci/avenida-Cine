@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, TitleCasePipe } from '@angular/common';
 import { Component, computed, ElementRef, inject, OnDestroy, signal, viewChild } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { CompraParaValidar } from '../../core/models/compra';
@@ -26,7 +26,7 @@ const ANCHO_MAXIMO_FOTOGRAMA = 800;
 
 @Component({
   selector: 'app-validar',
-  imports: [FormsModule, DatePipe, IdiomaPipe, RestriccionPipe, AutoFocoDirective],
+  imports: [FormsModule, DatePipe, TitleCasePipe, IdiomaPipe, RestriccionPipe, AutoFocoDirective],
   templateUrl: './validar.html',
   styleUrl: './validar.css',
 })

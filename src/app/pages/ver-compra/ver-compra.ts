@@ -1,4 +1,4 @@
-import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe, TitleCasePipe } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { NOMBRE_CINE } from '../../core/constantes';
@@ -12,7 +12,7 @@ import { RestriccionPipe } from '../../shared/pipes/restriccion.pipe';
 
 @Component({
   selector: 'app-ver-compra',
-  imports: [RouterLink, DatePipe, CurrencyPipe, DecimalPipe, IdiomaPipe, RestriccionPipe],
+  imports: [RouterLink, DatePipe, CurrencyPipe, DecimalPipe, TitleCasePipe, IdiomaPipe, RestriccionPipe],
   templateUrl: './ver-compra.html',
   styleUrl: './ver-compra.css',
 })

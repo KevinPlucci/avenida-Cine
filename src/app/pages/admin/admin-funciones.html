@@ -73,7 +73,7 @@
               [disabled]="form.controls.dias.disabled"
               (click)="elegirDia(dia.valor)"
             >
-              {{ dia.fecha | date: 'EEE d/M' }}
+              {{ dia.fecha | date: 'EEE d/M' | titlecase }}
             </button>
           }
         </div>
@@ -203,7 +203,7 @@
     <button type="button" class="chip" [class.activo]="filtroDia() === ''" (click)="filtroDia.set('')">Todas</button>
     @for (dia of dias; track dia.valor) {
       <button type="button" class="chip" [class.activo]="filtroDia() === dia.valor" (click)="filtroDia.set(dia.valor)">
-        {{ dia.fecha | date: 'EEE d/M' }}
+        {{ dia.fecha | date: 'EEE d/M' | titlecase }}
       </button>
     }
   </div>

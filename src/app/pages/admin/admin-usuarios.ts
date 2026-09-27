@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, TitleCasePipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { AuthService } from '../../core/auth/auth.service';
 import { Perfil, Rol } from '../../core/models/perfil';
@@ -13,7 +13,7 @@ const ROLES: { valor: Rol; etiqueta: string; descripcion: string }[] = [
 
 @Component({
   selector: 'app-admin-usuarios',
-  imports: [DatePipe],
+  imports: [DatePipe, TitleCasePipe],
   template: `
     <div class="tarjeta">
       <h2>Usuarios</h2>
@@ -54,7 +54,7 @@ const ROLES: { valor: Rol; etiqueta: string; descripcion: string }[] = [
             <tbody>
               @for (usuario of filtrados(); track usuario.id) {
                 <tr>
-                  <td>{{ usuario.apellido }}, {{ usuario.nombre }}</td>
+                  <td>{{ usuario.apellido | titlecase }}, {{ usuario.nombre | titlecase }}</td>
                   <td>{{ usuario.email }}</td>
                   <td>{{ usuario.fecha_nacimiento | date: 'dd/MM/yyyy' }}</td>
                   <td>

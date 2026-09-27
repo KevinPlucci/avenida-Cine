@@ -82,7 +82,7 @@
 
         <dl class="datos">
           <dt>Comprador</dt>
-          <dd>{{ c.nombre }}</dd>
+          <dd>{{ c.nombre | titlecase }}</dd>
           <dt>Butacas</dt>
           <dd>{{ c.butacas.join(', ') }} ({{ c.cantidad }})</dd>
           @if (tieneProductos()) {

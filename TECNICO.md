@@ -245,7 +245,12 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 - **Directivas de Angular en las plantillas**: `ngClass` en las butacas del mapa (libre, ocupada, elegida y accesible según el estado) y `ngStyle` para el póster de fondo de la ficha de la película. `ng-container` agrupa elementos sin agregar etiquetas al DOM (menú por rol y salidas de plantillas).
 - **Plantillas reutilizables**: la cartelera define la grilla de películas una sola vez con `ng-template` y la dibuja con `ngTemplateOutlet` en "Las más vendidas" y en "En cartelera"; `ngTemplateOutletContext` le pasa la lista y si tiene que mostrar el ranking.
 - **Proyección de contenido**: `app-contador` es la fila con los botones − / cantidad / + que se usa en los productos, los combos y el canje de puntos de la compra, y al armar un combo en el panel. Lo que va adentro de `<app-contador>` (nombre, precio, descripción) se proyecta con `ng-content`; el componente avisa cada cambio con un `output`.
-- **Pipes propios** (`duracion`, `idioma`, `restriccion`), `TitleStrategy` propia y locale `es-AR` para fechas y precios.
+- **Pipes**, siempre en la plantilla para no mezclar formato con lógica:
+  - Nativos con parámetros y locale `es-AR` (moneda `ARS` por defecto): `date` con máscaras (`'dd/MM/yyyy'`, `"EEEE d 'de' MMMM"`), `currency`, `number` para los puntos, `percent` para los descuentos y `titlecase` para los nombres que escriben los usuarios.
+  - Encadenados: los botones de día muestran `fecha | date: 'EEE d/M' | titlecase` ("Dom 27/9").
+  - `async` para el aviso de nueva versión: la plantilla se suscribe al observable del service worker y se desuscribe sola.
+  - Propios (`duracion`, `idioma`, `restriccion`): implementan `PipeTransform` y son puros, así que solo se recalculan cuando cambia el valor. Reciben valores simples, y las listas del estado se reemplazan por copias nuevas (`update` con `...`), nunca se mutan.
+- **`TitleStrategy` propia** para el título de la pestaña.
 - **Animaciones** con `animate.enter` / `animate.leave` de Angular 21 (el paquete `@angular/animations` quedó deprecado): aparición de tarjetas, ficha de película, entrada, reseñas y avisos. Son cortas y se desactivan si el sistema pide reducir movimiento. No se usa `withViewTransitions()` porque, mientras dura la transición entre pantallas, el navegador no entrega los clics a la página (se detectó en las pruebas).
 - **RxJS** donde aporta: búsqueda con `debounceTime` convertida a signal con `toSignal`, interceptores y avisos del service worker.
 - **jsPDF se carga recién al descargar** el PDF (`import()` dinámico) para no sumar ~400 kB a la carga inicial.
@@ -280,8 +285,9 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 
 **PWA**
 
-- Service worker con el *app shell* precargado y un `dataGroup` con estrategia *freshness* para la cartelera, las funciones, las reseñas y los productos y categorías del candy bar: con conexión trae datos nuevos y sin conexión muestra los últimos guardados. Las llamadas que cambian datos (compra, validación de QR) no se cachean.
-- Aviso de nueva versión disponible con `SwUpdate` y aviso de "sin conexión".
+- `provideServiceWorker('ngsw-worker.js')` en `app.config.ts`, activo solo en producción (`enabled: !isDevMode()`) y registrado cuando la app queda estable (`registerWhenStable:30000`).
+- `ngsw-config.json`: el grupo `app` (HTML, JS y CSS) se descarga completo al instalar (`prefetch`) y el grupo `assets` (íconos, imágenes y fuentes) cuando se pide por primera vez (`lazy`). Un `dataGroup` con estrategia *freshness* (espera la red hasta 5 segundos) guarda la cartelera, las funciones, las reseñas y los productos y categorías del candy bar: con conexión trae datos nuevos y sin conexión muestra los últimos guardados. No se usa *performance* porque esos datos cambian seguido (ventas, horarios, stock). Las llamadas que cambian datos (compra, validación de QR) no se cachean.
+- Aviso de nueva versión: `SwUpdate.versionUpdates` filtrado por `VERSION_READY` y mostrado con el pipe `async`; "Actualizar" recarga la página con la versión nueva. También hay aviso de "sin conexión".
 - Manifest, íconos y tipografía propios incluidos en la app.
 
 **Interfaz**
@@ -307,6 +313,7 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 
 | Fecha | Versión | Cambios |
 |---|---|---|
+| 27/09/2026 | 0.6.4 | El aviso de nueva versión de la PWA se lee con el pipe `async`, sin suscripción manual. Pipes `percent` en los descuentos, `titlecase` en los nombres que escriben los usuarios y `date \| titlecase` encadenados en los botones de día. Se probó la actualización con el build de producción: el service worker detectó la versión nueva, mostró el aviso y "Actualizar" cargó la nueva. |
 | 27/09/2026 | 0.6.3 | Las directivas de atributo modifican el elemento con `Renderer2`. `ngClass` en las butacas del mapa y `ngStyle` en la ficha de la película. La grilla de la cartelera se define con `ng-template` y se usa con `ngTemplateOutlet` en las dos secciones. Nuevo componente `app-contador` con proyección de contenido (`ng-content`), que reemplaza los cinco contadores repetidos de la compra y del armado de combos. Se repitieron en producción los casos del UAT afectados. |
 | 27/09/2026 | 0.6.2 | Pruebas de aceptación (UAT) sobre la app publicada: 78 casos OK, documentados en `UAT.md` con capturas en `docs/uat/`. Correcciones que salieron de la prueba: la pantalla de compra ya no se desborda a lo ancho en el celular, el canje de puntos aparece solo si el saldo alcanza y "1 entrada vendida" en singular. Los guards `canMatch` devuelven `false` cuando el usuario no tiene el rol: la ruta no coincide y Angular sigue buscando en el arreglo de rutas hasta la 404. La migración 007 crea los combos de ejemplo solo si existen sus productos. |
 | 27/09/2026 | 0.6.1 | Tarea programada en GitHub Actions que consulta la base cada 3 días para que Supabase no pause el proyecto por inactividad, y pasos para restaurarlo si se pausa. |

@@ -53,7 +53,7 @@
             [attr.aria-pressed]="opcion.clave === dia.clave"
             (click)="diaElegido.set(opcion.clave)"
           >
-            {{ opcion.fecha | date: 'EEE d/M' }}
+            {{ opcion.fecha | date: 'EEE d/M' | titlecase }}
           </button>
         }
       </div>

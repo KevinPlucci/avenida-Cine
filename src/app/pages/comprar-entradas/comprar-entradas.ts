@@ -1,4 +1,4 @@
-import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe, PercentPipe } from '@angular/common';
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -32,6 +32,7 @@ import { edadMinimaValidator, fechaNacimientoValidator, vencimientoTarjetaValida
     DatePipe,
     CurrencyPipe,
     DecimalPipe,
+    PercentPipe,
     ReactiveFormsModule,
     IdiomaPipe,
     RestriccionPipe,

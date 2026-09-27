@@ -1,4 +1,4 @@
-import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe, PercentPipe, TitleCasePipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
@@ -10,7 +10,7 @@ import { mensajeError } from '../../core/utils/errores';
 
 @Component({
   selector: 'app-mi-perfil',
-  imports: [RouterLink, DatePipe, CurrencyPipe, DecimalPipe],
+  imports: [RouterLink, DatePipe, CurrencyPipe, DecimalPipe, PercentPipe, TitleCasePipe],
   templateUrl: './mi-perfil.html',
   styleUrl: './mi-perfil.css',
 })

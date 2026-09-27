@@ -10,7 +10,7 @@
     @if (auth.perfil(); as p) {
       <dl class="datos">
         <dt>Nombre</dt>
-        <dd>{{ p.nombre }} {{ p.apellido }}</dd>
+        <dd>{{ p.nombre | titlecase }} {{ p.apellido | titlecase }}</dd>
         <dt>Email</dt>
         <dd>{{ p.email }}</dd>
         <dt>Nacimiento</dt>
@@ -34,17 +34,17 @@
     } @else if (beneficios(); as b) {
       @if (b.primera_compra; as cupon) {
         @if (cupon.usado) {
-          <p class="meta">Ya usaste tu cupón de {{ cupon.porcentaje }}% de descuento de primera compra.</p>
+          <p class="meta">Ya usaste tu cupón de {{ cupon.porcentaje / 100 | percent }} de descuento de primera compra.</p>
         } @else {
           <p class="alerta alerta-exito">
-            Tenés un cupón de <strong>{{ cupon.porcentaje }}% de descuento</strong>. Se aplica solo en tu primera compra.
+            Tenés un cupón de <strong>{{ cupon.porcentaje / 100 | percent }} de descuento</strong>. Se aplica solo en tu primera compra.
           </p>
         }
       }
       @if (b.mayores; as mayores) {
         <p class="alerta alerta-exito">
           Por tener más de {{ mayores.edad_minima }} años tenés
-          <strong>{{ mayores.porcentaje }}% de descuento</strong> en todas tus compras.
+          <strong>{{ mayores.porcentaje / 100 | percent }} de descuento</strong> en todas tus compras.
         </p>
       }
       @if (!b.primera_compra && !b.mayores) {

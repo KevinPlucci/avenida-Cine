@@ -228,6 +228,11 @@ las butacas, el fondo de la ficha y los contadores de la compra (ver TECNICO.md)
 repitieron C-01, A-16, C-04 y C-07 hasta el resumen de pago: todos OK. El canje de puntos (C-13) y el armado de
 combos (A-06) se repitieron con Supabase simulado, porque las cuentas del UAT ya se habían borrado: también OK.
 
+**Versión 0.6.4.** Cambió el formato de porcentajes, nombres y botones de día, y el aviso de nueva versión.
+Se repitió en producción la compra sin cuenta hasta el resumen, más el detalle de la película, y se probó el aviso
+de nueva versión con el build de producción servido en local: el service worker detectó la versión nueva, mostró
+"Hay una nueva versión de la aplicación" a los 5 segundos y "Actualizar" cargó la nueva. Todo OK.
+
 Antes del UAT se ajustaron también los guards `canMatch`: con sesión pero sin el rol ahora devuelven `false`,
 así la ruta no coincide y Angular sigue buscando en el arreglo de rutas hasta la 404 (commit `1b2a473`).
 

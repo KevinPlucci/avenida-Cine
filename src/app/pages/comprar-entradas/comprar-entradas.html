@@ -177,7 +177,7 @@
           }
         }
         @if (descuentoAplicado(); as beneficio) {
-          <dt>{{ beneficio.etiqueta }} ({{ beneficio.porcentaje }}% de las entradas)</dt>
+          <dt>{{ beneficio.etiqueta }} ({{ beneficio.porcentaje / 100 | percent }} de las entradas)</dt>
           <dd class="descuento">- {{ descuento() | currency }}</dd>
         }
         <dt class="total">Total</dt>
@@ -235,7 +235,7 @@
         <p class="alerta">
           Estás comprando sin cuenta.
           <a routerLink="/login" [queryParams]="{ volver: '/funciones/' + f.id + '/comprar' }">Ingresá</a> o
-          <a routerLink="/registro">registrate</a> para tener {{ porcentajeBienvenida() }}% de descuento en tu primera
+          <a routerLink="/registro">registrate</a> para tener {{ porcentajeBienvenida() / 100 | percent }} de descuento en tu primera
           compra y sumar puntos con cada compra.
         </p>
       }
