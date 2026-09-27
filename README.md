@@ -7,14 +7,15 @@ Hecha con **Angular 21** y **Supabase**, instalable como **PWA**.
 |---|---|
 | **Deploy** | <https://avenida-cine.vercel.app> |
 | **Repositorio** | <https://github.com/KevinPlucci/Avenida-Cine> |
-| **Estado** | Consigna y emails del 01/01 al 03/03 implementados |
+| **Estado** | Consigna y emails del 01/01 al 03/03 implementados y probados ([UAT](UAT.md)) |
 
 ## Documentación
 
 | Documento | Qué contiene |
 |---|---|
 | [FUNCIONAL.md](FUNCIONAL.md) | Qué hace la app: roles, pantallas, flujo de compra, requerimientos por email y criterios adoptados |
-| [TECNICO.md](TECNICO.md) | Cómo está hecha: instalación, arquitectura, modelo de datos, decisiones técnicas e historial de versiones |
+| [TECNICO.md](TECNICO.md) | Cómo está hecha: instalación, arquitectura, modelo de datos, decisiones técnicas, pruebas e historial de versiones |
+| [UAT.md](UAT.md) | Pruebas de aceptación sobre la app publicada: casos, resultados, hallazgos y capturas |
 
 ## Qué hace
 

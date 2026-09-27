@@ -12,6 +12,7 @@ La parte técnica (instalación, arquitectura y decisiones) está en [TECNICO.md
 5. [Reglas de negocio](#5-reglas-de-negocio)
 6. [Requerimientos por email](#6-requerimientos-por-email)
 7. [Criterios adoptados](#7-criterios-adoptados)
+8. [Pruebas de aceptación](#8-pruebas-de-aceptación)
 
 ---
 
@@ -25,7 +26,8 @@ que puede descargar en PDF. Puede hacerlo con una cuenta o sin registrarse. Con 
 puntos en cada compra y los canjea por entradas o productos del candy bar.
 
 Del otro lado, el administrador carga películas, arma los horarios, administra las salas y los géneros,
-y decide qué se muestra en la cartelera.
+decide qué se muestra en la cartelera, arma el candy bar y los combos, configura los descuentos y los puntos,
+asigna los roles del personal y consulta las ventas. Los empleados validan los QR en la puerta y en el candy bar.
 
 ## 2. Roles
 
@@ -44,7 +46,7 @@ y decide qué se muestra en la cartelera.
 | Detalle de película | Sinopsis, duración, restricción de edad, puntaje promedio, reseñas y funciones de los próximos días | Todos |
 | Compra de entradas | Mapa de butacas en tiempo real con la fila accesible, combos destacados, productos del candy bar, canje de puntos, resumen con el descuento aplicado y datos de pago | Todos |
 | Entrada | Código QR para ingresar y retirar el candy bar, y descarga del PDF | Quien tenga el código de compra |
-| Validar entradas | Lectura del QR con la cámara o a mano, con el estado del ingreso y del candy bar | Empleados y administradores |
+| Validar entradas | Lectura del QR con la cámara o a mano, con el estado del ingreso y del candy bar. El empleado entra directo acá al ingresar | Empleados y administradores |
 | Ingreso y registro | Cuenta propia; después de ingresar vuelve a la pantalla donde estaba | Solo sin sesión iniciada |
 | Mi perfil | Datos personales, cupón disponible, puntos acumulados con lo que se puede canjear, historial de canjes y compras realizadas | Clientes registrados |
 | Administración | Películas, funciones, salas, géneros, candy bar, combos, descuentos, puntos de cada recompensa, usuarios y reporte de ventas por día | Administradores |
@@ -88,6 +90,7 @@ Cada código sirve una sola vez para cada cosa.
 - Un combo inactivo, o con algún producto sin stock, no se vende.
 - El precio y el descuento se resuelven en el servidor: no se pueden alterar desde el navegador.
 - La entrada de una compra sin cuenta se recupera con el código de compra, que no es adivinable.
+- Las pantallas de administración y de validación solo existen para quien tiene el rol: sin sesión llevan al ingreso y, con otra cuenta, muestran la página no encontrada.
 
 ## 6. Requerimientos por email
 
@@ -117,7 +120,7 @@ Referencias: `[x]` implementado · `[ ]` pendiente.
 - [x] Página propia para sacar entradas
 - [x] Un edificio con varias salas (alta, baja y activación de salas)
 - [x] Compra de entradas que genera un PDF con los datos de la entrada y un QR para ingresar
-- [x] Salas de 20 filas identificadas con letras y 3 bloques de 4, 20 y 4 butacas
+- [x] Salas de 20 filas identificadas con letras y 3 bloques de 4, 20 y 4 butacas (el email del 12/02 cambia las filas J y K)
 - [x] Elegir qué películas aparecen al entrar a la página (marca "en cartelera")
 - [x] Definir los horarios de cada película (funciones: alta, edición y baja)
 - [x] Formato de la función: 2D, 3D, 4D o 5D
@@ -223,7 +226,7 @@ Puntos que los emails no definen y cómo se resolvieron:
 | Pago | Simulado. |
 | Descuento por edad | Es un beneficio permanente, no un cupón de un solo uso: se aplica en todas las compras del usuario mientras la regla esté activa. "Más de 50 años" se cuenta en años cumplidos: con la edad configurada en 50, aplica desde los 51. |
 | Descuentos juntos | No se acumulan. Si al usuario le corresponden los dos, se usa el más alto. |
-| Alcance del descuento | Solo sobre las entradas. El candy bar se cobra siempre a precio de lista. |
+| Alcance del descuento | Solo sobre las entradas que se pagan aparte. El candy bar y los combos se cobran siempre a su precio. |
 | Cambiar el porcentaje del cupón | Afecta a los cupones nuevos. Los ya entregados mantienen el porcentaje con el que se emitieron. |
 | Productos por compra | Hasta 20 unidades de cada producto. Son opcionales: se puede comprar solo la entrada. |
 | Validar el QR | El empleado ve primero los datos de la entrada y después confirma, así no se quema un código por error. Se puede validar desde una hora antes del inicio hasta que la función termina, y los productos del candy bar se retiran en el mismo horario. |
@@ -238,13 +241,21 @@ Puntos que los emails no definen y cómo se resolvieron:
 | Menos scroll | El detalle muestra las funciones de un día por vez, con botones para cambiar de día; las reseñas, de a tres; el candy bar, una categoría por vez; y el reporte oculta los días sin ventas salvo que se pidan. |
 | Pantalla inicial del empleado | Al ingresar, un empleado va directo a validar entradas, que es lo que usa. Los demás vuelven a la cartelera o a la pantalla donde estaban. |
 | Cómo se suman los puntos | 1 punto por cada peso que se pagó, con el descuento ya restado, incluidos combos y candy bar. Se acreditan en el momento de la compra. Las compras sin cuenta no suman. |
-| Cuándo se canjean | En la pantalla de compra, antes de pagar: entradas gratis (cualquier butaca de esa función) y unidades de los productos que se están comprando. Lo que se paga con puntos no suma puntos. |
+| Cuándo se canjean | En la pantalla de compra, antes de pagar: entradas gratis (cualquier butaca de esa función) y unidades de los productos que se están comprando. Lo que se paga con puntos no suma puntos. La opción de canje aparece solo si el saldo alcanza para alguna recompensa. |
 | Qué se puede canjear | La entrada gratis (500 puntos, configurable) y los productos del candy bar a los que el admin les pone un costo en puntos. Los combos no se canjean con puntos. |
 | Combos | Traen siempre una entrada, sirven para cualquier función y su precio es fijo aunque la entrada cueste más o menos. Los descuentos de cupón y edad no se aplican al combo, solo a las entradas que se pagan aparte. |
 | Borrar un combo o un producto | Un combo que ya se vendió no se borra: se desactiva. Un producto que está en un combo tampoco se borra mientras siga en el combo. |
 | "Debe ir un adulto" | Se imprime en toda entrada de una película +13 o +18, como pide el email, y el empleado lo ve al validar. |
 | Tiempo real | El mapa marca al instante las butacas de las compras confirmadas por otras personas. Si una de ellas estaba elegida, se quita de la selección y se avisa. Las butacas que otra persona está eligiendo sin pagar no se bloquean. |
+| Pantallas sin permiso | Si un cliente o un empleado escribe la dirección del panel, ve la página no encontrada: para ellos esa pantalla no existe. Sin sesión, se pide ingresar y después se vuelve a esa pantalla. |
 
 Dudas ya detectadas para los próximos emails:
 
 - Email 10: cómo dar crédito por cancelación en una compra anónima.
+
+## 8. Pruebas de aceptación
+
+El 27/09/2026 se probó la aplicación publicada con cuentas de cliente, empleado y administrador, contra la
+consigna y los emails del 01/01 al 03/03, y el control de acceso a cada pantalla: 78 casos, todos OK. Los errores que
+aparecieron se corrigieron y se volvieron a probar. El detalle de cada caso, las capturas y los datos de prueba
+están en [UAT.md](UAT.md).

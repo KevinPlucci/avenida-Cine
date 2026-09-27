@@ -8,7 +8,8 @@ Qué hace la aplicación y para quién está en [FUNCIONAL.md](FUNCIONAL.md).
 1. [Cómo levantar el proyecto](#1-cómo-levantar-el-proyecto)
 2. [Arquitectura](#2-arquitectura)
 3. [Decisiones técnicas](#3-decisiones-técnicas)
-4. [Historial de actualizaciones](#4-historial-de-actualizaciones)
+4. [Pruebas](#4-pruebas)
+5. [Historial de actualizaciones](#5-historial-de-actualizaciones)
 
 ---
 
@@ -28,7 +29,7 @@ Qué hace la aplicación y para quién está en [FUNCIONAL.md](FUNCIONAL.md).
    ```
 
 2. Crear un proyecto en Supabase.
-3. En **SQL Editor**, ejecutar completo `supabase/schema.sql` y después `supabase/seed.sql` (datos de ejemplo: 4 salas, 6 películas, funciones para los próximos 7 días y 10 productos de candy bar).
+3. En **SQL Editor**, ejecutar completo `supabase/schema.sql` y después `supabase/seed.sql` (datos de ejemplo: 4 salas, 6 películas con su restricción de edad, funciones para los próximos 7 días, 10 productos de candy bar, 2 combos y los puntos de las recompensas).
    Si la base se creó con una versión anterior del esquema, ejecutar también los archivos de `supabase/migraciones/` en orden.
    **Importante:** una base creada antes del candy bar necesita `supabase/migraciones/003_candybar_roles_qr.sql`; sin eso, la compra y el panel fallan porque faltan tablas y funciones.
    Una base que ya tiene la 003 necesita también, en orden, las migraciones siguientes (`004_...`, `005_...`, etc.).
@@ -120,7 +121,7 @@ src/
     shared/             piezas reutilizables
       components/       header, mapa de butacas, estrellas, tarjeta de película, errores de formulario
       directives/       appMascara, appImagenRespaldo, *appSiRol, appAutoFoco
-      pipes/            duracion, idioma
+      pipes/            duracion, idioma, restriccion
       validators.ts     validadores propios
     pages/              una carpeta por pantalla (todas con lazy loading)
       inicio/  pelicula-detalle/  comprar-entradas/  ver-compra/
@@ -136,12 +137,12 @@ src/
 |---|---|---|
 | `/` | Cartelera: las 3 más vendidas + listado con buscador y filtro por género | Todos |
 | `/peliculas/:id` | Detalle, puntaje promedio, reseñas y funciones | Todos |
-| `/funciones/:id/comprar` | Mapa de butacas, resumen con cupón y pago | Todos (anónimo o registrado) |
+| `/funciones/:id/comprar` | Mapa de butacas en tiempo real, combos, candy bar, canje de puntos, resumen con descuento y pago | Todos (anónimo o registrado) |
 | `/compras/:codigo` | Entrada con QR y descarga del PDF | Quien tenga el código |
 | `/login`, `/registro` | Ingreso y registro (`/login?volver=/ruta` vuelve a esa ruta después de ingresar) | Solo sin sesión |
-| `/perfil` | Datos, descuentos y compras | Registrados |
-| `/validar` | Validación de QR del ingreso y del candy bar | Empleados y administradores |
-| `/admin/...` | Películas, funciones, salas, géneros, candy bar, combos, descuentos, puntos, usuarios y reportes | Administradores |
+| `/perfil` | Datos, descuentos, puntos, historial de canjes y compras | Registrados |
+| `/validar` | Validación de QR del ingreso y del candy bar | Empleados y administradores (otra cuenta ve la 404) |
+| `/admin/...` | Películas, funciones, salas, géneros, candy bar, combos, descuentos, puntos, usuarios y reportes | Administradores (otra cuenta ve la 404) |
 | Cualquier otra | Página 404 | Todos |
 
 ### Modelo de datos
@@ -183,12 +184,14 @@ erDiagram
 ### Flujo de compra
 
 1. El cliente elige una función en el detalle de la película.
-2. La pantalla de compra carga la función, las butacas ocupadas y el catálogo del candy bar, y muestra el mapa (20 filas, bloques de 4, 20 y 4).
-3. Si está logueado se consultan sus descuentos con `mis_beneficios()`. Si es anónimo se le piden nombre y email.
+2. La pantalla de compra carga la función, las butacas ocupadas, el catálogo del candy bar y los combos, muestra el mapa
+   (filas A a T sin la K, la J accesible) y se suscribe a las ventas nuevas de esa función con Supabase Realtime.
+3. Si está logueado se consultan sus descuentos con `mis_beneficios()` y sus puntos con `mis_puntos()`.
+   Si es anónimo se le piden nombre y email, y la fecha de nacimiento si la película es +13 o +18.
 4. Al pagar (simulado) se llama a la función `comprar_entradas()` de la base, que en una sola transacción:
-   valida la función, las butacas y los productos, calcula el total con los precios de la base, aplica el mejor
-   descuento (y marca el cupón si fue el de primera compra), crea la compra, las entradas y las líneas de
-   productos, y devuelve el código de la compra.
+   valida la función, la edad, las butacas, los productos, los combos y el canje de puntos, calcula el total con los
+   precios de la base, aplica el mejor descuento (y marca el cupón si fue el de primera compra), crea la compra, las
+   entradas y las líneas de productos y combos, descuenta los puntos canjeados, suma los ganados y devuelve el código.
 5. Se redirige a `/compras/:codigo`, que muestra el QR (con ese código) y permite descargar el PDF.
 6. En el cine, `validar_entrada()` y `entregar_productos()` marcan el código como usado. Las dos comprueban
    el rol con `es_empleado()`, rechazan un código ya usado y solo lo aceptan desde una hora antes del inicio
@@ -223,7 +226,7 @@ Todas las peticiones de HttpClient pasan por los interceptores:
   - `canActivateChild`: `rolAdminVigenteGuard` en las pantallas del panel. Vuelve a leer el rol desde la base al entrar a cada una, por si se lo quitaron mientras navegaba.
   - `canDeactivate`: `cambiosSinGuardarGuard` en el formulario de película. Si hay cambios sin guardar pide confirmación antes de salir.
 - **Formularios**, con el enfoque que mejor encaja en cada caso y siempre con validaciones:
-  - *Reactive Forms* en los formularios grandes (registro, compra, reseñas, películas y funciones), con validadores propios: contraseñas iguales, fecha de nacimiento válida, vencimiento de tarjeta y horario futuro. El componente `app-error-campo` muestra los mensajes.
+  - *Reactive Forms* en los formularios grandes (registro, compra, reseñas, películas, funciones, productos, combos, descuentos y puntos), con validadores propios: contraseñas iguales, fecha de nacimiento válida, edad mínima, vencimiento de tarjeta y horario futuro. El componente `app-error-campo` muestra los mensajes.
   - *Signal Forms* en el login: el modelo es un `signal`, `form()` le agrega las validaciones (`required`, `email`), los campos se vinculan con `[formField]` y los mensajes salen de `errors()`.
   - *Template-driven* en los formularios simples (nueva sala, nuevo género, nueva categoría del candy bar y el código de la entrada en la pantalla de validación), con `ngModel` y la validación `required` en el template.
 - **Comunicación entre componentes** con `input()` y `output()`: por ejemplo, la pantalla de compra le pasa al mapa de butacas las ocupadas y el máximo, y el mapa le avisa con `seleccionadasChange` qué butacas se eligieron y con `limiteAlcanzado` si se intentó superar el máximo.
@@ -238,7 +241,7 @@ Todas las peticiones de HttpClient pasan por los interceptores:
   - `appImagenRespaldo` (atributo): si un póster no carga, muestra una imagen genérica.
   - `*appSiRol` (estructural): muestra contenido según el rol (`invitado`, `cliente`, `empleado`, `admin`); se usa en el menú.
   - `appAutoFoco` (atributo): pone el foco en el primer campo del login y del registro.
-- **Pipes propios** (`duracion`, `idioma`), `TitleStrategy` propia y locale `es-AR` para fechas y precios.
+- **Pipes propios** (`duracion`, `idioma`, `restriccion`), `TitleStrategy` propia y locale `es-AR` para fechas y precios.
 - **Animaciones** con `animate.enter` / `animate.leave` de Angular 21 (el paquete `@angular/animations` quedó deprecado): aparición de tarjetas, ficha de película, entrada, reseñas y avisos. Son cortas y se desactivan si el sistema pide reducir movimiento. No se usa `withViewTransitions()` porque, mientras dura la transición entre pantallas, el navegador no entrega los clics a la página (se detectó en las pruebas).
 - **RxJS** donde aporta: búsqueda con `debounceTime` convertida a signal con `toSignal`, interceptores y avisos del service worker.
 - **jsPDF se carga recién al descargar** el PDF (`import()` dinámico) para no sumar ~400 kB a la carga inicial.
@@ -263,7 +266,7 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 - **Combos**: `combo_disponible()` exige que el combo esté activo y que todos sus productos tengan stock, y `contenido_combo()` arma el texto "1 entrada + …" que queda guardado en la compra. Cada combo usa una de las butacas elegidas: se pagan aparte las butacas que no van en un combo ni se canjean.
 - **Reporte de ventas**: `reporte_ventas(desde, hasta)` es `security definer` y solo responde al admin. Arma los días con `generate_series` y los cruza con `compras` por fecha de Argentina (`creado_en at time zone 'America/Argentina/Buenos_Aires'`), así aparecen también los días sin ventas. La pantalla suma los totales del período.
 - **Roles**: `cambiar_rol()` valida que quien llama sea admin, que el rol exista y que un administrador no se quite a sí mismo el permiso.
-- **El frontend valida antes** para dar mejores mensajes: al crear o editar una función lista las funciones que chocan y a qué hora queda libre la sala; si la función tiene ventas, bloquea los campos que no se pueden cambiar.
+- **El frontend valida antes** para dar mejores mensajes: al editar una función lista las funciones que chocan y a qué hora queda libre la sala, y si la función tiene ventas bloquea los campos que no se pueden cambiar. Al crear, `programar_funciones()` informa por cada día si se creó y en qué sala, o por qué no.
 - **Registro**: los datos del perfil viajan como metadata del `signUp` y un trigger sobre `auth.users` crea el perfil y el cupón.
 - **Row Level Security** en todas las tablas: el catálogo es de lectura pública y solo el admin lo modifica; cada usuario ve sus cupones, compras y perfil. `entradas` es de lectura pública porque solo tiene función, fila y número, y hace falta para el mapa de butacas.
 - **Compras anónimas**: la entrada se consulta con el código (UUID, no adivinable) mediante `obtener_compra()`.
@@ -273,7 +276,7 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 
 **PWA**
 
-- Service worker con el *app shell* precargado y un `dataGroup` con estrategia *freshness* para la cartelera y el catálogo del candy bar: con conexión trae datos nuevos y sin conexión muestra los últimos guardados. Las llamadas que cambian datos (compra, validación de QR) no se cachean.
+- Service worker con el *app shell* precargado y un `dataGroup` con estrategia *freshness* para la cartelera, las funciones, las reseñas y los productos y categorías del candy bar: con conexión trae datos nuevos y sin conexión muestra los últimos guardados. Las llamadas que cambian datos (compra, validación de QR) no se cachean.
 - Aviso de nueva versión disponible con `SwUpdate` y aviso de "sin conexión".
 - Manifest, íconos y tipografía propios incluidos en la app.
 
@@ -287,10 +290,20 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 
 ---
 
-## 4. Historial de actualizaciones
+## 4. Pruebas
+
+| Tipo | Qué cubre | Cómo |
+|---|---|---|
+| Base de datos | 123 pruebas de las reglas de negocio: horarios, butacas, compras, descuentos, edad, puntos, combos, validación del QR, reporte, RLS y las migraciones | `npm run test:db` (PostgreSQL en memoria con PGlite) |
+| Aceptación (UAT) | 78 casos sobre la app publicada con cuentas de cliente, empleado y administrador, incluidos los guards de navegación, el tiempo real, la PWA sin conexión y la vista de celular | Detalle y evidencias en [UAT.md](UAT.md) |
+
+---
+
+## 5. Historial de actualizaciones
 
 | Fecha | Versión | Cambios |
 |---|---|---|
+| 27/09/2026 | 0.6.2 | Pruebas de aceptación (UAT) sobre la app publicada: 78 casos OK, documentados en `UAT.md` con capturas en `docs/uat/`. Correcciones que salieron de la prueba: la pantalla de compra ya no se desborda a lo ancho en el celular, el canje de puntos aparece solo si el saldo alcanza y "1 entrada vendida" en singular. Los guards `canMatch` devuelven `false` cuando el usuario no tiene el rol: la ruta no coincide y Angular sigue buscando en el arreglo de rutas hasta la 404. La migración 007 crea los combos de ejemplo solo si existen sus productos. |
 | 27/09/2026 | 0.6.1 | Tarea programada en GitHub Actions que consulta la base cada 3 días para que Supabase no pause el proyecto por inactividad, y pasos para restaurarlo si se pausa. |
 | 27/09/2026 | 0.6.0 | Email del 03/03. Programa de puntos: 1 punto por peso pagado, canje de entradas gratis y productos del candy bar al comprar, costo de cada recompensa configurable en la pestaña Puntos, saldo e historial de canjes en el perfil, y puntos intransferibles (sin escritura desde la API). Combos de entrada + candy bar a precio fijo, con su ABM en la pestaña Combos, destacados en la pantalla de compra, en la entrada, el PDF y la validación. Migración `007_puntos_combos.sql` y 30 pruebas nuevas en `npm run test:db`. |
 | 27/09/2026 | 0.5.0 | Email del 28/02. Reporte de ventas en el panel (pestaña Reportes): facturación, compras y entradas vendidas por día, con el período elegido con botones. Menos scroll: funciones de a un día en el detalle de la película, reseñas de a tres, candy bar por categoría en la compra. El empleado entra directo a validar entradas. Migración `006_reporte_ventas.sql` y 6 pruebas nuevas en `npm run test:db`. |
