@@ -1,4 +1,4 @@
-import { Directive, ElementRef, inject, input } from '@angular/core';
+import { Directive, ElementRef, inject, input, Renderer2 } from '@angular/core';
 
 export type TipoMascara = 'numeros' | 'tarjeta' | 'vencimiento';
 
@@ -16,11 +16,13 @@ export class MascaraDirective {
   readonly appMascara = input.required<TipoMascara>();
 
   private readonly elemento = inject<ElementRef<HTMLInputElement>>(ElementRef).nativeElement;
+  private readonly renderer = inject(Renderer2);
 
   protected aplicar(): void {
     const formateado = formatear(this.elemento.value, this.appMascara());
     if (formateado !== this.elemento.value) {
-      this.elemento.value = formateado;
+      // Renderer2 cambia el valor a través del sistema de renderizado de Angular, sin tocar el DOM a mano.
+      this.renderer.setProperty(this.elemento, 'value', formateado);
       // Se vuelve a disparar el evento para que el formulario reactivo tome el valor corregido.
       this.elemento.dispatchEvent(new Event('input'));
     }

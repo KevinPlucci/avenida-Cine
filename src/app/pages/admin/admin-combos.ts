@@ -5,13 +5,14 @@ import { Combo, contenidoCombo, ProductoConCategoria } from '../../core/models/p
 import { CombosService } from '../../core/services/combos.service';
 import { ProductosService } from '../../core/services/productos.service';
 import { mensajeError } from '../../core/utils/errores';
+import { Contador } from '../../shared/components/contador';
 import { ErrorCampo } from '../../shared/components/error-campo';
 
 const MAX_POR_PRODUCTO = 10;
 
 @Component({
   selector: 'app-admin-combos',
-  imports: [ReactiveFormsModule, CurrencyPipe, ErrorCampo],
+  imports: [ReactiveFormsModule, CurrencyPipe, Contador, ErrorCampo],
   template: `
     <div class="tarjeta" id="form-combo">
       <div class="cabecera">
@@ -54,15 +55,16 @@ const MAX_POR_PRODUCTO = 10;
             <ul class="productos-combo">
               @for (producto of productos(); track producto.id) {
                 <li [class.elegido]="cantidad(producto.id) > 0">
-                  <span>
+                  <app-contador
+                    [cantidad]="cantidad(producto.id)"
+                    [puedeSumar]="cantidad(producto.id) < maxPorProducto"
+                    [etiquetaQuitar]="'Quitar ' + producto.nombre"
+                    [etiquetaAgregar]="'Agregar ' + producto.nombre"
+                    (cambio)="sumar(producto.id, $event)"
+                  >
                     {{ producto.nombre }}
                     <small class="meta">{{ producto.precio | currency }}{{ producto.disponible ? '' : ' · sin stock' }}</small>
-                  </span>
-                  <span class="contador">
-                    <button type="button" class="btn btn-chico" [disabled]="!cantidad(producto.id)" [attr.aria-label]="'Quitar ' + producto.nombre" (click)="sumar(producto.id, -1)">−</button>
-                    <span class="cantidad">{{ cantidad(producto.id) }}</span>
-                    <button type="button" class="btn btn-chico" [disabled]="cantidad(producto.id) >= maxPorProducto" [attr.aria-label]="'Agregar ' + producto.nombre" (click)="sumar(producto.id, 1)">+</button>
-                  </span>
+                  </app-contador>
                 </li>
               } @empty {
                 <li class="meta">Primero cargá productos en la pestaña Candy bar.</li>
@@ -137,11 +139,9 @@ const MAX_POR_PRODUCTO = 10;
   `,
   styles: `
     .productos-combo { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px 16px; margin: 4px 0 6px; padding: 0; list-style: none; }
-    .productos-combo li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 10px; border: 1px solid var(--color-borde); border-radius: var(--radio); }
+    .productos-combo li { padding: 6px 10px; border: 1px solid var(--color-borde); border-radius: var(--radio); }
     .productos-combo li.elegido { border-color: var(--color-primario); background: var(--color-primario-suave); }
     .productos-combo small, .contenido { display: block; }
-    .contador { display: flex; align-items: center; gap: 8px; }
-    .cantidad { min-width: 2ch; text-align: center; font-variant-numeric: tabular-nums; }
   `,
 })
 export class AdminCombos implements OnInit {

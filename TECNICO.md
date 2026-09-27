@@ -119,7 +119,7 @@ src/
       supabase.service.ts
       titulo.strategy.ts
     shared/             piezas reutilizables
-      components/       header, mapa de butacas, estrellas, tarjeta de película, errores de formulario
+      components/       header, mapa de butacas, contador, estrellas, tarjeta de película, errores de formulario
       directives/       appMascara, appImagenRespaldo, *appSiRol, appAutoFoco
       pipes/            duracion, idioma, restriccion
       validators.ts     validadores propios
@@ -239,8 +239,12 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 - **Directivas propias**:
   - `appMascara` (atributo): da formato mientras se escribe al número de tarjeta, al vencimiento `MM/AA` y a los campos solo numéricos.
   - `appImagenRespaldo` (atributo): si un póster no carga, muestra una imagen genérica.
-  - `*appSiRol` (estructural): muestra contenido según el rol (`invitado`, `cliente`, `empleado`, `admin`); se usa en el menú.
+  - `*appSiRol` (estructural): muestra contenido según el rol (`invitado`, `cliente`, `empleado`, `admin`); se usa en el menú. Recibe la plantilla con `TemplateRef` y crea o borra la vista en su `ViewContainerRef`.
   - `appAutoFoco` (atributo): pone el foco en el primer campo del login y del registro.
+  - Las de atributo acceden a su elemento con `ElementRef` y lo modifican con `Renderer2` (`setProperty` para el valor del input, `setAttribute` para el `src` de la imagen), sin tocar el DOM a mano.
+- **Directivas de Angular en las plantillas**: `ngClass` en las butacas del mapa (libre, ocupada, elegida y accesible según el estado) y `ngStyle` para el póster de fondo de la ficha de la película. `ng-container` agrupa elementos sin agregar etiquetas al DOM (menú por rol y salidas de plantillas).
+- **Plantillas reutilizables**: la cartelera define la grilla de películas una sola vez con `ng-template` y la dibuja con `ngTemplateOutlet` en "Las más vendidas" y en "En cartelera"; `ngTemplateOutletContext` le pasa la lista y si tiene que mostrar el ranking.
+- **Proyección de contenido**: `app-contador` es la fila con los botones − / cantidad / + que se usa en los productos, los combos y el canje de puntos de la compra, y al armar un combo en el panel. Lo que va adentro de `<app-contador>` (nombre, precio, descripción) se proyecta con `ng-content`; el componente avisa cada cambio con un `output`.
 - **Pipes propios** (`duracion`, `idioma`, `restriccion`), `TitleStrategy` propia y locale `es-AR` para fechas y precios.
 - **Animaciones** con `animate.enter` / `animate.leave` de Angular 21 (el paquete `@angular/animations` quedó deprecado): aparición de tarjetas, ficha de película, entrada, reseñas y avisos. Son cortas y se desactivan si el sistema pide reducir movimiento. No se usa `withViewTransitions()` porque, mientras dura la transición entre pantallas, el navegador no entrega los clics a la página (se detectó en las pruebas).
 - **RxJS** donde aporta: búsqueda con `debounceTime` convertida a signal con `toSignal`, interceptores y avisos del service worker.
@@ -303,6 +307,7 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 
 | Fecha | Versión | Cambios |
 |---|---|---|
+| 27/09/2026 | 0.6.3 | Las directivas de atributo modifican el elemento con `Renderer2`. `ngClass` en las butacas del mapa y `ngStyle` en la ficha de la película. La grilla de la cartelera se define con `ng-template` y se usa con `ngTemplateOutlet` en las dos secciones. Nuevo componente `app-contador` con proyección de contenido (`ng-content`), que reemplaza los cinco contadores repetidos de la compra y del armado de combos. Se repitieron en producción los casos del UAT afectados. |
 | 27/09/2026 | 0.6.2 | Pruebas de aceptación (UAT) sobre la app publicada: 78 casos OK, documentados en `UAT.md` con capturas en `docs/uat/`. Correcciones que salieron de la prueba: la pantalla de compra ya no se desborda a lo ancho en el celular, el canje de puntos aparece solo si el saldo alcanza y "1 entrada vendida" en singular. Los guards `canMatch` devuelven `false` cuando el usuario no tiene el rol: la ruta no coincide y Angular sigue buscando en el arreglo de rutas hasta la 404. La migración 007 crea los combos de ejemplo solo si existen sus productos. |
 | 27/09/2026 | 0.6.1 | Tarea programada en GitHub Actions que consulta la base cada 3 días para que Supabase no pause el proyecto por inactividad, y pasos para restaurarlo si se pausa. |
 | 27/09/2026 | 0.6.0 | Email del 03/03. Programa de puntos: 1 punto por peso pagado, canje de entradas gratis y productos del candy bar al comprar, costo de cada recompensa configurable en la pestaña Puntos, saldo e historial de canjes en el perfil, y puntos intransferibles (sin escritura desde la API). Combos de entrada + candy bar a precio fijo, con su ABM en la pestaña Combos, destacados en la pantalla de compra, en la entrada, el PDF y la validación. Migración `007_puntos_combos.sql` y 30 pruebas nuevas en `npm run test:db`. |

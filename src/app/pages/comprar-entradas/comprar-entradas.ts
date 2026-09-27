@@ -17,6 +17,7 @@ import { ProductosService } from '../../core/services/productos.service';
 import { esAccesible, FILA_ACCESIBLE } from '../../core/utils/butacas';
 import { mensajeError } from '../../core/utils/errores';
 import { aniosHastaHoy, DIAS_DEL_MES, edadCumplida, fechaDeListas, MESES } from '../../core/utils/fechas';
+import { Contador } from '../../shared/components/contador';
 import { ErrorCampo } from '../../shared/components/error-campo';
 import { MapaButacas } from '../../shared/components/mapa-butacas';
 import { MascaraDirective } from '../../shared/directives/mascara.directive';
@@ -35,6 +36,7 @@ import { edadMinimaValidator, fechaNacimientoValidator, vencimientoTarjetaValida
     IdiomaPipe,
     RestriccionPipe,
     MapaButacas,
+    Contador,
     ErrorCampo,
     MascaraDirective,
   ],

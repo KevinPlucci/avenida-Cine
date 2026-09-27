@@ -7,7 +7,7 @@
   <a routerLink="/" class="volver">← Volver a la cartelera</a>
 
   <article class="ficha" animate.enter="aparecer">
-    <div class="ficha-fondo" [style.background-image]="'url(' + p.imagen_url + ')'"></div>
+    <div class="ficha-fondo" [ngStyle]="{ 'background-image': 'url(' + p.imagen_url + ')' }"></div>
     <img class="poster" [src]="p.imagen_url" [alt]="'Póster de ' + p.titulo" appImagenRespaldo />
     <div class="ficha-info">
       <h1>{{ p.titulo }}</h1>

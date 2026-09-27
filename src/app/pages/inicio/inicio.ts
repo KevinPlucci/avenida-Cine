@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
@@ -12,7 +12,7 @@ import { PeliculaCard } from '../../shared/components/pelicula-card';
 
 @Component({
   selector: 'app-inicio',
-  imports: [ReactiveFormsModule, DatePipe, PeliculaCard],
+  imports: [ReactiveFormsModule, DatePipe, NgTemplateOutlet, PeliculaCard],
   templateUrl: './inicio.html',
   styleUrl: './inicio.css',
 })

@@ -40,12 +40,8 @@
   list-style: none;
 }
 
+/* La fila (datos a la izquierda, botones a la derecha) la arma app-contador */
 .producto {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  align-items: center;
-  justify-content: space-between;
   padding: 10px 12px;
   border: 1px solid var(--color-borde);
   border-radius: var(--radio);
@@ -65,18 +61,6 @@
 .producto-datos .precio {
   color: var(--color-texto-suave);
   font-size: .9rem;
-}
-
-.contador {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.contador .cantidad {
-  min-width: 2ch;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
 }
 
 .aviso-limite {
@@ -178,10 +162,5 @@
 }
 
 .fila-canje {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 12px;
-  align-items: center;
-  justify-content: space-between;
   margin-bottom: 10px;
 }

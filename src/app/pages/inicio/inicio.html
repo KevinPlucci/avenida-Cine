@@ -8,14 +8,19 @@
 } @else if (error()) {
   <p class="alerta alerta-error">{{ error() }}</p>
 } @else {
+  <!-- La grilla se define una vez y se usa en las dos secciones; el contexto dice qué películas y si es el ranking -->
+  <ng-template #grilla let-peliculas let-ranking="ranking">
+    <div class="grid-peliculas" [class.destacadas]="ranking">
+      @for (pelicula of peliculas; track pelicula.id; let i = $index) {
+        <app-pelicula-card [pelicula]="pelicula" [posicion]="ranking ? i + 1 : null" [mostrarVentas]="ranking" />
+      }
+    </div>
+  </ng-template>
+
   @if (masVendidas().length) {
     <section>
       <h2>Las más vendidas</h2>
-      <div class="grid-peliculas destacadas">
-        @for (pelicula of masVendidas(); track pelicula.id; let i = $index) {
-          <app-pelicula-card [pelicula]="pelicula" [posicion]="i + 1" [mostrarVentas]="true" />
-        }
-      </div>
+      <ng-container [ngTemplateOutlet]="grilla" [ngTemplateOutletContext]="{ $implicit: masVendidas(), ranking: true }" />
     </section>
   }
 
@@ -59,11 +64,7 @@
     </p>
 
     @if (filtradas().length) {
-      <div class="grid-peliculas">
-        @for (pelicula of filtradas(); track pelicula.id) {
-          <app-pelicula-card [pelicula]="pelicula" />
-        }
-      </div>
+      <ng-container [ngTemplateOutlet]="grilla" [ngTemplateOutletContext]="{ $implicit: filtradas(), ranking: false }" />
     } @else {
       <p class="vacio">No hay películas que coincidan con la búsqueda.</p>
     }

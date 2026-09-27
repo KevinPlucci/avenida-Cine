@@ -1,8 +1,10 @@
+import { NgClass } from '@angular/common';
 import { Component, input, model, output } from '@angular/core';
 import { FILA_ACCESIBLE, FILAS, idButaca, ordenarButacas } from '../../core/utils/butacas';
 
 @Component({
   selector: 'app-mapa-butacas',
+  imports: [NgClass],
   template: `
     <div class="contenedor-mapa">
       <div class="mapa">
@@ -17,9 +19,7 @@ import { FILA_ACCESIBLE, FILAS, idButaca, ordenarButacas } from '../../core/util
                   <button
                     type="button"
                     class="butaca"
-                    [class.accesible]="fila.accesible"
-                    [class.ocupada]="ocupadas().has(id)"
-                    [class.seleccionada]="seleccionadas().includes(id)"
+                    [ngClass]="{ accesible: fila.accesible, ocupada: ocupadas().has(id), seleccionada: seleccionadas().includes(id) }"
                     [disabled]="ocupadas().has(id)"
                     [attr.aria-pressed]="seleccionadas().includes(id)"
                     [attr.aria-label]="'Fila ' + fila.letra + ', butaca ' + numero + (fila.accesible ? ', accesible' : '')"

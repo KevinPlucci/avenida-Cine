@@ -77,32 +77,19 @@
             <ul class="productos">
               @for (combo of combos(); track combo.id) {
                 <li class="producto" [class.elegido]="cantidadCombo(combo) > 0">
-                  <div class="producto-datos">
-                    <strong>{{ combo.nombre }}</strong>
-                    <small class="meta">{{ contenidoCombo(combo) }}</small>
-                    <span class="precio">{{ combo.precio | currency }}</span>
-                  </div>
-                  <div class="contador">
-                    <button
-                      type="button"
-                      class="btn btn-chico"
-                      [disabled]="cantidadCombo(combo) === 0"
-                      [attr.aria-label]="'Quitar un ' + combo.nombre"
-                      (click)="sumarCombo(combo, -1)"
-                    >
-                      −
-                    </button>
-                    <span class="cantidad">{{ cantidadCombo(combo) }}</span>
-                    <button
-                      type="button"
-                      class="btn btn-chico"
-                      [disabled]="butacasLibres() <= 0"
-                      [attr.aria-label]="'Agregar un ' + combo.nombre"
-                      (click)="sumarCombo(combo, 1)"
-                    >
-                      +
-                    </button>
-                  </div>
+                  <app-contador
+                    [cantidad]="cantidadCombo(combo)"
+                    [puedeSumar]="butacasLibres() > 0"
+                    [etiquetaQuitar]="'Quitar un ' + combo.nombre"
+                    [etiquetaAgregar]="'Agregar un ' + combo.nombre"
+                    (cambio)="sumarCombo(combo, $event)"
+                  >
+                    <div class="producto-datos">
+                      <strong>{{ combo.nombre }}</strong>
+                      <small class="meta">{{ contenidoCombo(combo) }}</small>
+                      <span class="precio">{{ combo.precio | currency }}</span>
+                    </div>
+                  </app-contador>
                 </li>
               }
             </ul>
@@ -135,34 +122,21 @@
           <ul class="productos">
             @for (producto of categoria.productos; track producto.id) {
               <li class="producto" [class.elegido]="cantidad(producto) > 0">
-                <div class="producto-datos">
-                  <strong>{{ producto.nombre }}</strong>
-                  @if (producto.descripcion) {
-                    <small class="meta">{{ producto.descripcion }}</small>
-                  }
-                  <span class="precio">{{ producto.precio | currency }}</span>
-                </div>
-                <div class="contador">
-                  <button
-                    type="button"
-                    class="btn btn-chico"
-                    [disabled]="cantidad(producto) === 0"
-                    [attr.aria-label]="'Quitar una unidad de ' + producto.nombre"
-                    (click)="sumar(producto, -1)"
-                  >
-                    −
-                  </button>
-                  <span class="cantidad" [attr.aria-label]="'Cantidad de ' + producto.nombre">{{ cantidad(producto) }}</span>
-                  <button
-                    type="button"
-                    class="btn btn-chico"
-                    [disabled]="cantidad(producto) >= maxUnidades"
-                    [attr.aria-label]="'Agregar una unidad de ' + producto.nombre"
-                    (click)="sumar(producto, 1)"
-                  >
-                    +
-                  </button>
-                </div>
+                <app-contador
+                  [cantidad]="cantidad(producto)"
+                  [puedeSumar]="cantidad(producto) < maxUnidades"
+                  [etiquetaQuitar]="'Quitar una unidad de ' + producto.nombre"
+                  [etiquetaAgregar]="'Agregar una unidad de ' + producto.nombre"
+                  (cambio)="sumar(producto, $event)"
+                >
+                  <div class="producto-datos">
+                    <strong>{{ producto.nombre }}</strong>
+                    @if (producto.descripcion) {
+                      <small class="meta">{{ producto.descripcion }}</small>
+                    }
+                    <span class="precio">{{ producto.precio | currency }}</span>
+                  </div>
+                </app-contador>
               </li>
             }
           </ul>
@@ -228,24 +202,28 @@
             }
           </p>
           @if (puntosEntrada(); as puntos) {
-            <div class="fila-canje">
-              <span>Entrada gratis <small class="meta">({{ puntos | number }} puntos c/u)</small></span>
-              <div class="contador">
-                <button type="button" class="btn btn-chico" [disabled]="!entradasConPuntos()" aria-label="Canjear una entrada menos" (click)="sumarEntradaConPuntos(-1)">−</button>
-                <span class="cantidad">{{ entradasConPuntos() }}</span>
-                <button type="button" class="btn btn-chico" [disabled]="butacasLibres() <= 0 || puntosRestantes() < puntos" aria-label="Canjear una entrada más" (click)="sumarEntradaConPuntos(1)">+</button>
-              </div>
-            </div>
+            <app-contador
+              class="fila-canje"
+              [cantidad]="entradasConPuntos()"
+              [puedeSumar]="butacasLibres() > 0 && puntosRestantes() >= puntos"
+              etiquetaQuitar="Canjear una entrada menos"
+              etiquetaAgregar="Canjear una entrada más"
+              (cambio)="sumarEntradaConPuntos($event)"
+            >
+              Entrada gratis <small class="meta">({{ puntos | number }} puntos c/u)</small>
+            </app-contador>
           }
           @for (linea of lineasCanjeables(); track linea.producto.id) {
-            <div class="fila-canje">
-              <span>{{ linea.producto.nombre }} <small class="meta">({{ linea.puntos | number }} puntos c/u)</small></span>
-              <div class="contador">
-                <button type="button" class="btn btn-chico" [disabled]="!canjeados(linea.producto)" [attr.aria-label]="'Canjear un ' + linea.producto.nombre + ' menos'" (click)="sumarCanjeProducto(linea.producto, -1)">−</button>
-                <span class="cantidad">{{ canjeados(linea.producto) }}</span>
-                <button type="button" class="btn btn-chico" [disabled]="canjeados(linea.producto) >= linea.cantidad || puntosRestantes() < linea.puntos" [attr.aria-label]="'Canjear un ' + linea.producto.nombre + ' más'" (click)="sumarCanjeProducto(linea.producto, 1)">+</button>
-              </div>
-            </div>
+            <app-contador
+              class="fila-canje"
+              [cantidad]="canjeados(linea.producto)"
+              [puedeSumar]="canjeados(linea.producto) < linea.cantidad && puntosRestantes() >= linea.puntos"
+              [etiquetaQuitar]="'Canjear un ' + linea.producto.nombre + ' menos'"
+              [etiquetaAgregar]="'Canjear un ' + linea.producto.nombre + ' más'"
+              (cambio)="sumarCanjeProducto(linea.producto, $event)"
+            >
+              {{ linea.producto.nombre }} <small class="meta">({{ linea.puntos | number }} puntos c/u)</small>
+            </app-contador>
           }
           @if (!seleccionadas().length && !lineasCanjeables().length) {
             <small class="meta">Elegí butacas o productos para canjearlos con tus puntos.</small>
