@@ -47,6 +47,16 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./admin-productos').then((m) => m.AdminProductos),
       },
       {
+        path: 'combos',
+        title: 'Combos',
+        loadComponent: () => import('./admin-combos').then((m) => m.AdminCombos),
+      },
+      {
+        path: 'puntos',
+        title: 'Programa de puntos',
+        loadComponent: () => import('./admin-puntos').then((m) => m.AdminPuntos),
+      },
+      {
         path: 'descuentos',
         title: 'Descuentos',
         loadComponent: () => import('./admin-cupones').then((m) => m.AdminCupones),

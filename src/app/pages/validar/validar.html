@@ -89,6 +89,9 @@
             <dt>Candy bar</dt>
             <dd>
               <ul class="lista-simple">
+                @for (combo of c.combos; track combo.nombre) {
+                  <li>{{ combo.cantidad }} × {{ combo.nombre }} <small class="meta">({{ combo.contenido }})</small></li>
+                }
                 @for (producto of c.productos; track producto.nombre) {
                   <li>{{ producto.cantidad }} × {{ producto.nombre }}</li>
                 }

@@ -1,7 +1,8 @@
 import { inject, Injectable } from '@angular/core';
 import { SupabaseService } from '../supabase.service';
 import { Beneficios, Comprador, CompraResumen, DetalleCompra } from '../models/compra';
-import { ItemCarrito } from '../models/producto';
+import { ItemCarrito, ItemCombo } from '../models/producto';
+import { Canje } from '../models/puntos';
 import { idButaca } from '../utils/butacas';
 
 const FORMATO_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -17,15 +18,18 @@ export class ComprasService {
   }
 
   /**
-   * Confirma la compra llamando a la función comprar_entradas() de la base, que valida las butacas
-   * y los productos, calcula el total y aplica el descuento. Devuelve el código de la compra.
-   * Si el usuario está logueado, comprador va en null y se usan los datos de su perfil.
+   * Confirma la compra llamando a la función comprar_entradas() de la base, que valida las butacas,
+   * los productos, los combos y el canje de puntos, calcula el total y aplica el descuento.
+   * Devuelve el código de la compra. Si el usuario está logueado, comprador va en null y se usan
+   * los datos de su perfil.
    */
   async comprar(
     funcionId: number,
     butacas: string[],
     comprador: Comprador | null,
     productos: ItemCarrito[] = [],
+    combos: ItemCombo[] = [],
+    canje: Canje = { entradas: 0, productos: [] },
   ): Promise<string> {
     const { data, error } = await this.db.rpc('comprar_entradas', {
       p_funcion_id: funcionId,
@@ -34,6 +38,8 @@ export class ComprasService {
       p_nombre: comprador?.nombre ?? null,
       p_productos: productos,
       p_fecha_nacimiento: comprador?.fecha_nacimiento ?? null,
+      p_combos: combos,
+      p_canje: canje,
     });
     if (error) throw error;
     return data as string;

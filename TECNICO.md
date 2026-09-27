@@ -120,7 +120,7 @@ src/
       login/  registro/  mi-perfil/  no-encontrada/
       validar/          lectura del QR para el personal del cine
       admin/            layout con pestañas + películas, funciones, salas, géneros,
-                        candy bar, descuentos, usuarios y reportes
+                        candy bar, combos, descuentos, puntos, usuarios y reportes
 ```
 
 ### Rutas
@@ -134,7 +134,7 @@ src/
 | `/login`, `/registro` | Ingreso y registro (`/login?volver=/ruta` vuelve a esa ruta después de ingresar) | Solo sin sesión |
 | `/perfil` | Datos, descuentos y compras | Registrados |
 | `/validar` | Validación de QR del ingreso y del candy bar | Empleados y administradores |
-| `/admin/...` | Películas, funciones, salas, géneros, candy bar, descuentos, usuarios y reportes | Administradores |
+| `/admin/...` | Películas, funciones, salas, géneros, candy bar, combos, descuentos, puntos, usuarios y reportes | Administradores |
 | Cualquier otra | Página 404 | Todos |
 
 ### Modelo de datos
@@ -153,6 +153,12 @@ erDiagram
   compras ||--o{ compra_productos : "incluye"
   categorias_productos ||--o{ productos : "agrupa"
   productos ||--o{ compra_productos : "se vende en"
+  combos ||--|{ combo_productos : "trae"
+  productos ||--o{ combo_productos : "forma parte de"
+  compras ||--o{ compra_combos : "incluye"
+  productos ||--o| recompensas : "se canjea por"
+  perfiles ||--o{ movimientos_puntos : "suma y canjea"
+  compras ||--o{ movimientos_puntos : "genera"
   peliculas ||--o{ resenias : "recibe"
 ```
 
@@ -162,6 +168,9 @@ erDiagram
 - `compra_productos` congela el nombre y el precio del producto: si después cambian, la compra no se altera.
 - `compras` guarda cuándo y quién validó el ingreso (`validada_en`, `validada_por`) y la entrega del candy bar (`entregado_en`, `entregado_por`).
 - `cupones_regla` tiene una fila por tipo de descuento (`primera_compra` y `mayores`) con el porcentaje, la edad (el descuento es para quienes la superan) y si está activo.
+- `recompensas` tiene una fila para la entrada gratis y una por cada producto que se puede canjear, con su costo en puntos.
+- `movimientos_puntos` registra cada suma (compra) y cada canje. El saldo es la suma de los movimientos, así el historial y el saldo nunca se contradicen.
+- `compra_combos` congela el nombre, el precio y el contenido del combo vendido; `compra_productos.canjeados` guarda cuántas unidades se pagaron con puntos.
 - `puntajes_peliculas` es una vista con el promedio de estrellas por película.
 
 ### Flujo de compra
@@ -243,6 +252,8 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 - **Restricción de edad**: `comprar_entradas()` compara `edad()` de la fecha de nacimiento (la del perfil o, sin cuenta, la que declara el comprador) con `peliculas.restriccion_edad`. La pantalla de compra hace el mismo cálculo antes, para avisar sin llegar a pagar.
 - **Butacas en tiempo real** con Supabase Realtime: la pantalla de compra se suscribe a los `INSERT` de `entradas` filtrados por `funcion_id`. Cada vez que el canal se conecta vuelve a leer las butacas vendidas, por si se perdió algún aviso. Al salir de la pantalla el canal se cierra (`DestroyRef.onDestroy`). Igual la base es la que decide: si dos personas pagan la misma butaca, `unique (funcion_id, fila, numero)` rechaza la segunda.
 - **Asignación automática de sala**: `salas_libres()` cruza las salas activas con las funciones existentes usando el mismo rango `[inicio, fin + 30 min)` de la restricción. `programar_funciones()` crea un horario por día con un bloque `begin ... exception` por cada uno, así un choque no cancela el resto y la pantalla informa qué pasó con cada día.
+- **Programa de puntos**: `comprar_entradas()` recibe el canje (`{ entradas, productos }`), toma el costo de cada recompensa de la base, bloquea el perfil con `for update` para que dos compras en paralelo no gasten los mismos puntos y rechaza el canje si el saldo no alcanza. Suma `floor(total)` puntos y deja un movimiento por cada canje y otro por lo ganado. `movimientos_puntos` no tiene políticas de escritura en RLS: nadie puede cargarse puntos ni pasárselos a otro desde la API (lo verifica `npm run test:db` con el rol `authenticated`).
+- **Combos**: `combo_disponible()` exige que el combo esté activo y que todos sus productos tengan stock, y `contenido_combo()` arma el texto "1 entrada + …" que queda guardado en la compra. Cada combo usa una de las butacas elegidas: se pagan aparte las butacas que no van en un combo ni se canjean.
 - **Reporte de ventas**: `reporte_ventas(desde, hasta)` es `security definer` y solo responde al admin. Arma los días con `generate_series` y los cruza con `compras` por fecha de Argentina (`creado_en at time zone 'America/Argentina/Buenos_Aires'`), así aparecen también los días sin ventas. La pantalla suma los totales del período.
 - **Roles**: `cambiar_rol()` valida que quien llama sea admin, que el rol exista y que un administrador no se quite a sí mismo el permiso.
 - **El frontend valida antes** para dar mejores mensajes: al crear o editar una función lista las funciones que chocan y a qué hora queda libre la sala; si la función tiene ventas, bloquea los campos que no se pueden cambiar.
@@ -273,6 +284,7 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 
 | Fecha | Versión | Cambios |
 |---|---|---|
+| 27/09/2026 | 0.6.0 | Email del 03/03. Programa de puntos: 1 punto por peso pagado, canje de entradas gratis y productos del candy bar al comprar, costo de cada recompensa configurable en la pestaña Puntos, saldo e historial de canjes en el perfil, y puntos intransferibles (sin escritura desde la API). Combos de entrada + candy bar a precio fijo, con su ABM en la pestaña Combos, destacados en la pantalla de compra, en la entrada, el PDF y la validación. Migración `007_puntos_combos.sql` y 30 pruebas nuevas en `npm run test:db`. |
 | 27/09/2026 | 0.5.0 | Email del 28/02. Reporte de ventas en el panel (pestaña Reportes): facturación, compras y entradas vendidas por día, con el período elegido con botones. Menos scroll: funciones de a un día en el detalle de la película, reseñas de a tres, candy bar por categoría en la compra. El empleado entra directo a validar entradas. Migración `006_reporte_ventas.sql` y 6 pruebas nuevas en `npm run test:db`. |
 | 27/09/2026 | 0.4.0 | Email del 12/02. Restricción de edad por película (ATP, +13, +18): el admin la elige en el formulario, se muestra en la cartelera, el detalle, la compra y la entrada, y la base no deja comprar a quien no tiene la edad (sin cuenta se declara la fecha de nacimiento). Toda entrada de esas películas aclara que debe ir un adulto, también en el PDF y en la validación. Nueva distribución de la sala: la fila J es accesible (2, 10 y 2 butacas) y la K ya no existe. Butacas en tiempo real con Supabase Realtime. Migración `005_edad_accesibles_tiempo_real.sql` y 16 pruebas nuevas en `npm run test:db`. |
 | 15/09/2026 | 0.3.2 | El pie de página queda siempre al final de la ventana, también en las pantallas con poco contenido (perfil, login, validación de QR, página 404). |

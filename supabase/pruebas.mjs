@@ -282,6 +282,109 @@ await esperarError(`select entregar_productos($1)`, [enHorario.codigo], 'ya se e
 await esperarError(`select entregar_productos($1)`, [anonima.codigo], 'no incluye productos', 'compra sin productos del candy bar');
 await comoUsuario(null);
 
+// ---------- Programa de puntos y combos (email 03/03) ----------
+ok((await q(`select puntos from recompensas where tipo = 'entrada' and activa`))[0]?.puntos === 500,
+  'la entrada gratis cuesta 500 puntos si el admin no la cambia');
+const [comboClasico] = await q(`select id, precio::float precio from combos where nombre = 'Combo clásico'`);
+ok(!!comboClasico, 'hay combos de ejemplo');
+
+// 1 punto por cada peso pagado: Juan ya hizo compras.
+await comoUsuario(uid);
+const [pagadoJuan] = await q(`select sum(floor(total))::int n from compras where usuario_id = $1`, [uid]);
+const [puntosJuan] = await q(`select mis_puntos() j`);
+ok(puntosJuan.j.saldo === pagadoJuan.n && pagadoJuan.n > 0, `cada compra suma 1 punto por peso pagado (${puntosJuan.j.saldo})`);
+
+// Canje de una entrada y de unos pochoclos en la misma compra.
+const [pochoclosGrandes] = await q(`select p.id, p.precio::float precio, r.puntos from productos p
+  join recompensas r on r.producto_id = p.id where p.nombre = 'Pochoclos grandes'`);
+const [conCanje] = await q(
+  `select comprar_entradas($1, array['G1', 'G2'], null, null, $2::jsonb, null, '[]'::jsonb, $3::jsonb) codigo`,
+  [funcion.id, JSON.stringify([{ producto_id: pochoclosGrandes.id, cantidad: 2 }]),
+    JSON.stringify({ entradas: 1, productos: [{ producto_id: pochoclosGrandes.id, cantidad: 1 }] })],
+);
+const [compraCanje] = await q(`select subtotal::float, subtotal_productos::float, total::float, puntos_usados, puntos_ganados,
+  entradas_canjeadas from compras where codigo = $1`, [conCanje.codigo]);
+ok(compraCanje.subtotal === funcion.precio && compraCanje.subtotal_productos === pochoclosGrandes.precio && compraCanje.entradas_canjeadas === 1,
+  'la entrada y la unidad canjeadas con puntos no se cobran');
+ok(compraCanje.puntos_usados === 500 + pochoclosGrandes.puntos, 'el canje usa los puntos que cuesta cada recompensa');
+ok(compraCanje.puntos_ganados === Math.floor(compraCanje.total), 'la compra con canje suma puntos solo por lo que se pagó');
+const [puntosDespues] = await q(`select mis_puntos() j`);
+ok(puntosDespues.j.saldo === puntosJuan.j.saldo - compraCanje.puntos_usados + compraCanje.puntos_ganados,
+  'el saldo resta lo canjeado y suma lo pagado');
+ok(puntosDespues.j.canjes.length === 2 && puntosDespues.j.canjes.some((c) => c.detalle === '1 entrada gratis' && c.puntos === 500),
+  'el historial de canjes muestra cada canje con sus puntos');
+ok((await q(`select cp.canjeados from compra_productos cp join compras c on c.id = cp.compra_id where c.codigo = $1`,
+  [conCanje.codigo]))[0].canjeados === 1, 'se guarda cuántas unidades se canjearon');
+ok((await q(`select obtener_compra($1) j`, [conCanje.codigo]))[0].j.puntos_usados === compraCanje.puntos_usados,
+  'la entrada informa los puntos usados');
+
+await esperarError(`select comprar_entradas($1, array['G3'], null, null, '[]'::jsonb, null, '[]'::jsonb, '{"entradas": 2}'::jsonb)`,
+  [funcion.id], 'más combos y entradas canjeadas', 'no se canjean más entradas que butacas');
+await esperarError(`select comprar_entradas($1, array['G3'], null, null, '[]'::jsonb, null, '[]'::jsonb, $2::jsonb)`,
+  [funcion.id, JSON.stringify({ productos: [{ producto_id: pochoclosGrandes.id, cantidad: 1 }] })],
+  'estén en la compra', 'solo se canjean productos que están en la compra');
+await comoUsuario(idNuevo);
+await esperarError(`select comprar_entradas($1, array['G3'], null, null, '[]'::jsonb, null, '[]'::jsonb, '{"entradas": 1}'::jsonb)`,
+  [funcion.id], 'No tenés puntos suficientes', 'sin puntos suficientes no se puede canjear');
+await comoUsuario(null);
+await esperarError(`select comprar_entradas($1, array['G3'], 'x@test.com', 'X', '[]'::jsonb, null, '[]'::jsonb, '{"entradas": 1}'::jsonb)`,
+  [funcion.id], 'iniciar sesión', 'sin cuenta no se canjean puntos');
+
+// Los puntos no se pueden cargar a mano ni pasar a otro usuario: no hay políticas de escritura.
+await comoUsuario(uid);
+await db.exec('set role authenticated');
+await esperarError(
+  `insert into movimientos_puntos (usuario_id, compra_id, tipo, puntos, detalle) select $1::uuid, id, 'compra', 1000, 'regalo' from compras limit 1`,
+  [idNuevo], 'row-level security', 'un usuario no puede darle puntos a otro');
+ok((await q(`update movimientos_puntos set usuario_id = $1 returning id`, [idNuevo])).length === 0,
+  'un usuario no puede transferir sus puntos');
+ok((await q(`select count(*)::int n from movimientos_puntos`))[0].n > 0
+  && (await q(`select count(*)::int n from movimientos_puntos where usuario_id <> $1`, [uid]))[0].n === 0,
+  'cada usuario ve solo sus movimientos de puntos');
+await db.exec('reset role');
+
+// Combos: una entrada con productos a precio fijo.
+await comoUsuario(null);
+const combo = (cantidad) => JSON.stringify([{ combo_id: comboClasico.id, cantidad }]);
+const [conCombo] = await q(`select comprar_entradas($1, array['H1', 'H2'], 'x@test.com', 'X', '[]'::jsonb, null, $2::jsonb) codigo`,
+  [funcion.id, combo(1)]);
+const [compraCombo] = await q(`select subtotal::float, subtotal_combos::float, total::float, puntos_ganados from compras where codigo = $1`, [conCombo.codigo]);
+ok(compraCombo.subtotal_combos === comboClasico.precio && compraCombo.total === comboClasico.precio + funcion.precio,
+  'el combo reemplaza una de las entradas y se cobra a su precio fijo');
+ok(compraCombo.puntos_ganados === 0, 'una compra sin cuenta no suma puntos');
+const detalleCombo = (await q(`select obtener_compra($1) j`, [conCombo.codigo]))[0].j;
+ok(detalleCombo.combos[0]?.contenido === '1 entrada + 1 × Gaseosa grande + 1 × Pochoclos medianos',
+  `la compra guarda lo que trae el combo (${detalleCombo.combos[0]?.contenido})`);
+await esperarError(`select comprar_entradas($1, array['H3'], 'x@test.com', 'X', '[]'::jsonb, null, $2::jsonb)`,
+  [funcion.id, combo(2)], 'más combos', 'no hay más combos que butacas');
+await q(`update combos set activo = false where id = $1`, [comboClasico.id]);
+await esperarError(`select comprar_entradas($1, array['H3'], 'x@test.com', 'X', '[]'::jsonb, null, $2::jsonb)`,
+  [funcion.id, combo(1)], 'ya no está disponible', 'un combo desactivado no se vende');
+await q(`update combos set activo = true where id = $1`, [comboClasico.id]);
+await q(`update productos set disponible = false where nombre = 'Pochoclos medianos'`);
+await esperarError(`select comprar_entradas($1, array['H3'], 'x@test.com', 'X', '[]'::jsonb, null, $2::jsonb)`,
+  [funcion.id, combo(1)], 'ya no está disponible', 'un combo con un producto sin stock no se vende');
+await q(`update productos set disponible = true where nombre = 'Pochoclos medianos'`);
+
+// El descuento se aplica solo a las entradas que se pagan aparte, no al combo.
+await comoUsuario(idNuevo);
+const [comboConCupon] = await q(`select comprar_entradas($1, array['H5', 'H6'], null, null, '[]'::jsonb, null, $2::jsonb) codigo`,
+  [funcion.id, combo(1)]);
+const [compraComboCupon] = await q(`select descuento::float, total::float, puntos_ganados from compras where codigo = $1`, [comboConCupon.codigo]);
+ok(compraComboCupon.descuento === funcion.precio * 0.3 && compraComboCupon.total === comboClasico.precio + funcion.precio * 0.7,
+  'el cupón descuenta solo la entrada que no va en el combo');
+ok(compraComboCupon.puntos_ganados === Math.floor(compraComboCupon.total), 'el combo también suma puntos');
+
+// Los productos del combo se retiran con el mismo QR.
+await comoUsuario(null);
+const [comboProxima] = await q(`select comprar_entradas($1, array['B1'], 'x@test.com', 'X', '[]'::jsonb, null, $2::jsonb) codigo`,
+  [proxima.id, combo(1)]);
+await comoUsuario(idEmpleado);
+ok((await q(`select compra_para_validar($1) j`, [comboProxima.codigo]))[0].j.combos.length === 1, 'el empleado ve el combo a entregar');
+ok((await q(`select entregar_productos($1) j`, [comboProxima.codigo]))[0].j.entregado_en !== null,
+  'los productos del combo se retiran con el mismo QR');
+await comoUsuario(null);
+
 // ---------- Reporte de ventas por día (email 28/02) ----------
 await comoUsuario(uid);
 await esperarError(`select * from reporte_ventas(current_date - 6, current_date)`, [], 'Solo un administrador', 'un cliente no ve el reporte');
@@ -383,18 +486,26 @@ await comoUsuario(null);
 await db.exec(leer('./migraciones/005_edad_accesibles_tiempo_real.sql'));
 await db.exec(leer('./migraciones/005_edad_accesibles_tiempo_real.sql'));
 ok(true, 'la migración 005 se aplica sobre una base existente y se puede repetir');
-ok((await q(`select count(*)::int n from pg_proc where proname = 'comprar_entradas'`))[0].n === 1,
-  'después de la migración 005 queda una sola versión de comprar_entradas');
-await esperarError(`select comprar_entradas($1, array['K4'], 'x@test.com', 'X')`, [funcion.id], 'Butaca inválida',
-  'después de la migración 005 la fila K ya no se vende');
-await esperarError(`select comprar_entradas($1, array['A4'], 'x@test.com', 'X')`, [funcion18.id], 'fecha de nacimiento',
-  'después de la migración 005 se controla la edad');
 
 await db.exec(leer('./migraciones/006_reporte_ventas.sql'));
 await db.exec(leer('./migraciones/006_reporte_ventas.sql'));
 await comoUsuario(idAdmin);
 ok((await q(`select * from reporte_ventas(current_date, current_date)`)).length === 1, 'la migración 006 se aplica, se puede repetir y el reporte funciona');
 await comoUsuario(null);
+
+await db.exec(leer('./migraciones/007_puntos_combos.sql'));
+await db.exec(leer('./migraciones/007_puntos_combos.sql'));
+ok(true, 'la migración 007 se aplica sobre una base existente y se puede repetir');
+ok((await q(`select count(*)::int n from pg_proc where proname = 'comprar_entradas'`))[0].n === 1,
+  'después de las migraciones queda una sola versión de comprar_entradas');
+ok((await q(`select count(*)::int n from recompensas where tipo = 'entrada'`))[0].n === 1, 'la migración 007 no duplica la entrada gratis');
+await esperarError(`select comprar_entradas($1, array['K4'], 'x@test.com', 'X')`, [funcion.id], 'Butaca inválida',
+  'después de las migraciones la fila K ya no se vende');
+await esperarError(`select comprar_entradas($1, array['A4'], 'x@test.com', 'X')`, [funcion18.id], 'fecha de nacimiento',
+  'después de las migraciones se controla la edad');
+const [comboMigrado] = await q(`select comprar_entradas($1, array['H8'], 'x@test.com', 'X', '[]'::jsonb, null, $2::jsonb) codigo`,
+  [funcion.id, combo(1)]);
+ok(!!comboMigrado.codigo, 'después de las migraciones se venden combos');
 
 console.log(fallos ? `\n${fallos} prueba(s) fallaron` : '\nTodas las pruebas pasaron');
 process.exit(fallos ? 1 : 0);

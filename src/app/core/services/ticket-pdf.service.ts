@@ -53,14 +53,21 @@ export class TicketPdfService {
       ['Butacas', compra.butacas.join(', ')],
       ['Comprador', compra.nombre],
     ];
-    if (compra.productos.length) {
-      datos.push([
-        'Candy bar',
-        compra.productos.map((p) => `${p.cantidad} x ${p.nombre}`).join(', '),
-      ]);
+    const candy = [
+      ...compra.combos.map((c) => `${c.cantidad} x ${c.nombre} (${c.contenido.replaceAll('×', 'x')})`),
+      ...compra.productos.map((p) => `${p.cantidad} x ${p.nombre}` + (p.canjeados ? ` (${p.canjeados} con puntos)` : '')),
+    ];
+    if (candy.length) {
+      datos.push(['Candy bar', candy.join(', ')]);
     }
-    if (compra.descuento > 0 || compra.subtotal_productos > 0) {
+    if (compra.descuento > 0 || compra.subtotal_productos > 0 || compra.subtotal_combos > 0 || compra.entradas_canjeadas > 0) {
       datos.push(['Entradas', precio(compra.subtotal)]);
+    }
+    if (compra.entradas_canjeadas > 0) {
+      datos.push(['Con puntos', `${compra.entradas_canjeadas} ${compra.entradas_canjeadas === 1 ? 'entrada gratis' : 'entradas gratis'}`]);
+    }
+    if (compra.subtotal_combos > 0) {
+      datos.push(['Combos', precio(compra.subtotal_combos)]);
     }
     if (compra.subtotal_productos > 0) {
       datos.push(['Productos', precio(compra.subtotal_productos)]);
@@ -70,6 +77,12 @@ export class TicketPdfService {
       datos.push([etiqueta, `- ${precio(compra.descuento)}`]);
     }
     datos.push(['Total', precio(compra.total)]);
+    if (compra.puntos_usados > 0) {
+      datos.push(['Puntos usados', compra.puntos_usados.toLocaleString('es-AR')]);
+    }
+    if (compra.puntos_ganados > 0) {
+      datos.push(['Puntos sumados', compra.puntos_ganados.toLocaleString('es-AR')]);
+    }
 
     doc.setFontSize(11);
     for (const [etiqueta, valor] of datos) {
@@ -97,7 +110,7 @@ export class TicketPdfService {
     doc.setTextColor(107, 102, 97);
     doc.text(`Código: ${compra.codigo}`, ANCHO / 2, y, { align: 'center' });
     y += 5;
-    const aclaracion = compra.productos.length
+    const aclaracion = compra.productos.length || compra.combos.length
       ? 'Presentá este código QR en el ingreso a la sala y en el candy bar.'
       : 'Presentá este código QR en el ingreso a la sala.';
     doc.text(aclaracion, ANCHO / 2, y, { align: 'center' });

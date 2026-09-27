@@ -58,6 +58,63 @@
 </div>
 
 <section class="tarjeta">
+  <h2>Mis puntos</h2>
+  @if (cargando()) {
+    <p class="cargando">Cargando...</p>
+  } @else if (puntos(); as p) {
+    <div class="puntos">
+      <div>
+        <p class="saldo"><strong>{{ p.saldo | number }}</strong> puntos</p>
+        <p class="meta">
+          Sumás 1 punto por cada peso que pagás. Se canjean al comprar, en el paso "Confirmá y pagá", y no se pueden
+          pasar a otra cuenta.
+        </p>
+        @if (recompensasDisponibles().length) {
+          <h3>Qué podés canjear</h3>
+          <ul class="recompensas">
+            @for (recompensa of recompensasDisponibles(); track recompensa.id) {
+              <li [class.alcanza]="p.saldo >= recompensa.puntos">
+                <span>{{ recompensa.nombre }}</span>
+                <span>{{ recompensa.puntos | number }} puntos</span>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+      <div>
+        <h3>Historial de canjes</h3>
+        <div class="tabla-contenedor">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Canje</th>
+                <th>Película</th>
+                <th>Puntos</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (canje of p.canjes; track $index) {
+                <tr>
+                  <td>{{ canje.fecha | date: 'dd/MM/yyyy' }}</td>
+                  <td>{{ canje.detalle }}</td>
+                  <td><a [routerLink]="['/compras', canje.codigo]">{{ canje.pelicula }}</a></td>
+                  <td>- {{ canje.puntos | number }}</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="4" class="vacio">Todavía no canjeaste puntos.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  }
+</section>
+
+<section class="tarjeta">
   <h2>Mis compras</h2>
   @if (cargando()) {
     <p class="cargando">Cargando...</p>

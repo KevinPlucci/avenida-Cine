@@ -1,6 +1,6 @@
 import { Formato, Idioma } from './funcion';
 import { RestriccionEdad } from './pelicula';
-import { LineaProducto } from './producto';
+import { LineaCombo, LineaProducto } from './producto';
 
 /** Datos que se piden cuando la compra es anónima. */
 export interface Comprador {
@@ -22,6 +22,11 @@ export interface DetalleCompra {
   cantidad: number;
   subtotal: number;
   subtotal_productos: number;
+  /** Email 03/03: combos, entradas pagadas con puntos y puntos de la compra. */
+  subtotal_combos: number;
+  entradas_canjeadas: number;
+  puntos_usados: number;
+  puntos_ganados: number;
   descuento: number;
   descuento_motivo: MotivoDescuento | null;
   total: number;
@@ -35,6 +40,7 @@ export interface DetalleCompra {
   idioma: Idioma;
   butacas: string[];
   productos: LineaProducto[];
+  combos: LineaCombo[];
   /** Fecha en que se validó el QR en el ingreso (null si todavía no se usó). */
   validada_en: string | null;
   /** Fecha en que se retiraron los productos del candy bar. */
@@ -82,4 +88,5 @@ export interface CompraParaValidar {
   validada_en: string | null;
   entregado_en: string | null;
   productos: { nombre: string; cantidad: number }[];
+  combos: { nombre: string; contenido: string; cantidad: number }[];
 }

@@ -47,7 +47,10 @@ export class Validar implements OnDestroy {
   /** La cámara solo se puede usar si el navegador la ofrece (hace falta HTTPS o localhost). */
   protected readonly hayCamara = !!navigator.mediaDevices?.getUserMedia;
 
-  protected readonly tieneProductos = computed(() => (this.compra()?.productos.length ?? 0) > 0);
+  /** Productos sueltos o combos (email 03/03) para retirar en el candy bar. */
+  protected readonly tieneProductos = computed(
+    () => (this.compra()?.productos.length ?? 0) + (this.compra()?.combos.length ?? 0) > 0,
+  );
 
   ngOnDestroy(): void {
     this.detenerCamara();

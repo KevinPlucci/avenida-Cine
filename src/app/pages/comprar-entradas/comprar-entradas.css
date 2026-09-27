@@ -136,3 +136,50 @@
 .fecha select:last-child {
   grid-column: 1 / -1;
 }
+
+/* Combos destacados (email 03/03) */
+.combos {
+  margin-top: 14px;
+  padding: 12px 14px 14px;
+  background: var(--color-destacado-suave);
+  border: 1px solid var(--color-dorado);
+  border-left-width: 4px;
+  border-radius: var(--radio);
+}
+
+.combos h3 {
+  margin: 0 0 2px;
+  font: 500 1.05rem var(--fuente-titulos);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.combos .productos {
+  margin-top: 10px;
+}
+
+.combos .producto {
+  background: var(--color-superficie);
+}
+
+.aviso-combo {
+  margin-top: 8px;
+}
+
+/* Canje de puntos (email 03/03) */
+.nota-puntos {
+  margin: -6px 0 16px;
+}
+
+.canje .meta {
+  margin-bottom: 8px;
+}
+
+.fila-canje {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}

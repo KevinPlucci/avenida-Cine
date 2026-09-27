@@ -55,11 +55,11 @@
       }
     </section>
 
-    @if (categorias().length) {
+    @if (categorias().length || combos().length) {
       <section class="tarjeta">
         <div class="cabecera">
           <h2>2. Sumá algo del candy bar</h2>
-          @if (lineas().length) {
+          @if (lineas().length || lineasCombos().length) {
             <button type="button" class="btn btn-chico" (click)="vaciarCarrito()">Vaciar</button>
           }
         </div>
@@ -67,6 +67,52 @@
           Es opcional. Lo que elijas se retira en el candy bar con el mismo código QR de la entrada.
         </p>
 
+        @if (combos().length) {
+          <!-- Combos destacados (email 03/03): entrada + candy bar a precio fijo -->
+          <div class="combos">
+            <h3>Combos</h3>
+            <p class="meta">
+              Entrada, pochoclos y bebida a precio fijo. Cada combo usa una de las butacas que elegiste.
+            </p>
+            <ul class="productos">
+              @for (combo of combos(); track combo.id) {
+                <li class="producto" [class.elegido]="cantidadCombo(combo) > 0">
+                  <div class="producto-datos">
+                    <strong>{{ combo.nombre }}</strong>
+                    <small class="meta">{{ contenidoCombo(combo) }}</small>
+                    <span class="precio">{{ combo.precio | currency }}</span>
+                  </div>
+                  <div class="contador">
+                    <button
+                      type="button"
+                      class="btn btn-chico"
+                      [disabled]="cantidadCombo(combo) === 0"
+                      [attr.aria-label]="'Quitar un ' + combo.nombre"
+                      (click)="sumarCombo(combo, -1)"
+                    >
+                      −
+                    </button>
+                    <span class="cantidad">{{ cantidadCombo(combo) }}</span>
+                    <button
+                      type="button"
+                      class="btn btn-chico"
+                      [disabled]="butacasLibres() <= 0"
+                      [attr.aria-label]="'Agregar un ' + combo.nombre"
+                      (click)="sumarCombo(combo, 1)"
+                    >
+                      +
+                    </button>
+                  </div>
+                </li>
+              }
+            </ul>
+            @if (!seleccionadas().length) {
+              <p class="meta aviso-combo">Elegí primero tus butacas para sumar un combo.</p>
+            }
+          </div>
+        }
+
+        @if (categorias().length) {
         <!-- Una categoría a la vez, así la lista no alarga la página (email 28/02) -->
         <div class="chips categorias" role="group" aria-label="Categoría del candy bar">
           @for (opcion of categorias(); track opcion.id) {
@@ -121,6 +167,7 @@
             }
           </ul>
         }
+        }
       </section>
     } @else if (candyNoDisponible()) {
       <p class="alerta">No se pudo cargar el candy bar. Podés comprar las entradas igual.</p>
@@ -128,18 +175,32 @@
     </div>
 
     <section class="tarjeta lateral">
-      <h2>{{ categorias().length ? '3.' : '2.' }} Confirmá y pagá</h2>
+      <h2>{{ categorias().length || combos().length ? '3.' : '2.' }} Confirmá y pagá</h2>
 
       <dl class="datos resumen">
         <dt>Butacas</dt>
         <dd>{{ seleccionadas().length ? seleccionadas().join(', ') : 'Ninguna' }}</dd>
         <dt>Precio por entrada</dt>
         <dd>{{ f.precio | currency }}</dd>
-        <dt>Subtotal entradas</dt>
+        <dt>{{ entradasPagas() }} × {{ entradasPagas() === 1 ? 'Entrada' : 'Entradas' }}</dt>
         <dd>{{ subtotal() | currency }}</dd>
+        @for (linea of lineasCombos(); track linea.combo.id) {
+          <dt>{{ linea.cantidad }} × {{ linea.combo.nombre }}</dt>
+          <dd>{{ linea.combo.precio * linea.cantidad | currency }}</dd>
+        }
+        @if (entradasConPuntos()) {
+          <dt>{{ entradasConPuntos() }} {{ entradasConPuntos() === 1 ? 'entrada' : 'entradas' }} con puntos</dt>
+          <dd>Gratis</dd>
+        }
         @for (linea of lineas(); track linea.producto.id) {
-          <dt>{{ linea.cantidad }} × {{ linea.producto.nombre }}</dt>
-          <dd>{{ linea.producto.precio * linea.cantidad | currency }}</dd>
+          @if (linea.cantidad > canjeados(linea.producto)) {
+            <dt>{{ linea.cantidad - canjeados(linea.producto) }} × {{ linea.producto.nombre }}</dt>
+            <dd>{{ linea.producto.precio * (linea.cantidad - canjeados(linea.producto)) | currency }}</dd>
+          }
+          @if (canjeados(linea.producto)) {
+            <dt>{{ canjeados(linea.producto) }} × {{ linea.producto.nombre }} con puntos</dt>
+            <dd>Gratis</dd>
+          }
         }
         @if (descuentoAplicado(); as beneficio) {
           <dt>{{ beneficio.etiqueta }} ({{ beneficio.porcentaje }}% de las entradas)</dt>
@@ -152,13 +213,52 @@
       @if (hayAccesibles()) {
         <p class="meta nota-accesible">Elegiste butacas de la fila {{ filaAccesible }}, pensadas para personas con discapacidad.</p>
       }
+      @if (puntosAGanar()) {
+        <p class="meta nota-puntos">Con esta compra sumás <strong>{{ puntosAGanar() | number }} puntos</strong>.</p>
+      }
+
+      @if (puedeCanjear()) {
+        <!-- Canje de puntos (email 03/03): entradas gratis y productos que están en esta compra -->
+        <fieldset class="canje">
+          <legend>Canjear puntos</legend>
+          <p class="meta">
+            Tenés {{ saldoPuntos() | number }} puntos
+            @if (puntosUsados()) {
+              · usás {{ puntosUsados() | number }} y te quedan {{ puntosRestantes() | number }}
+            }
+          </p>
+          @if (puntosEntrada(); as puntos) {
+            <div class="fila-canje">
+              <span>Entrada gratis <small class="meta">({{ puntos | number }} puntos c/u)</small></span>
+              <div class="contador">
+                <button type="button" class="btn btn-chico" [disabled]="!entradasConPuntos()" aria-label="Canjear una entrada menos" (click)="sumarEntradaConPuntos(-1)">−</button>
+                <span class="cantidad">{{ entradasConPuntos() }}</span>
+                <button type="button" class="btn btn-chico" [disabled]="butacasLibres() <= 0 || puntosRestantes() < puntos" aria-label="Canjear una entrada más" (click)="sumarEntradaConPuntos(1)">+</button>
+              </div>
+            </div>
+          }
+          @for (linea of lineasCanjeables(); track linea.producto.id) {
+            <div class="fila-canje">
+              <span>{{ linea.producto.nombre }} <small class="meta">({{ linea.puntos | number }} puntos c/u)</small></span>
+              <div class="contador">
+                <button type="button" class="btn btn-chico" [disabled]="!canjeados(linea.producto)" [attr.aria-label]="'Canjear un ' + linea.producto.nombre + ' menos'" (click)="sumarCanjeProducto(linea.producto, -1)">−</button>
+                <span class="cantidad">{{ canjeados(linea.producto) }}</span>
+                <button type="button" class="btn btn-chico" [disabled]="canjeados(linea.producto) >= linea.cantidad || puntosRestantes() < linea.puntos" [attr.aria-label]="'Canjear un ' + linea.producto.nombre + ' más'" (click)="sumarCanjeProducto(linea.producto, 1)">+</button>
+              </div>
+            </div>
+          }
+          @if (!seleccionadas().length && !lineasCanjeables().length) {
+            <small class="meta">Elegí butacas o productos para canjearlos con tus puntos.</small>
+          }
+        </fieldset>
+      }
 
       @if (!auth.logueado()) {
         <p class="alerta">
           Estás comprando sin cuenta.
           <a routerLink="/login" [queryParams]="{ volver: '/funciones/' + f.id + '/comprar' }">Ingresá</a> o
           <a routerLink="/registro">registrate</a> para tener {{ porcentajeBienvenida() }}% de descuento en tu primera
-          compra.
+          compra y sumar puntos con cada compra.
         </p>
       }
 

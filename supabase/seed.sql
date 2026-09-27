@@ -100,3 +100,25 @@ from (values
   ('Promociones', 'Promo para dos',      'Pochoclos grandes y dos gaseosas grandes.',   10500)
 ) as v (categoria, nombre, descripcion, precio)
 join public.categorias_productos c on c.nombre = v.categoria;
+
+-- Programa de puntos (email 03/03): productos que se canjean con puntos.
+-- La entrada gratis (500 puntos) ya la crea schema.sql.
+insert into public.recompensas (tipo, producto_id, puntos)
+select 'producto', p.id, v.puntos
+from (values ('Pochoclos grandes', 150), ('Gaseosa grande', 100), ('Chocolate', 80)) as v (nombre, puntos)
+join public.productos p on p.nombre = v.nombre;
+
+-- Combos (email 03/03): entrada + pochoclos + bebida a un precio fijo.
+insert into public.combos (nombre, descripcion, precio)
+values
+  ('Combo clásico', 'Tu entrada con pochoclos medianos y gaseosa grande.', 11500),
+  ('Combo grande',  'Tu entrada con pochoclos grandes, gaseosa grande y un chocolate.', 14500);
+
+insert into public.combo_productos (combo_id, producto_id, cantidad)
+select c.id, p.id, 1
+from (values
+  ('Combo clásico', 'Pochoclos medianos'), ('Combo clásico', 'Gaseosa grande'),
+  ('Combo grande', 'Pochoclos grandes'), ('Combo grande', 'Gaseosa grande'), ('Combo grande', 'Chocolate')
+) as v (combo, producto)
+join public.combos c on c.nombre = v.combo
+join public.productos p on p.nombre = v.producto;

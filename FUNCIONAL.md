@@ -21,7 +21,8 @@ Una web para que el público de un cine vea la cartelera y saque sus entradas si
 y para que el cine administre su programación desde el mismo lugar.
 
 El cliente elige película, función y butacas, paga (pago simulado) y recibe una entrada con código QR
-que puede descargar en PDF. Puede hacerlo con una cuenta o sin registrarse.
+que puede descargar en PDF. Puede hacerlo con una cuenta o sin registrarse. Con cuenta, además, suma
+puntos en cada compra y los canjea por entradas o productos del candy bar.
 
 Del otro lado, el administrador carga películas, arma los horarios, administra las salas y los géneros,
 y decide qué se muestra en la cartelera.
@@ -31,9 +32,9 @@ y decide qué se muestra en la cartelera.
 | Rol | Quién es | Qué puede hacer |
 |---|---|---|
 | Visitante | Entra sin cuenta | Ver la cartelera y el detalle de las películas, comprar entradas dejando nombre y email, ver la entrada con el código de compra |
-| Cliente registrado | Se registró con sus datos | Todo lo anterior, más su perfil, su cupón de primera compra, el historial de compras y dejar reseñas |
+| Cliente registrado | Se registró con sus datos | Todo lo anterior, más su perfil, su cupón de primera compra, sus puntos y canjes, el historial de compras y dejar reseñas |
 | Empleado | Personal de puerta y candy bar | Validar los códigos QR del ingreso y entregar los productos del candy bar |
-| Administrador | Personal del cine | Películas, funciones, salas, géneros, candy bar, descuentos, roles de los usuarios y reporte de ventas. También puede validar QR |
+| Administrador | Personal del cine | Películas, funciones, salas, géneros, candy bar, combos, descuentos, puntos, roles de los usuarios y reporte de ventas. También puede validar QR |
 
 ## 3. Pantallas
 
@@ -41,12 +42,12 @@ y decide qué se muestra en la cartelera.
 |---|---|---|
 | Cartelera | Las 3 películas más vendidas arriba y el listado completo, con buscador y filtro por género | Todos |
 | Detalle de película | Sinopsis, duración, restricción de edad, puntaje promedio, reseñas y funciones de los próximos días | Todos |
-| Compra de entradas | Mapa de butacas en tiempo real con la fila accesible, productos del candy bar, resumen con el descuento aplicado y datos de pago | Todos |
+| Compra de entradas | Mapa de butacas en tiempo real con la fila accesible, combos destacados, productos del candy bar, canje de puntos, resumen con el descuento aplicado y datos de pago | Todos |
 | Entrada | Código QR para ingresar y retirar el candy bar, y descarga del PDF | Quien tenga el código de compra |
 | Validar entradas | Lectura del QR con la cámara o a mano, con el estado del ingreso y del candy bar | Empleados y administradores |
 | Ingreso y registro | Cuenta propia; después de ingresar vuelve a la pantalla donde estaba | Solo sin sesión iniciada |
-| Mi perfil | Datos personales, cupón disponible y compras realizadas | Clientes registrados |
-| Administración | Películas, funciones, salas, géneros, candy bar, descuentos, usuarios y reporte de ventas por día | Administradores |
+| Mi perfil | Datos personales, cupón disponible, puntos acumulados con lo que se puede canjear, historial de canjes y compras realizadas | Clientes registrados |
+| Administración | Películas, funciones, salas, géneros, candy bar, combos, descuentos, puntos de cada recompensa, usuarios y reporte de ventas por día | Administradores |
 
 ## 4. Flujo de compra
 
@@ -54,11 +55,11 @@ y decide qué se muestra en la cartelera.
 2. Ve el mapa de la sala con las butacas ya vendidas y elige las suyas (hasta 10 por compra).
    Si otra persona compra una butaca mientras tanto, el mapa la marca como ocupada al instante.
    Si la película tiene restricción de edad y el cliente no llega a la edad, no puede comprar.
-3. Si quiere, suma productos del candy bar: pochoclos, bebidas, golosinas o combos.
-4. Si tiene la sesión iniciada y le corresponde un descuento, aparece en el resumen.
-   Si compra sin cuenta, deja nombre y email.
+3. Si quiere, suma un combo (una entrada con pochoclos y bebida a precio fijo) o productos sueltos del candy bar.
+4. Si tiene la sesión iniciada y le corresponde un descuento, aparece en el resumen. También puede canjear puntos
+   por entradas gratis o por productos que eligió. Si compra sin cuenta, deja nombre y email.
 5. Paga con tarjeta (simulado). El total lo calcula el sistema con los precios de la base, no el navegador.
-6. Recibe la entrada con el código QR y puede descargar el PDF.
+6. Recibe la entrada con el código QR y puede descargar el PDF. Si tiene cuenta, suma 1 punto por cada peso pagado.
 
 En el cine, un empleado escanea ese QR en la puerta y, si la compra tenía productos, otra vez en el candy bar.
 Cada código sirve una sola vez para cada cosa.
@@ -80,6 +81,11 @@ Cada código sirve una sola vez para cada cosa.
 - Las películas son ATP, +13 o +18. Quien no tiene la edad no puede comprar entradas: si está registrado se usa la fecha de nacimiento de su perfil y, si compra sin cuenta, tiene que declararla.
 - Toda entrada de una película +13 o +18 aclara que debe ir un adulto (en pantalla, en el PDF y en la validación del empleado).
 - La fila K ya no existe: su lugar lo ocupa la fila J, accesible para personas con discapacidad, con 2, 10 y 2 butacas.
+- Los usuarios registrados suman 1 punto por cada peso que pagan (con el descuento ya restado). Lo canjeado con puntos no suma puntos.
+- Los puntos se canjean al comprar, por entradas gratis o por productos del candy bar de esa compra, al costo que fija el administrador. Solo se puede usar el saldo disponible.
+- Los puntos no se pueden transferir: solo el sistema los suma o descuenta, siempre en una compra del mismo usuario.
+- Un combo trae una entrada y ciertos productos a un precio fijo. Cada combo usa una de las butacas elegidas y los descuentos no se le aplican.
+- Un combo inactivo, o con algún producto sin stock, no se vende.
 - El precio y el descuento se resuelven en el servidor: no se pueden alterar desde el navegador.
 - La entrada de una compra sin cuenta se recupera con el código de compra, que no es adivinable.
 
@@ -172,13 +178,13 @@ Referencias: `[x]` implementado · `[ ]` pendiente.
 
 ### Email 8 · 03/03/2020 · Fidelización y combos
 
-- [ ] 1 punto por cada peso gastado (usuarios registrados)
-- [ ] Canje de puntos por entradas o productos del candy bar
-- [ ] El admin configura cuántos puntos cuesta cada recompensa
-- [ ] El perfil muestra los puntos acumulados y el historial de canjes
-- [ ] Los puntos no se pueden transferir
-- [ ] Combos (entrada + pochoclos + bebida) a precio fijo configurable
-- [ ] Combos destacados en la página de compra
+- [x] 1 punto por cada peso gastado (usuarios registrados)
+- [x] Canje de puntos por entradas o productos del candy bar
+- [x] El admin configura cuántos puntos cuesta cada recompensa (pestaña Puntos)
+- [x] El perfil muestra los puntos acumulados y el historial de canjes
+- [x] Los puntos no se pueden transferir
+- [x] Combos (entrada + pochoclos + bebida) a precio fijo configurable (pestaña Combos)
+- [x] Combos destacados en la página de compra
 
 ### Email 9 · 08/03/2020 · Próximamente, preventa y Mis películas
 
@@ -231,6 +237,11 @@ Puntos que los emails no definen y cómo se resolvieron:
 | Reporte de ventas | Cada compra cuenta en el día (de Argentina) en que se hizo, no en el de la función. "Facturado" es lo que pagó el cliente: entradas y candy bar, con el descuento ya restado. El período se elige con botones (7 días, 30 días, este mes, mes anterior). |
 | Menos scroll | El detalle muestra las funciones de un día por vez, con botones para cambiar de día; las reseñas, de a tres; el candy bar, una categoría por vez; y el reporte oculta los días sin ventas salvo que se pidan. |
 | Pantalla inicial del empleado | Al ingresar, un empleado va directo a validar entradas, que es lo que usa. Los demás vuelven a la cartelera o a la pantalla donde estaban. |
+| Cómo se suman los puntos | 1 punto por cada peso que se pagó, con el descuento ya restado, incluidos combos y candy bar. Se acreditan en el momento de la compra. Las compras sin cuenta no suman. |
+| Cuándo se canjean | En la pantalla de compra, antes de pagar: entradas gratis (cualquier butaca de esa función) y unidades de los productos que se están comprando. Lo que se paga con puntos no suma puntos. |
+| Qué se puede canjear | La entrada gratis (500 puntos, configurable) y los productos del candy bar a los que el admin les pone un costo en puntos. Los combos no se canjean con puntos. |
+| Combos | Traen siempre una entrada, sirven para cualquier función y su precio es fijo aunque la entrada cueste más o menos. Los descuentos de cupón y edad no se aplican al combo, solo a las entradas que se pagan aparte. |
+| Borrar un combo o un producto | Un combo que ya se vendió no se borra: se desactiva. Un producto que está en un combo tampoco se borra mientras siga en el combo. |
 | "Debe ir un adulto" | Se imprime en toda entrada de una película +13 o +18, como pide el email, y el empleado lo ve al validar. |
 | Tiempo real | El mapa marca al instante las butacas de las compras confirmadas por otras personas. Si una de ellas estaba elegida, se quita de la selección y se avisa. Las butacas que otra persona está eligiendo sin pagar no se bloquean. |
 

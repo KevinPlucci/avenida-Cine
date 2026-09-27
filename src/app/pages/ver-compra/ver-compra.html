@@ -43,14 +43,28 @@
           </div>
         </div>
 
-        @if (c.productos.length) {
+        @if (c.productos.length || c.combos.length) {
           <div class="candy">
             <span class="etiqueta">Candy bar</span>
             <ul>
+              @for (combo of c.combos; track combo.nombre) {
+                <li>
+                  <span>
+                    {{ combo.cantidad }} × {{ combo.nombre }}
+                    <small class="meta contenido">{{ combo.contenido }}</small>
+                  </span>
+                  <span>{{ combo.cantidad * combo.precio_unitario | currency }}</span>
+                </li>
+              }
               @for (producto of c.productos; track producto.nombre) {
                 <li>
-                  <span>{{ producto.cantidad }} × {{ producto.nombre }}</span>
-                  <span>{{ producto.cantidad * producto.precio_unitario | currency }}</span>
+                  <span>
+                    {{ producto.cantidad }} × {{ producto.nombre }}
+                    @if (producto.canjeados) {
+                      ({{ producto.canjeados }} con puntos)
+                    }
+                  </span>
+                  <span>{{ (producto.cantidad - producto.canjeados) * producto.precio_unitario | currency }}</span>
                 </li>
               }
             </ul>
@@ -67,9 +81,17 @@
         <dl class="datos">
           <dt>Comprador</dt>
           <dd>{{ c.nombre }} ({{ c.email }})</dd>
-          @if (c.descuento > 0 || c.subtotal_productos > 0) {
+          @if (c.descuento > 0 || c.subtotal_productos > 0 || c.subtotal_combos > 0 || c.entradas_canjeadas > 0) {
             <dt>Entradas</dt>
             <dd>{{ c.subtotal | currency }}</dd>
+          }
+          @if (c.entradas_canjeadas > 0) {
+            <dt>Con puntos</dt>
+            <dd>{{ c.entradas_canjeadas }} {{ c.entradas_canjeadas === 1 ? 'entrada gratis' : 'entradas gratis' }}</dd>
+          }
+          @if (c.subtotal_combos > 0) {
+            <dt>Combos</dt>
+            <dd>{{ c.subtotal_combos | currency }}</dd>
           }
           @if (c.subtotal_productos > 0) {
             <dt>Candy bar</dt>
@@ -83,6 +105,14 @@
           <dd>
             <strong>{{ c.total | currency }}</strong>
           </dd>
+          @if (c.puntos_usados > 0) {
+            <dt>Puntos usados</dt>
+            <dd>{{ c.puntos_usados | number }}</dd>
+          }
+          @if (c.puntos_ganados > 0) {
+            <dt>Puntos sumados</dt>
+            <dd>{{ c.puntos_ganados | number }}</dd>
+          }
           <dt>Comprada el</dt>
           <dd>{{ c.fecha_compra | date: 'dd/MM/yyyy HH:mm' }}</dd>
         </dl>

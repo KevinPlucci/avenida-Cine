@@ -1,4 +1,4 @@
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -6,9 +6,12 @@ import { AuthService } from '../../core/auth/auth.service';
 import { MAX_BUTACAS_POR_COMPRA, MAX_UNIDADES_POR_PRODUCTO, PORCENTAJE_CUPON_BIENVENIDA } from '../../core/constantes';
 import { Beneficios, Comprador } from '../../core/models/compra';
 import { FuncionConDetalle } from '../../core/models/funcion';
-import { CategoriaConProductos, ItemCarrito, Producto } from '../../core/models/producto';
+import { CategoriaConProductos, Combo, contenidoCombo, ItemCarrito, ItemCombo, Producto } from '../../core/models/producto';
+import { Canje, Recompensa } from '../../core/models/puntos';
+import { CombosService } from '../../core/services/combos.service';
 import { ComprasService } from '../../core/services/compras.service';
 import { CuponesService } from '../../core/services/cupones.service';
+import { PuntosService } from '../../core/services/puntos.service';
 import { FuncionesService } from '../../core/services/funciones.service';
 import { ProductosService } from '../../core/services/productos.service';
 import { esAccesible, FILA_ACCESIBLE } from '../../core/utils/butacas';
@@ -27,6 +30,7 @@ import { edadMinimaValidator, fechaNacimientoValidator, vencimientoTarjetaValida
     RouterLink,
     DatePipe,
     CurrencyPipe,
+    DecimalPipe,
     ReactiveFormsModule,
     IdiomaPipe,
     RestriccionPipe,
@@ -43,6 +47,8 @@ export class ComprarEntradas implements OnInit {
   private readonly comprasService = inject(ComprasService);
   private readonly productosService = inject(ProductosService);
   private readonly cuponesService = inject(CuponesService);
+  private readonly combosService = inject(CombosService);
+  private readonly puntosService = inject(PuntosService);
   private readonly router = inject(Router);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly destroyRef = inject(DestroyRef);
@@ -82,6 +88,32 @@ export class ComprarEntradas implements OnInit {
   /** Si el catálogo no carga se avisa, pero se pueden comprar las entradas igual. */
   protected readonly candyNoDisponible = signal(false);
 
+  // Combos (email 03/03): cantidad elegida de cada uno. Cada combo usa una de las butacas elegidas.
+  protected readonly combos = signal<Combo[]>([]);
+  protected readonly combosElegidos = signal<Record<number, number>>({});
+  protected readonly contenidoCombo = contenidoCombo;
+  protected readonly lineasCombos = computed(() =>
+    this.combos()
+      .filter((combo) => this.cantidadCombo(combo) > 0)
+      .map((combo) => ({ combo, cantidad: this.cantidadCombo(combo) })),
+  );
+  protected readonly totalCombos = computed(() => this.lineasCombos().reduce((total, linea) => total + linea.cantidad, 0));
+  protected readonly subtotalCombos = computed(() =>
+    this.lineasCombos().reduce((total, linea) => total + linea.combo.precio * linea.cantidad, 0),
+  );
+
+  // Programa de puntos (email 03/03): saldo del usuario y lo que elige canjear en esta compra.
+  protected readonly saldoPuntos = signal<number | null>(null);
+  protected readonly recompensas = signal<Recompensa[]>([]);
+  protected readonly entradasConPuntos = signal(0);
+  protected readonly productosConPuntos = signal<Record<number, number>>({});
+  protected readonly puntosEntrada = computed(
+    () => this.recompensas().find((r) => r.tipo === 'entrada' && r.activa)?.puntos ?? null,
+  );
+  private readonly puntosPorProducto = computed(
+    () => new Map(this.recompensas().filter((r) => r.producto_id && r.activa).map((r) => [r.producto_id!, r.puntos])),
+  );
+
   /** Edad mínima de la película (email 12/02): 0 es apta para todo público. */
   protected readonly restriccion = computed(() => this.funcion()?.pelicula?.restriccion_edad ?? 0);
   /** Un usuario registrado menor de la edad indicada no puede comprar: se avisa antes de elegir butacas. */
@@ -112,10 +144,38 @@ export class ComprarEntradas implements OnInit {
     })),
   );
 
+  /** Productos del carrito que se pueden pagar con puntos. */
+  protected readonly lineasCanjeables = computed(() =>
+    this.lineas()
+      .filter((linea) => this.puntosPorProducto().has(linea.producto.id))
+      .map((linea) => ({ ...linea, puntos: this.puntosPorProducto().get(linea.producto.id)! })),
+  );
+  protected readonly puedeCanjear = computed(
+    () => this.saldoPuntos() !== null && (this.puntosEntrada() !== null || this.lineasCanjeables().length > 0),
+  );
+  protected readonly puntosUsados = computed(
+    () =>
+      this.entradasConPuntos() * (this.puntosEntrada() ?? 0) +
+      Object.entries(this.productosConPuntos()).reduce(
+        (total, [id, cantidad]) => total + cantidad * (this.puntosPorProducto().get(Number(id)) ?? 0),
+        0,
+      ),
+  );
+  protected readonly puntosRestantes = computed(() => (this.saldoPuntos() ?? 0) - this.puntosUsados());
+
+  /** Butacas que todavía no van en un combo ni se canjean con puntos. */
+  protected readonly butacasLibres = computed(
+    () => this.seleccionadas().length - this.totalCombos() - this.entradasConPuntos(),
+  );
+  protected readonly entradasPagas = computed(() => Math.max(this.butacasLibres(), 0));
+
   // El total que se muestra es orientativo: el importe real lo calcula la base al confirmar.
-  protected readonly subtotal = computed(() => (this.funcion()?.precio ?? 0) * this.seleccionadas().length);
+  protected readonly subtotal = computed(() => (this.funcion()?.precio ?? 0) * this.entradasPagas());
   protected readonly subtotalProductos = computed(() =>
-    this.lineas().reduce((suma, linea) => suma + linea.producto.precio * linea.cantidad, 0),
+    this.lineas().reduce(
+      (suma, linea) => suma + linea.producto.precio * (linea.cantidad - this.canjeados(linea.producto)),
+      0,
+    ),
   );
 
   /** Los dos descuentos no se acumulan: se aplica el más alto (la base hace el mismo cálculo). */
@@ -136,9 +196,13 @@ export class ComprarEntradas implements OnInit {
   });
 
   protected readonly porcentajeDescuento = computed(() => this.descuentoAplicado()?.porcentaje ?? 0);
-  /** El descuento se aplica solo sobre las entradas, no sobre el candy bar. */
+  /** El descuento se aplica solo sobre las entradas que se pagan aparte, no sobre combos ni candy bar. */
   protected readonly descuento = computed(() => Math.round(this.subtotal() * this.porcentajeDescuento()) / 100);
-  protected readonly total = computed(() => this.subtotal() + this.subtotalProductos() - this.descuento());
+  protected readonly total = computed(
+    () => this.subtotal() + this.subtotalProductos() + this.subtotalCombos() - this.descuento(),
+  );
+  /** 1 punto por cada peso pagado, solo con cuenta (la base hace el mismo cálculo). */
+  protected readonly puntosAGanar = computed(() => (this.auth.logueado() ? Math.floor(this.total()) : 0));
 
   protected readonly form = this.fb.group({
     comprador: this.fb.group({
@@ -166,10 +230,11 @@ export class ComprarEntradas implements OnInit {
     try {
       await this.auth.esperarSesion();
       // El candy bar es opcional: si no carga, igual se pueden comprar las entradas.
-      const [funcion, ocupadas, categorias] = await Promise.all([
+      const [funcion, ocupadas, categorias, combos] = await Promise.all([
         this.funcionesService.obtener(id),
         this.comprasService.butacasOcupadas(id),
         this.productosService.disponiblesPorCategoria().catch(() => null),
+        this.combosService.disponibles().catch(() => [] as Combo[]),
       ]);
       if (!funcion?.pelicula) {
         this.error.set('La función no existe o la película ya no está en cartelera.');
@@ -187,6 +252,7 @@ export class ComprarEntradas implements OnInit {
       } else {
         this.candyNoDisponible.set(true);
       }
+      this.combos.set(combos);
 
       const nacimiento = this.form.controls.comprador.controls.nacimiento;
       if (this.restriccion() > 0) {
@@ -198,7 +264,15 @@ export class ComprarEntradas implements OnInit {
       if (this.auth.logueado()) {
         // Los datos del comprador se toman del perfil.
         this.form.controls.comprador.disable();
-        this.beneficios.set(await this.comprasService.misBeneficios());
+        const [beneficios, puntos, recompensas] = await Promise.all([
+          this.comprasService.misBeneficios(),
+          // Si los puntos no cargan, se puede comprar igual: solo no se ofrece el canje.
+          this.puntosService.misPuntos().catch(() => null),
+          this.puntosService.recompensas().catch(() => [] as Recompensa[]),
+        ]);
+        this.beneficios.set(beneficios);
+        this.saldoPuntos.set(puntos?.saldo ?? null);
+        this.recompensas.set(recompensas);
       } else {
         const regla = await this.cuponesService.obtenerRegla('primera_compra');
         if (regla?.activo) this.porcentajeBienvenida.set(regla.porcentaje);
@@ -215,6 +289,7 @@ export class ComprarEntradas implements OnInit {
     this.seleccionadas.set(butacas);
     this.avisoLimite.set(0);
     this.butacasPerdidas.set([]);
+    this.ajustarACantidades();
   }
 
   /** Marca al instante las butacas que compra otra persona y deja de escuchar al salir de la pantalla. */
@@ -240,7 +315,59 @@ export class ComprarEntradas implements OnInit {
     if (perdidas.length) {
       this.seleccionadas.update((butacas) => butacas.filter((b) => !ocupadas.has(b)));
       this.butacasPerdidas.set(perdidas);
+      this.ajustarACantidades();
     }
+  }
+
+  /**
+   * Si se quitan butacas o productos, los combos y los canjes no pueden quedar por encima:
+   * primero se quitan las entradas con puntos y después los combos.
+   */
+  private ajustarACantidades(): void {
+    let sobrantes = -this.butacasLibres();
+    if (sobrantes > 0) {
+      const quitar = Math.min(sobrantes, this.entradasConPuntos());
+      this.entradasConPuntos.update((n) => n - quitar);
+      sobrantes -= quitar;
+    }
+    if (sobrantes > 0) {
+      const elegidos = { ...this.combosElegidos() };
+      for (const id of Object.keys(elegidos)) {
+        const quitar = Math.min(sobrantes, elegidos[Number(id)]);
+        elegidos[Number(id)] -= quitar;
+        sobrantes -= quitar;
+      }
+      this.combosElegidos.set(elegidos);
+    }
+    this.productosConPuntos.update((canje) =>
+      Object.fromEntries(Object.entries(canje).map(([id, n]) => [id, Math.min(n, this.carrito()[Number(id)] ?? 0)])),
+    );
+  }
+
+  protected cantidadCombo(combo: Combo): number {
+    return this.combosElegidos()[combo.id] ?? 0;
+  }
+
+  protected sumarCombo(combo: Combo, paso: number): void {
+    if (paso > 0 && this.butacasLibres() <= 0) return;
+    const cantidad = Math.max(this.cantidadCombo(combo) + paso, 0);
+    this.combosElegidos.update((actual) => ({ ...actual, [combo.id]: cantidad }));
+  }
+
+  protected sumarEntradaConPuntos(paso: number): void {
+    if (paso > 0 && (this.butacasLibres() <= 0 || this.puntosRestantes() < (this.puntosEntrada() ?? 0))) return;
+    this.entradasConPuntos.update((n) => Math.max(n + paso, 0));
+  }
+
+  protected canjeados(producto: Producto): number {
+    return this.productosConPuntos()[producto.id] ?? 0;
+  }
+
+  protected sumarCanjeProducto(producto: Producto, paso: number): void {
+    const puntos = this.puntosPorProducto().get(producto.id) ?? 0;
+    const cantidad = this.canjeados(producto) + paso;
+    if (cantidad < 0 || cantidad > this.cantidad(producto) || (paso > 0 && this.puntosRestantes() < puntos)) return;
+    this.productosConPuntos.update((actual) => ({ ...actual, [producto.id]: cantidad }));
   }
 
   /** Unidades elegidas de una categoría, para mostrarlas en su botón. */
@@ -255,10 +382,13 @@ export class ComprarEntradas implements OnInit {
   protected sumar(producto: Producto, paso: number): void {
     const cantidad = Math.min(Math.max(this.cantidad(producto) + paso, 0), MAX_UNIDADES_POR_PRODUCTO);
     this.carrito.update((actual) => ({ ...actual, [producto.id]: cantidad }));
+    this.ajustarACantidades();
   }
 
   protected vaciarCarrito(): void {
     this.carrito.set({});
+    this.combosElegidos.set({});
+    this.ajustarACantidades();
   }
 
   protected async confirmar(): Promise<void> {
@@ -284,11 +414,20 @@ export class ComprarEntradas implements OnInit {
     }
     this.procesando.set(true);
     try {
+      const combos: ItemCombo[] = this.lineasCombos().map(({ combo, cantidad }) => ({ combo_id: combo.id, cantidad }));
+      const canje: Canje = {
+        entradas: this.entradasConPuntos(),
+        productos: Object.entries(this.productosConPuntos())
+          .filter(([, cantidad]) => cantidad > 0)
+          .map(([id, cantidad]) => ({ producto_id: Number(id), cantidad })),
+      };
       const codigo = await this.comprasService.comprar(
         funcionId,
         this.seleccionadas(),
         comprador,
         this.items(),
+        combos,
+        canje,
       );
       await this.router.navigate(['/compras', codigo], { state: { recienComprada: true } });
     } catch (e) {
