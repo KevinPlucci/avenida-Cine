@@ -73,6 +73,7 @@ const FILTROS: { valor: TipoActividad | null; etiqueta: string }[] = [
     </div>
   `,
   styles: `
+    .tarjeta > .meta { margin-bottom: 10px; }
     .fecha { white-space: nowrap; font-variant-numeric: tabular-nums; }
   `,
 })
@@ -99,7 +100,9 @@ export class AdminActividad implements OnInit {
     this.cargando.set(true);
     this.error.set('');
     try {
-      this.lineas.set(await this.actividadService.ultimas(this.tipo(), CANTIDAD));
+      // Espacio duro entre "$" y el número, para que un importe no quede cortado en dos renglones.
+      const lineas = await this.actividadService.ultimas(this.tipo(), CANTIDAD);
+      this.lineas.set(lineas.map((linea) => ({ ...linea, detalle: linea.detalle.replaceAll('$ ', '$\u00a0') })));
     } catch (e) {
       this.lineas.set([]);
       this.error.set(mensajeError(e));
