@@ -15,13 +15,14 @@ export class CarteleraService {
   private readonly api = `${environment.supabaseUrl}/rest/v1`;
   private readonly headers = new HttpHeaders({ apikey: environment.supabaseAnonKey });
 
-  /** Películas en cartelera con su puntaje promedio y la cantidad de entradas vendidas. */
+  /** Películas visibles (las estrenadas y las de Próximamente) con su puntaje y las entradas vendidas. */
   obtenerCartelera(): Observable<PeliculaCartelera[]> {
     return forkJoin({
       peliculas: this.http.get<Pelicula[]>(`${this.api}/peliculas`, {
         headers: this.headers,
         params: {
-          select: 'id,titulo,sinopsis,duracion_min,imagen_url,en_cartelera,restriccion_edad,generos(id,nombre)',
+          select:
+            'id,titulo,sinopsis,duracion_min,imagen_url,en_cartelera,restriccion_edad,fecha_estreno,precio_preventa,generos(id,nombre)',
           en_cartelera: 'eq.true',
           order: 'titulo',
         },

@@ -1,5 +1,5 @@
-import { CurrencyPipe, DatePipe, DecimalPipe, PercentPipe } from '@angular/common';
-import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { CurrencyPipe, DatePipe, DecimalPipe, formatDate, PercentPipe } from '@angular/common';
+import { Component, computed, DestroyRef, inject, LOCALE_ID, OnInit, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
@@ -16,6 +16,7 @@ import { FuncionesService } from '../../core/services/funciones.service';
 import { ProductosService } from '../../core/services/productos.service';
 import { esAccesible, FILA_ACCESIBLE } from '../../core/utils/butacas';
 import { mensajeError } from '../../core/utils/errores';
+import { estadoVenta } from '../../core/utils/estreno';
 import { aniosHastaHoy, DIAS_DEL_MES, edadCumplida, fechaDeListas, MESES } from '../../core/utils/fechas';
 import { Contador } from '../../shared/components/contador';
 import { ErrorCampo } from '../../shared/components/error-campo';
@@ -55,6 +56,7 @@ export class ComprarEntradas implements OnInit {
   private readonly router = inject(Router);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly locale = inject(LOCALE_ID);
   protected readonly auth = inject(AuthService);
 
   protected readonly maximo = MAX_BUTACAS_POR_COMPRA;
@@ -117,6 +119,15 @@ export class ComprarEntradas implements OnInit {
     () => new Map(this.recompensas().filter((r) => r.producto_id && r.activa).map((r) => [r.producto_id!, r.puntos])),
   );
 
+  /** Preventa (email 08/03): hasta el estreno todas las entradas se cobran al precio de preventa. */
+  protected readonly enPreventa = computed(() => {
+    const pelicula = this.funcion()?.pelicula;
+    return !!pelicula && estadoVenta(pelicula).enPreventa;
+  });
+  protected readonly precioEntrada = computed(() =>
+    this.enPreventa() ? (this.funcion()?.pelicula?.precio_preventa ?? 0) : (this.funcion()?.precio ?? 0),
+  );
+
   /** Edad mínima de la película (email 12/02): 0 es apta para todo público. */
   protected readonly restriccion = computed(() => this.funcion()?.pelicula?.restriccion_edad ?? 0);
   /** Un usuario registrado menor de la edad indicada no puede comprar: se avisa antes de elegir butacas. */
@@ -177,7 +188,7 @@ export class ComprarEntradas implements OnInit {
   protected readonly entradasPagas = computed(() => Math.max(this.butacasLibres(), 0));
 
   // El total que se muestra es orientativo: el importe real lo calcula la base al confirmar.
-  protected readonly subtotal = computed(() => (this.funcion()?.precio ?? 0) * this.entradasPagas());
+  protected readonly subtotal = computed(() => this.precioEntrada() * this.entradasPagas());
   protected readonly subtotalProductos = computed(() =>
     this.lineas().reduce(
       (suma, linea) => suma + linea.producto.precio * (linea.cantidad - this.canjeados(linea.producto)),
@@ -249,6 +260,12 @@ export class ComprarEntradas implements OnInit {
       }
       if (new Date(funcion.inicio) <= new Date()) {
         this.error.set('Esta función ya comenzó. Elegí otro horario.');
+        return;
+      }
+      const venta = estadoVenta(funcion.pelicula);
+      if (!venta.ventaAbierta) {
+        const apertura = formatDate(venta.apertura!, "EEEE d 'de' MMMM", this.locale);
+        this.error.set(`Las entradas para esta película salen a la venta el ${apertura}.`);
         return;
       }
       this.funcion.set(funcion);

@@ -1,4 +1,5 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ConCambiosSinGuardar } from '../../core/auth/auth.guards';
@@ -7,14 +8,23 @@ import { RESTRICCIONES_EDAD, RestriccionEdad } from '../../core/models/pelicula'
 import { GenerosService } from '../../core/services/generos.service';
 import { PeliculasService } from '../../core/services/peliculas.service';
 import { mensajeError } from '../../core/utils/errores';
+import { DIAS_DE_PREVENTA } from '../../core/utils/estreno';
+import { DIAS_DEL_MES, fechaDeListas, MESES } from '../../core/utils/fechas';
 import { ErrorCampo } from '../../shared/components/error-campo';
+import { fechaOpcionalValidator } from '../../shared/validators';
 
 const TAMANIO_MAXIMO_POSTER = 2 * 1024 * 1024;
+/** Años para la fecha de estreno: el anterior, el actual y los dos siguientes. */
+const ANIOS_ESTRENO = Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - 1 + i);
 
 @Component({
   selector: 'app-pelicula-form',
   imports: [ReactiveFormsModule, RouterLink, ErrorCampo],
   templateUrl: './pelicula-form.html',
+  styles: `
+    .fecha { display: grid; grid-template-columns: 1fr 2fr 1.4fr; gap: 8px; max-width: 360px; }
+    fieldset > .meta { margin-bottom: 12px; }
+  `,
 })
 export class PeliculaForm implements OnInit, ConCambiosSinGuardar {
   private readonly peliculasService = inject(PeliculasService);
@@ -26,6 +36,10 @@ export class PeliculaForm implements OnInit, ConCambiosSinGuardar {
   protected readonly id = inject(ActivatedRoute).snapshot.paramMap.get('id');
 
   protected readonly restricciones = RESTRICCIONES_EDAD;
+  protected readonly dias = DIAS_DEL_MES;
+  protected readonly meses = MESES;
+  protected readonly anios = ANIOS_ESTRENO;
+  protected readonly diasPreventa = DIAS_DE_PREVENTA;
   protected readonly generos = signal<Genero[]>([]);
   protected readonly cargando = signal(true);
   protected readonly guardando = signal(false);
@@ -41,8 +55,32 @@ export class PeliculaForm implements OnInit, ConCambiosSinGuardar {
     imagen_url: ['', [Validators.required, Validators.pattern(/^https?:\/\/\S+$/)]],
     en_cartelera: [true],
     restriccion_edad: this.fb.control<RestriccionEdad>(0),
+    // Estreno y preventa (email 08/03): la fecha con tres listas, sin calendario (email 28/02).
+    estreno: this.fb.group({ dia: [''], mes: [''], anio: [''] }, { validators: fechaOpcionalValidator }),
+    preventa: [false],
+    precio_preventa: this.fb.control<number | null>({ value: null, disabled: true }, [
+      Validators.required,
+      Validators.min(0),
+    ]),
     generos: this.fb.control<number[]>([], Validators.required),
   });
+
+  constructor() {
+    // El precio de preventa se pide solo si la película tiene preventa.
+    this.form.controls.preventa.valueChanges.pipe(takeUntilDestroyed()).subscribe((preventa) => {
+      const precio = this.form.controls.precio_preventa;
+      if (preventa) {
+        precio.enable();
+      } else {
+        precio.disable();
+      }
+    });
+  }
+
+  /** La preventa necesita una fecha de estreno. */
+  protected sinFechaParaPreventa(): boolean {
+    return this.form.controls.preventa.value && !this.form.controls.estreno.controls.dia.value;
+  }
 
   async ngOnInit(): Promise<void> {
     try {
@@ -53,6 +91,7 @@ export class PeliculaForm implements OnInit, ConCambiosSinGuardar {
           this.error.set('La película no existe.');
           return;
         }
+        const [anio, mes, dia] = pelicula.fecha_estreno?.split('-').map(Number) ?? [];
         this.form.setValue({
           titulo: pelicula.titulo,
           sinopsis: pelicula.sinopsis,
@@ -60,6 +99,9 @@ export class PeliculaForm implements OnInit, ConCambiosSinGuardar {
           imagen_url: pelicula.imagen_url,
           en_cartelera: pelicula.en_cartelera,
           restriccion_edad: pelicula.restriccion_edad,
+          estreno: { dia: dia ? String(dia) : '', mes: mes ? String(mes) : '', anio: anio ? String(anio) : '' },
+          preventa: pelicula.precio_preventa !== null,
+          precio_preventa: pelicula.precio_preventa,
           generos: pelicula.generos.map((g) => g.id),
         });
       }
@@ -113,12 +155,13 @@ export class PeliculaForm implements OnInit, ConCambiosSinGuardar {
 
   protected async guardar(): Promise<void> {
     this.error.set('');
-    if (this.form.invalid) {
+    if (this.form.invalid || this.sinFechaParaPreventa()) {
       this.form.markAllAsTouched();
       return;
     }
 
-    const { generos, duracion_min, titulo, sinopsis, imagen_url, en_cartelera, restriccion_edad } = this.form.getRawValue();
+    const { generos, duracion_min, titulo, sinopsis, imagen_url, en_cartelera, restriccion_edad, estreno, preventa } =
+      this.form.getRawValue();
     this.guardando.set(true);
     try {
       await this.peliculasService.guardar(
@@ -130,6 +173,8 @@ export class PeliculaForm implements OnInit, ConCambiosSinGuardar {
           imagen_url,
           en_cartelera,
           restriccion_edad,
+          fecha_estreno: estreno.dia ? fechaDeListas(estreno.dia, estreno.mes, estreno.anio) : null,
+          precio_preventa: preventa ? this.form.controls.precio_preventa.value : null,
         },
         generos,
       );

@@ -1,16 +1,17 @@
 import { AsyncPipe } from '@angular/common';
 import { Component, inject } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { RouterLink, RouterOutlet } from '@angular/router';
 import { SwUpdate, VersionReadyEvent } from '@angular/service-worker';
 import { filter, map, Observable, of } from 'rxjs';
 import { NOMBRE_CINE } from './core/constantes';
 import { EstadoRedService } from './core/http/estado-red.service';
+import { AlertasService } from './core/services/alertas.service';
 import { SupabaseService } from './core/supabase.service';
 import { Header } from './shared/components/header';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, Header, AsyncPipe],
+  imports: [RouterOutlet, RouterLink, Header, AsyncPipe],
   templateUrl: './app.html',
   styles: `
     /* El pie queda al final de la ventana aunque la pantalla tenga poco contenido */
@@ -31,6 +32,8 @@ export class App {
   private readonly swUpdate = inject(SwUpdate);
 
   protected readonly estadoRed = inject(EstadoRedService);
+  /** Alertas de estreno que ya se pueden avisar (email 08/03). */
+  protected readonly alertas = inject(AlertasService);
   protected readonly nombreCine = NOMBRE_CINE;
   protected readonly supabaseConfigurado = inject(SupabaseService).configurado;
 

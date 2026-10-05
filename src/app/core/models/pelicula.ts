@@ -16,6 +16,10 @@ export interface Pelicula {
   imagen_url: string;
   en_cartelera: boolean;
   restriccion_edad: RestriccionEdad;
+  /** Email 08/03: AAAA-MM-DD. Null si ya está en cartelera; con fecha futura va en "Próximamente". */
+  fecha_estreno: string | null;
+  /** Precio de las entradas en la preventa (7 días antes del estreno). Null si no tiene preventa. */
+  precio_preventa: number | null;
   generos: Genero[];
 }
 
@@ -33,3 +37,22 @@ export interface VentasPelicula {
 }
 
 export type PeliculaGuardar = Omit<Pelicula, 'id' | 'generos'>;
+
+/** Alerta de estreno que ya se puede avisar (respuesta de avisar_alertas, email 08/03). */
+export interface AlertaDisponible {
+  pelicula_id: number;
+  titulo: string;
+  /** La venta abrió con la preventa. */
+  preventa: boolean;
+}
+
+/** Película que vio el usuario (respuesta de mis_peliculas, email 08/03). */
+export interface PeliculaVista {
+  pelicula_id: number;
+  titulo: string;
+  imagen_url: string;
+  /** Inicio de cada función que vio, de la más reciente a la más vieja. */
+  fechas: string[];
+  /** Calificación de su reseña (null si todavía no la calificó). */
+  estrellas: number | null;
+}

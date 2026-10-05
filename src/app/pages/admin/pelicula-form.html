@@ -80,9 +80,55 @@
         <app-error-campo [control]="form.controls.generos" />
       </div>
 
+      <fieldset>
+        <legend>Estreno y preventa</legend>
+        <div class="campo" formGroupName="estreno">
+          <span>Fecha de estreno (vacía si ya está en cartelera)</span>
+          <div class="fecha">
+            <select formControlName="dia" aria-label="Día del estreno">
+              <option value="">Día</option>
+              @for (dia of dias; track dia) {
+                <option [value]="dia">{{ dia }}</option>
+              }
+            </select>
+            <select formControlName="mes" aria-label="Mes del estreno">
+              <option value="">Mes</option>
+              @for (mes of meses; track $index) {
+                <option [value]="$index + 1">{{ mes }}</option>
+              }
+            </select>
+            <select formControlName="anio" aria-label="Año del estreno">
+              <option value="">Año</option>
+              @for (anio of anios; track anio) {
+                <option [value]="anio">{{ anio }}</option>
+              }
+            </select>
+          </div>
+          <app-error-campo [control]="form.controls.estreno" />
+        </div>
+        <label class="check">
+          <input type="checkbox" formControlName="preventa" />
+          Preventa: vender desde {{ diasPreventa }} días antes del estreno a un precio especial
+        </label>
+        @if (form.controls.preventa.value) {
+          <label class="campo campo-corto">
+            <span>Precio de preventa por entrada</span>
+            <input type="number" formControlName="precio_preventa" min="0" />
+            <app-error-campo [control]="form.controls.precio_preventa" />
+          </label>
+          @if (sinFechaParaPreventa() && form.controls.estreno.touched) {
+            <small class="error-texto">Para tener preventa, la película necesita una fecha de estreno.</small>
+          }
+        }
+        <p class="meta">
+          Con una fecha futura la película aparece en "Próximamente". La venta abre el día del estreno o, con preventa,
+          {{ diasPreventa }} días antes. Desde el estreno se cobra el precio de cada función.
+        </p>
+      </fieldset>
+
       <label class="check">
         <input type="checkbox" formControlName="en_cartelera" />
-        Mostrar en la cartelera
+        Mostrar en la cartelera (o en "Próximamente" si todavía no se estrenó)
       </label>
 
       @if (error()) {

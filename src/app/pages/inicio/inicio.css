@@ -33,3 +33,56 @@
 .resultado {
   margin: 12px 0 14px;
 }
+
+/* Próximamente (email 08/03): tarjeta con póster, fecha de estreno, preventa y alerta */
+.estreno {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: var(--sombra);
+}
+
+.estreno-poster {
+  display: block;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  background: #2b2a29;
+}
+
+.estreno-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.estreno-cuerpo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 10px 12px 14px;
+}
+
+.estreno h3 {
+  margin: 0;
+  font: 500 1.08rem/1.25 var(--fuente-titulos);
+}
+
+.estreno h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.fecha-estreno,
+.preventa {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.preventa {
+  color: var(--color-primario);
+}

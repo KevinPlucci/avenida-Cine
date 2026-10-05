@@ -1,18 +1,22 @@
-import { DatePipe, NgTemplateOutlet } from '@angular/common';
+import { CurrencyPipe, DatePipe, NgTemplateOutlet } from '@angular/common';
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { debounceTime, map } from 'rxjs';
 import { CarteleraService } from '../../core/services/cartelera.service';
 import { PeliculaCartelera } from '../../core/models/pelicula';
 import { Genero } from '../../core/models/genero';
 import { mensajeError } from '../../core/utils/errores';
+import { estadoVenta, hoyArgentina } from '../../core/utils/estreno';
 import { normalizar } from '../../core/utils/texto';
+import { BotonAlerta } from '../../shared/components/boton-alerta';
 import { PeliculaCard } from '../../shared/components/pelicula-card';
+import { ImagenRespaldoDirective } from '../../shared/directives/imagen-respaldo.directive';
 
 @Component({
   selector: 'app-inicio',
-  imports: [ReactiveFormsModule, DatePipe, NgTemplateOutlet, PeliculaCard],
+  imports: [ReactiveFormsModule, RouterLink, DatePipe, CurrencyPipe, NgTemplateOutlet, PeliculaCard, BotonAlerta, ImagenRespaldoDirective],
   templateUrl: './inicio.html',
   styleUrl: './inicio.css',
 })
@@ -31,9 +35,21 @@ export class Inicio implements OnInit {
   });
   protected readonly generosElegidos = signal<number[]>([]);
 
+  /** Email 08/03: las películas que todavía no se estrenaron van en "Próximamente", ordenadas por fecha. */
+  private readonly hoyIso = hoyArgentina();
+  protected readonly enCartelera = computed(() =>
+    this.peliculas().filter((p) => !estadoVenta(p, this.hoyIso).proximamente),
+  );
+  protected readonly proximamente = computed(() =>
+    this.peliculas()
+      .map((pelicula) => ({ pelicula, venta: estadoVenta(pelicula, this.hoyIso) }))
+      .filter(({ venta }) => venta.proximamente)
+      .sort((a, b) => a.pelicula.fecha_estreno!.localeCompare(b.pelicula.fecha_estreno!)),
+  );
+
   /** Las 3 películas con más entradas vendidas (email 16/01). */
   protected readonly masVendidas = computed(() =>
-    this.peliculas()
+    this.enCartelera()
       .filter((p) => p.entradas_vendidas > 0)
       .sort((a, b) => b.entradas_vendidas - a.entradas_vendidas)
       .slice(0, 3),
@@ -42,7 +58,7 @@ export class Inicio implements OnInit {
   /** Géneros que tiene al menos una película de la cartelera. */
   protected readonly generos = computed(() => {
     const porId = new Map<number, Genero>();
-    this.peliculas().forEach((p) => p.generos.forEach((g) => porId.set(g.id, g)));
+    this.enCartelera().forEach((p) => p.generos.forEach((g) => porId.set(g.id, g)));
     return [...porId.values()].sort((a, b) => a.nombre.localeCompare(b.nombre));
   });
 
@@ -50,7 +66,7 @@ export class Inicio implements OnInit {
   protected readonly filtradas = computed(() => {
     const texto = this.textoBuscado();
     const elegidos = this.generosElegidos();
-    return this.peliculas().filter(
+    return this.enCartelera().filter(
       (p) => normalizar(p.titulo).includes(texto) && elegidos.every((id) => p.generos.some((g) => g.id === id)),
     );
   });

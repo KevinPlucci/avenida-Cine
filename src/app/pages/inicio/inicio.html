@@ -54,7 +54,7 @@
     </div>
 
     <p class="meta resultado">
-      {{ filtradas().length }} de {{ peliculas().length }} películas
+      {{ filtradas().length }} de {{ enCartelera().length }} películas
       @if (generosElegidos().length > 1) {
         (con todos los géneros elegidos)
       }
@@ -69,4 +69,42 @@
       <p class="vacio">No hay películas que coincidan con la búsqueda.</p>
     }
   </section>
+
+  @if (proximamente().length) {
+    <!-- Próximos estrenos (email 08/03): fecha, preventa y alerta para cuando se habilite la venta -->
+    <section>
+      <h2>Próximamente</h2>
+      <div class="grid-peliculas">
+        @for (estreno of proximamente(); track estreno.pelicula.id) {
+          <article class="estreno" animate.enter="aparecer">
+            <a class="estreno-poster" [routerLink]="['/peliculas', estreno.pelicula.id]">
+              <img
+                [src]="estreno.pelicula.imagen_url"
+                [alt]="'Póster de ' + estreno.pelicula.titulo"
+                loading="lazy"
+                appImagenRespaldo
+              />
+            </a>
+            <div class="estreno-cuerpo">
+              <h3>
+                <a [routerLink]="['/peliculas', estreno.pelicula.id]">{{ estreno.pelicula.titulo }}</a>
+              </h3>
+              <p class="fecha-estreno">Estreno {{ estreno.pelicula.fecha_estreno | date: "EEE d 'de' MMMM" }}</p>
+              @if (estreno.venta.enPreventa) {
+                <p class="preventa">Preventa abierta: {{ estreno.pelicula.precio_preventa | currency }}</p>
+                <a class="btn btn-chico btn-primario" [routerLink]="['/peliculas', estreno.pelicula.id]">Comprar en preventa</a>
+              } @else {
+                @if (estreno.pelicula.precio_preventa !== null) {
+                  <p class="meta">
+                    Preventa desde el {{ estreno.venta.apertura | date: 'd/M' }} a {{ estreno.pelicula.precio_preventa | currency }}
+                  </p>
+                }
+                <app-boton-alerta [peliculaId]="estreno.pelicula.id" />
+              }
+            </div>
+          </article>
+        }
+      </div>
+    </section>
+  }
 }

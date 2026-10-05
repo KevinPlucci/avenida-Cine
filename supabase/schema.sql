@@ -45,7 +45,12 @@ create table public.peliculas (
   en_cartelera boolean not null default true,  -- el admin elige qué películas se muestran
   -- Edad mínima para ver la película (email 12/02): 0 = ATP, 13 o 18.
   restriccion_edad int not null default 0 check (restriccion_edad in (0, 13, 18)),
-  creado_en    timestamptz not null default now()
+  -- Estreno y preventa (email 08/03). Sin fecha de estreno la película ya está en cartelera.
+  -- Con fecha futura aparece en "Próximamente"; con precio de preventa la venta abre 7 días antes.
+  fecha_estreno   date,
+  precio_preventa numeric(10, 2) check (precio_preventa >= 0),
+  creado_en    timestamptz not null default now(),
+  constraint peliculas_preventa_con_estreno check (precio_preventa is null or fecha_estreno is not null)
 );
 
 -- Una película puede tener varios géneros (email 16/01).
@@ -170,6 +175,7 @@ create table public.compras (
   entradas_canjeadas int not null default 0,  -- entradas pagadas con puntos
   puntos_usados    int not null default 0,
   puntos_ganados   int not null default 0,
+  preventa         boolean not null default false,  -- entradas cobradas al precio de preventa (email 08/03)
   creado_en        timestamptz not null default now(),
   -- Validación del QR (email 06/02): una vez usado, el código deja de servir.
   validada_en      timestamptz,
@@ -243,6 +249,15 @@ create table public.resenias (
   unique (pelicula_id, usuario_id)
 );
 
+-- Alertas de estreno (email 08/03): el usuario pide que le avisen cuando se habilite la venta de una película.
+create table public.alertas_estreno (
+  usuario_id  uuid   not null default auth.uid() references public.perfiles (id) on delete cascade,
+  pelicula_id bigint not null references public.peliculas (id) on delete cascade,
+  creado_en   timestamptz not null default now(),
+  avisada_en  timestamptz,  -- cuándo se le avisó que ya puede comprar
+  primary key (usuario_id, pelicula_id)
+);
+
 -- Puntaje promedio por película. security_invoker: respeta las políticas RLS de quien consulta.
 create view public.puntajes_peliculas with (security_invoker = true) as
 select pelicula_id,
@@ -290,6 +305,23 @@ as $$
     when left(p_butaca, 1) = 'J' then substring(p_butaca from 2)::int between 1 and 14
     else substring(p_butaca from 2)::int between 1 and 28
   end;
+$$;
+
+-- Fecha de hoy en Argentina: las fechas de estreno y los reportes se cuentan con la hora del cine.
+create or replace function public.hoy_argentina()
+returns date
+language sql stable
+as $$
+  select (now() at time zone 'America/Argentina/Buenos_Aires')::date;
+$$;
+
+-- Día en que se habilita la venta de una película (email 08/03): el del estreno o, si tiene preventa, 7 días antes.
+-- Sin fecha de estreno devuelve null: la venta ya está habilitada.
+create or replace function public.apertura_venta(p_estreno date, p_precio_preventa numeric)
+returns date
+language sql immutable
+as $$
+  select p_estreno - case when p_precio_preventa is null then 0 else 7 end;
 $$;
 
 -- Saldo de puntos de un usuario (email 03/03). Respeta RLS: cada uno solo puede sumar los suyos.
@@ -464,8 +496,9 @@ create trigger trg_resenias_autor
 --  RPC (lógica de negocio del lado del servidor)
 -- =====================================================================
 
--- Compra de entradas, combos y productos del candy bar. Valida la función, la edad, las butacas, los productos,
--- los combos y los puntos que se canjean; calcula el precio y aplica el mejor descuento disponible.
+-- Compra de entradas, combos y productos del candy bar. Valida la función, que la venta esté abierta, la edad,
+-- las butacas, los productos, los combos y los puntos que se canjean; calcula el precio (el de preventa hasta
+-- el estreno) y aplica el mejor descuento disponible.
 -- Al usuario registrado le suma 1 punto por cada peso pagado. Devuelve el código de la compra (QR).
 -- Ni los precios, ni el descuento, ni los puntos vienen del cliente.
 create or replace function public.comprar_entradas(
@@ -485,6 +518,9 @@ declare
   v_usuario         uuid := auth.uid();
   v_funcion         public.funciones%rowtype;
   v_pelicula        public.peliculas%rowtype;
+  v_precio          numeric(10, 2);
+  v_preventa        boolean := false;
+  v_apertura        date;
   v_perfil          public.perfiles%rowtype;
   v_nacimiento      date;
   v_cupon           public.cupones%rowtype;
@@ -519,6 +555,18 @@ begin
   select * into v_pelicula from public.peliculas where id = v_funcion.pelicula_id and en_cartelera;
   if not found then
     raise exception 'La película no está en cartelera';
+  end if;
+
+  -- Estreno y preventa (email 08/03): la venta abre el día del estreno o, con preventa, 7 días antes.
+  -- Hasta el estreno se cobra el precio de preventa; desde ese día, el de la función.
+  v_precio   := v_funcion.precio;
+  v_apertura := public.apertura_venta(v_pelicula.fecha_estreno, v_pelicula.precio_preventa);
+  if v_apertura is not null and public.hoy_argentina() < v_apertura then
+    raise exception 'La venta de entradas para esta película abre el %', to_char(v_apertura, 'DD/MM/YYYY');
+  end if;
+  if v_pelicula.precio_preventa is not null and public.hoy_argentina() < v_pelicula.fecha_estreno then
+    v_precio   := v_pelicula.precio_preventa;
+    v_preventa := true;
   end if;
 
   -- Datos del comprador: si está logueado se toman de su perfil.
@@ -688,7 +736,7 @@ begin
   end if;
 
   -- Se pagan las entradas que no van en un combo ni se canjean con puntos.
-  v_subtotal := v_funcion.precio * (v_cantidad - v_cant_combos - v_canje_entradas);
+  v_subtotal := v_precio * (v_cantidad - v_cant_combos - v_canje_entradas);
 
   -- Productos a precio de la base, sin las unidades canjeadas con puntos.
   if v_items > 0 then
@@ -738,7 +786,7 @@ begin
   insert into public.compras (
     usuario_id, email, nombre_comprador, funcion_id, cantidad,
     subtotal, subtotal_productos, subtotal_combos, descuento, descuento_motivo, total, cupon_id,
-    entradas_canjeadas, puntos_usados, puntos_ganados
+    entradas_canjeadas, puntos_usados, puntos_ganados, preventa
   )
   values (
     v_usuario, lower(trim(p_email)), trim(p_nombre), p_funcion_id, v_cantidad,
@@ -746,13 +794,13 @@ begin
     case when v_descuento > 0 then v_motivo end,
     v_total,
     case when v_descuento > 0 and v_motivo = 'primera_compra' then v_cupon.id end,
-    v_canje_entradas, v_puntos_usados, v_puntos_ganados
+    v_canje_entradas, v_puntos_usados, v_puntos_ganados, v_preventa
   )
   returning id, codigo into v_compra_id, v_codigo;
 
   begin
     insert into public.entradas (compra_id, funcion_id, fila, numero, precio)
-    select v_compra_id, p_funcion_id, left(b, 1), substring(b from 2)::int, v_funcion.precio
+    select v_compra_id, p_funcion_id, left(b, 1), substring(b from 2)::int, v_precio
     from unnest(p_butacas) as b;
   exception
     when unique_violation then
@@ -814,6 +862,7 @@ as $$
     'entradas_canjeadas', c.entradas_canjeadas,
     'puntos_usados',  c.puntos_usados,
     'puntos_ganados', c.puntos_ganados,
+    'preventa',       c.preventa,
     'descuento',      c.descuento,
     'descuento_motivo', c.descuento_motivo,
     'total',          c.total,
@@ -867,6 +916,41 @@ as $$
   join public.salas s     on s.id = f.sala_id
   where c.usuario_id = auth.uid()
   order by c.creado_en desc;
+$$;
+
+-- Películas que vio el usuario logueado (email 08/03): las de sus compras cuya función ya terminó,
+-- con las fechas en que las vio y la calificación de su reseña (null si todavía no la calificó).
+create or replace function public.mis_peliculas()
+returns table (pelicula_id bigint, titulo text, imagen_url text, fechas timestamptz[], estrellas int)
+language sql stable security definer set search_path = public
+as $$
+  select p.id, p.titulo, p.imagen_url,
+         array_agg(distinct f.inicio order by f.inicio desc),
+         (select r.estrellas from public.resenias r where r.pelicula_id = p.id and r.usuario_id = auth.uid())
+  from public.compras c
+  join public.funciones f on f.id = c.funcion_id
+  join public.peliculas p on p.id = f.pelicula_id
+  where c.usuario_id = auth.uid() and f.fin < now()
+  group by p.id
+  order by max(f.inicio) desc;
+$$;
+
+-- Alertas de estreno (email 08/03) que ya se pueden avisar: la venta está abierta y hay funciones a la venta.
+-- Las marca como avisadas y las devuelve, así cada alerta se avisa una sola vez.
+create or replace function public.avisar_alertas()
+returns table (pelicula_id bigint, titulo text, preventa boolean)
+language sql security definer set search_path = public
+as $$
+  update public.alertas_estreno a
+  set avisada_en = now()
+  from public.peliculas p
+  where a.usuario_id = auth.uid()
+    and a.avisada_en is null
+    and p.id = a.pelicula_id
+    and p.en_cartelera
+    and coalesce(public.apertura_venta(p.fecha_estreno, p.precio_preventa) <= public.hoy_argentina(), true)
+    and exists (select 1 from public.funciones f where f.pelicula_id = p.id and f.inicio > now())
+  returning p.id, p.titulo, p.precio_preventa is not null and public.hoy_argentina() < p.fecha_estreno;
 $$;
 
 -- Entradas vendidas por película (de mayor a menor). La home muestra las 3 primeras (email 16/01).
@@ -1203,6 +1287,26 @@ end;
 $$;
 
 -- =====================================================================
+--  MANTENIMIENTO
+--  Supabase pausa los proyectos gratuitos que pasan 7 días sin actividad. La tarea programada
+--  .github/workflows/mantener-supabase.yml llama a latido() cada 2 días: actualiza una sola fecha.
+-- =====================================================================
+
+create table public.latidos (
+  id        int primary key default 1 check (id = 1),
+  ultimo_en timestamptz not null default now()
+);
+
+insert into public.latidos default values;
+
+create or replace function public.latido()
+returns timestamptz
+language sql security definer set search_path = public
+as $$
+  update public.latidos set ultimo_en = now() where id = 1 returning ultimo_en;
+$$;
+
+-- =====================================================================
 --  SEGURIDAD (Row Level Security)
 -- =====================================================================
 
@@ -1225,6 +1329,8 @@ alter table public.combos           enable row level security;
 alter table public.combo_productos  enable row level security;
 alter table public.compra_combos    enable row level security;
 alter table public.movimientos_puntos enable row level security;
+alter table public.alertas_estreno  enable row level security;
+alter table public.latidos          enable row level security;  -- sin políticas: solo se toca con latido()
 
 -- Perfiles: cada usuario ve el suyo; el admin ve todos.
 create policy "perfiles_lectura" on public.perfiles
@@ -1318,6 +1424,15 @@ create policy "compra_combos_lectura" on public.compra_combos
 create policy "movimientos_puntos_lectura" on public.movimientos_puntos
   for select to authenticated using (usuario_id = auth.uid());
 
+-- Alertas de estreno (email 08/03): cada usuario activa y desactiva las suyas.
+-- Solo avisar_alertas() las marca como avisadas.
+create policy "alertas_lectura" on public.alertas_estreno
+  for select to authenticated using (usuario_id = auth.uid());
+create policy "alertas_crear" on public.alertas_estreno
+  for insert to authenticated with check (usuario_id = auth.uid());
+create policy "alertas_eliminar" on public.alertas_estreno
+  for delete to authenticated using (usuario_id = auth.uid());
+
 grant usage on schema public to anon, authenticated;
 grant select on all tables in schema public to anon, authenticated;
 grant insert, update, delete on all tables in schema public to authenticated;
@@ -1327,6 +1442,9 @@ grant execute on function public.ranking_ventas() to anon, authenticated;
 grant execute on function public.mis_compras() to authenticated;
 grant execute on function public.mis_beneficios() to authenticated;
 grant execute on function public.mis_puntos() to authenticated;
+grant execute on function public.mis_peliculas() to authenticated;
+grant execute on function public.avisar_alertas() to authenticated;
+grant execute on function public.latido() to anon, authenticated;
 grant execute on function public.compra_para_validar(uuid) to authenticated;
 grant execute on function public.validar_entrada(uuid) to authenticated;
 grant execute on function public.entregar_productos(uuid) to authenticated;

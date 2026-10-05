@@ -50,6 +50,17 @@
   color: #f2eee9;
 }
 
+.estreno {
+  margin: -4px 0 12px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.estreno .preventa {
+  font-weight: 400;
+  color: #f2d48a;
+}
+
 .aviso-restriccion {
   margin: -4px 0 12px;
   font-size: 0.9rem;
@@ -124,6 +135,28 @@
   border-color: var(--color-primario);
   box-shadow: 0 6px 16px rgb(166 27 27 / 14%);
   transform: translateY(-2px);
+}
+
+/* Email 08/03: la venta de la película todavía no abrió */
+.horario.cerrada {
+  opacity: 0.6;
+}
+
+.horario.cerrada:hover {
+  border-color: var(--color-borde);
+  box-shadow: none;
+  transform: none;
+}
+
+.aviso-venta {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  background: var(--color-destacado-suave);
+  border-radius: var(--radio);
+}
+
+.aviso-venta p {
+  margin: 0 0 8px;
 }
 
 .hora {

@@ -22,6 +22,15 @@ export const fechaNacimientoValidator: ValidatorFn = (grupo: AbstractControl): V
   return null;
 };
 
+/** Grupo "dia", "mes" y "anio" opcional (fecha de estreno, email 08/03): vacío o completo con una fecha que exista. */
+export const fechaOpcionalValidator: ValidatorFn = (grupo: AbstractControl): ValidationErrors | null => {
+  const { dia, mes, anio } = grupo.value as { dia?: string; mes?: string; anio?: string };
+  if (!dia && !mes && !anio) return null;
+  if (!dia || !mes || !anio) return { fechaIncompleta: true };
+  const fecha = new Date(Number(anio), Number(mes) - 1, Number(dia));
+  return fecha.getMonth() === Number(mes) - 1 ? null : { fechaInvalida: true };
+};
+
 /** Grupo "dia", "mes" y "anio": la persona tiene que tener al menos esa edad (email 12/02). */
 export function edadMinimaValidator(edadMinima: number): ValidatorFn {
   return (grupo: AbstractControl): ValidationErrors | null => {

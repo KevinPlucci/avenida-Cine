@@ -2,7 +2,8 @@ import { inject, Injectable } from '@angular/core';
 import { SupabaseService } from '../supabase.service';
 import { Pelicula, PeliculaGuardar } from '../models/pelicula';
 
-const COLUMNAS = 'id, titulo, sinopsis, duracion_min, imagen_url, en_cartelera, restriccion_edad, generos(id, nombre)';
+const COLUMNAS =
+  'id, titulo, sinopsis, duracion_min, imagen_url, en_cartelera, restriccion_edad, fecha_estreno, precio_preventa, generos(id, nombre)';
 
 @Injectable({ providedIn: 'root' })
 export class PeliculasService {

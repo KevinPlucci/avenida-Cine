@@ -45,7 +45,7 @@ ok(true, 'seed.sql ejecutado');
 // ---------- Seed ----------
 const [conteo] = await q(`select (select count(*) from salas)::int salas, (select count(*) from peliculas)::int peliculas,
   (select count(*) from pelicula_generos)::int generos, (select count(*) from funciones)::int funciones`);
-ok(conteo.salas === 4 && conteo.peliculas === 6 && conteo.generos === 15 && conteo.funciones > 0, 'datos de ejemplo cargados');
+ok(conteo.salas === 4 && conteo.peliculas === 8 && conteo.generos === 19 && conteo.funciones > 0, 'datos de ejemplo cargados');
 const [solapadas] = await q(`select count(*)::int n from funciones a join funciones b
   on a.sala_id = b.sala_id and a.id < b.id and tstzrange(a.inicio, a.bloqueada_hasta) && tstzrange(b.inicio, b.bloqueada_hasta)`);
 ok(solapadas.n === 0, 'las funciones de ejemplo no se superponen');
@@ -403,6 +403,89 @@ ok(
 ok(reporte.filter((r) => r.dia !== hoy.d).every((r) => r.cantidad_compras === 0 && r.facturado === 0), 'los días sin ventas aparecen en cero');
 await comoUsuario(null);
 
+// ---------- Próximamente, preventa, alertas y Mis películas (email 08/03) ----------
+await comoUsuario(null);
+const [mareaAlta] = await q(`select id from peliculas where titulo = 'Marea alta' and precio_preventa = 4000`);
+const [jardin] = await q(`select id from peliculas where titulo = 'El jardín de invierno' and fecha_estreno > current_date`);
+ok(mareaAlta && jardin, 'hay próximos estrenos de ejemplo, uno con preventa');
+
+const [funcionPreventa] = await q(`select id from funciones where pelicula_id = $1 order by inicio limit 1`, [mareaAlta.id]);
+const [enPreventa] = await q(`select comprar_entradas($1, array['A1', 'A2'], 'x@test.com', 'X') codigo`, [funcionPreventa.id]);
+const [compraPreventa] = await q(`select c.subtotal::float, c.preventa, (select max(e.precio)::float from entradas e where e.compra_id = c.id) precio
+  from compras c where codigo = $1`, [enPreventa.codigo]);
+ok(compraPreventa.preventa && compraPreventa.subtotal === 8000 && compraPreventa.precio === 4000,
+  'durante la preventa las entradas se cobran al precio de preventa');
+ok((await q(`select obtener_compra($1) j`, [enPreventa.codigo]))[0].j.preventa === true, 'la entrada informa que se compró en preventa');
+
+const [salaEstrenos] = await q(`insert into salas (nombre) values ('Sala de estrenos') returning id`);
+const [funcionJardin] = await q(`insert into funciones (pelicula_id, sala_id, inicio, formato, idioma, precio)
+  values ($1, $2, (hoy_argentina() + 22 + time '20:00') at time zone 'America/Argentina/Buenos_Aires', '2D', 'castellano', 5000)
+  returning id`, [jardin.id, salaEstrenos.id]);
+const comprarJardin = (butaca) => q(`select comprar_entradas($1, array[$2], 'x@test.com', 'X') codigo`, [funcionJardin.id, butaca]);
+await esperarError(`select comprar_entradas($1, array['A1'], 'x@test.com', 'X')`, [funcionJardin.id], 'abre el',
+  'sin preventa la venta abre el día del estreno');
+await q(`update peliculas set fecha_estreno = hoy_argentina() + 8, precio_preventa = 3500 where id = $1`, [jardin.id]);
+await esperarError(`select comprar_entradas($1, array['A1'], 'x@test.com', 'X')`, [funcionJardin.id], 'abre el',
+  'con preventa la venta no abre antes de los 7 días previos al estreno');
+await q(`update peliculas set fecha_estreno = hoy_argentina() + 7 where id = $1`, [jardin.id]);
+const [justoSiete] = await comprarJardin('A1');
+ok((await q(`select subtotal::float s, preventa from compras where codigo = $1`, [justoSiete.codigo]))[0].s === 3500,
+  'la preventa abre 7 días antes del estreno con su precio especial');
+await q(`update peliculas set fecha_estreno = hoy_argentina() where id = $1`, [jardin.id]);
+const [yaEstrenada] = await comprarJardin('A2');
+const [compraEstrenada] = await q(`select subtotal::float s, preventa from compras where codigo = $1`, [yaEstrenada.codigo]);
+ok(compraEstrenada.s === 5000 && !compraEstrenada.preventa, 'desde el día del estreno se cobra el precio de la función');
+await esperarError(`update peliculas set fecha_estreno = null where id = $1`, [jardin.id], 'peliculas_preventa_con_estreno',
+  'la preventa necesita una fecha de estreno');
+
+// Alertas: Juan pide aviso para los dos estrenos; uno ya está en preventa y el otro todavía no se vende.
+await q(`update peliculas set fecha_estreno = hoy_argentina() + 21, precio_preventa = null where id = $1`, [jardin.id]);
+await comoUsuario(uid);
+await db.exec('set role authenticated');
+await q(`insert into alertas_estreno (pelicula_id) values ($1), ($2)`, [jardin.id, mareaAlta.id]);
+await esperarError(`insert into alertas_estreno (usuario_id, pelicula_id) values ($1, $2)`, [idNuevo, jardin.id],
+  'row-level security', 'un usuario no activa alertas a nombre de otro');
+const avisadas = await q(`select * from avisar_alertas()`);
+ok(avisadas.length === 1 && Number(avisadas[0].pelicula_id) === Number(mareaAlta.id) && avisadas[0].preventa,
+  'se avisa la alerta de la película que ya está en preventa, no la que todavía no se vende');
+ok((await q(`select * from avisar_alertas()`)).length === 0, 'cada alerta se avisa una sola vez');
+ok((await q(`update alertas_estreno set avisada_en = null returning pelicula_id`)).length === 0,
+  'el usuario no puede marcar sus alertas como no avisadas');
+await db.exec('reset role');
+await q(`update peliculas set fecha_estreno = hoy_argentina() where id = $1`, [jardin.id]);
+await db.exec('set role authenticated');
+const alEstrenar = await q(`select * from avisar_alertas()`);
+ok(alEstrenar.length === 1 && alEstrenar[0].titulo === 'El jardín de invierno' && !alEstrenar[0].preventa,
+  'cuando se habilita la venta se avisa la alerta');
+await comoUsuario(idNuevo);
+ok((await q(`select * from alertas_estreno`)).length === 0, 'cada usuario ve solo sus alertas');
+await db.exec('reset role');
+
+// Mis películas: las funciones de sus compras que ya terminaron, con la calificación de su reseña.
+await comoUsuario(null);
+const [salaVista] = await q(`insert into salas (nombre) values ('Sala vista') returning id`);
+const [funcionVista] = await q(`insert into funciones (pelicula_id, sala_id, inicio, formato, idioma, precio)
+  values (1, $1, now() + interval '3 hours', '2D', 'castellano', 100) returning id`, [salaVista.id]);
+await comoUsuario(uid);
+await q(`select comprar_entradas($1, array['F1'])`, [funcionVista.id]);
+ok((await q(`select * from mis_peliculas()`)).length === 0, 'una función que todavía no terminó no aparece en Mis películas');
+await q(`update funciones set fin = now() - interval '1 minute' where id = $1`, [funcionVista.id]);  // la función ya terminó
+const misPeliculas = await q(`select titulo, fechas, estrellas from mis_peliculas()`);
+ok(misPeliculas.length === 1 && misPeliculas[0].titulo === 'El último faro' && misPeliculas[0].fechas.length === 1,
+  'Mis películas muestra la película vista con la fecha de la función');
+ok(misPeliculas[0].estrellas === 4, 'Mis películas muestra la calificación propia');
+await comoUsuario(idNuevo);
+ok((await q(`select * from mis_peliculas()`)).length === 0, 'cada usuario ve solo sus películas');
+await comoUsuario(null);
+
+// ---------- Mantenimiento: latido para que Supabase no pause el proyecto ----------
+await db.exec('set role anon');
+const [latido] = await q(`select latido() en`);
+ok(latido.en instanceof Date, 'cualquiera puede registrar el latido de la tarea programada');
+ok((await q(`select * from latidos`)).length === 0, 'la tabla del latido no se lee desde la API');
+await esperarError(`update latidos set ultimo_en = now()`, [], 'permission denied', 'la tabla del latido no se modifica desde la API');
+await db.exec('reset role');
+
 // ---------- Funciones: 30 minutos entre funciones ----------
 await comoUsuario(null);
 const [sala] = await q(`insert into salas (nombre) values ('Sala de prueba') returning id`);
@@ -506,6 +589,15 @@ await esperarError(`select comprar_entradas($1, array['A4'], 'x@test.com', 'X')`
 const [comboMigrado] = await q(`select comprar_entradas($1, array['H8'], 'x@test.com', 'X', '[]'::jsonb, null, $2::jsonb) codigo`,
   [funcion.id, combo(1)]);
 ok(!!comboMigrado.codigo, 'después de las migraciones se venden combos');
+
+await db.exec(leer('./migraciones/008_proximamente_preventa.sql'));
+await db.exec(leer('./migraciones/008_proximamente_preventa.sql'));
+ok(true, 'la migración 008 se aplica sobre una base existente y se puede repetir');
+ok((await q(`select count(*)::int n from pg_proc where proname = 'comprar_entradas'`))[0].n === 1,
+  'después de la migración 008 queda una sola versión de comprar_entradas');
+const [preventaMigrada] = await q(`select comprar_entradas($1, array['A3'], 'x@test.com', 'X') codigo`, [funcionPreventa.id]);
+ok((await q(`select preventa from compras where codigo = $1`, [preventaMigrada.codigo]))[0].preventa,
+  'después de la migración 008 se cobra la preventa');
 
 console.log(fallos ? `\n${fallos} prueba(s) fallaron` : '\nTodas las pruebas pasaron');
 process.exit(fallos ? 1 : 0);

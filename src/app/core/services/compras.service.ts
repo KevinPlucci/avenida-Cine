@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { SupabaseService } from '../supabase.service';
 import { Beneficios, Comprador, CompraResumen, DetalleCompra } from '../models/compra';
+import { PeliculaVista } from '../models/pelicula';
 import { ItemCarrito, ItemCombo } from '../models/producto';
 import { Canje } from '../models/puntos';
 import { idButaca } from '../utils/butacas';
@@ -78,6 +79,13 @@ export class ComprasService {
     const { data, error } = await this.db.rpc('mis_compras');
     if (error) throw error;
     return data as CompraResumen[];
+  }
+
+  /** Películas que vio el usuario logueado, con las fechas y su calificación (email 08/03). */
+  async misPeliculas(): Promise<PeliculaVista[]> {
+    const { data, error } = await this.db.rpc('mis_peliculas');
+    if (error) throw error;
+    return data as PeliculaVista[];
   }
 
   /** Descuentos disponibles del usuario logueado: cupón de bienvenida y beneficio por edad. */

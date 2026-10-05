@@ -1,3 +1,4 @@
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Pelicula } from '../../core/models/pelicula';
@@ -9,13 +10,16 @@ import { RestriccionPipe } from '../../shared/pipes/restriccion.pipe';
 
 @Component({
   selector: 'app-admin-peliculas',
-  imports: [RouterLink, DuracionPipe, RestriccionPipe, ImagenRespaldoDirective],
+  imports: [RouterLink, DatePipe, CurrencyPipe, DuracionPipe, RestriccionPipe, ImagenRespaldoDirective],
   template: `
     <div class="cabecera">
       <h2>Películas</h2>
       <a routerLink="nueva" class="btn btn-primario">Nueva película</a>
     </div>
-    <p class="meta">Solo las películas marcadas como "En cartelera" se muestran a los clientes.</p>
+    <p class="meta">
+      Solo las películas marcadas como "En cartelera" se muestran a los clientes. Las que tienen fecha de estreno futura
+      aparecen en "Próximamente".
+    </p>
 
     @if (error()) {
       <p class="alerta alerta-error" animate.enter="aparecer">{{ error() }}</p>
@@ -33,6 +37,7 @@ import { RestriccionPipe } from '../../shared/pipes/restriccion.pipe';
               <th>Duración</th>
               <th>Edad</th>
               <th>Géneros</th>
+              <th>Estreno</th>
               <th>En cartelera</th>
               <th></th>
             </tr>
@@ -48,6 +53,12 @@ import { RestriccionPipe } from '../../shared/pipes/restriccion.pipe';
                 </td>
                 <td>{{ nombresGeneros(pelicula) }}</td>
                 <td>
+                  {{ pelicula.fecha_estreno ? (pelicula.fecha_estreno | date: 'dd/MM/yyyy') : '-' }}
+                  @if (pelicula.precio_preventa !== null) {
+                    <br /><small class="meta">Preventa {{ pelicula.precio_preventa | currency }}</small>
+                  }
+                </td>
+                <td>
                   <input
                     type="checkbox"
                     [checked]="pelicula.en_cartelera"
@@ -62,7 +73,7 @@ import { RestriccionPipe } from '../../shared/pipes/restriccion.pipe';
               </tr>
             } @empty {
               <tr>
-                <td colspan="7" class="vacio">No hay películas cargadas.</td>
+                <td colspan="8" class="vacio">No hay películas cargadas.</td>
               </tr>
             }
           </tbody>

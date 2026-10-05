@@ -154,8 +154,8 @@
       <dl class="datos resumen">
         <dt>Butacas</dt>
         <dd>{{ seleccionadas().length ? seleccionadas().join(', ') : 'Ninguna' }}</dd>
-        <dt>Precio por entrada</dt>
-        <dd>{{ f.precio | currency }}</dd>
+        <dt>Precio por entrada{{ enPreventa() ? ' (preventa)' : '' }}</dt>
+        <dd>{{ precioEntrada() | currency }}</dd>
         <dt>{{ entradasPagas() }} × {{ entradasPagas() === 1 ? 'Entrada' : 'Entradas' }}</dt>
         <dd>{{ subtotal() | currency }}</dd>
         @for (linea of lineasCombos(); track linea.combo.id) {

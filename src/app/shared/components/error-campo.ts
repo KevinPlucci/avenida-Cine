@@ -10,6 +10,7 @@ const MENSAJES: Record<string, (detalle: { requiredLength?: number; min?: number
   max: (d) => `El valor máximo es ${d.max}.`,
   passwordsDistintas: () => 'Las contraseñas no coinciden.',
   fechaInvalida: () => 'Esa fecha no existe.',
+  fechaIncompleta: () => 'Completá día, mes y año, o dejá los tres vacíos.',
   fechaFutura: () => 'La fecha no puede ser futura.',
   formatoVencimiento: () => 'Usá el formato MM/AA.',
   tarjetaVencida: () => 'La tarjeta está vencida.',

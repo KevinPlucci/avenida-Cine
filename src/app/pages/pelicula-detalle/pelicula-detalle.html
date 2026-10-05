@@ -15,6 +15,16 @@
         {{ p.duracion_min | duracion }}
         <span class="restriccion" [attr.data-edad]="p.restriccion_edad">{{ p.restriccion_edad | restriccion }}</span>
       </p>
+      @if (venta()?.proximamente) {
+        <p class="estreno">
+          Estreno: {{ p.fecha_estreno | date: "EEEE d 'de' MMMM" }}
+          @if (p.precio_preventa !== null) {
+            <span class="preventa">
+              · Preventa desde el {{ venta()?.apertura | date: "d 'de' MMMM" }} a {{ p.precio_preventa | currency }}
+            </span>
+          }
+        </p>
+      }
       @if (p.restriccion_edad) {
         <p class="aviso-restriccion">
           Solo para mayores de {{ p.restriccion_edad }} años. Las entradas indican que debe ir un adulto.
@@ -42,6 +52,24 @@
 
   <section class="tarjeta">
     <h2>Funciones</h2>
+    @if (venta(); as v) {
+      @if (v.proximamente && (!v.ventaAbierta || !funciones().length)) {
+        <div class="aviso-venta">
+          <p>
+            {{
+              v.ventaAbierta
+                ? 'Las funciones se publican pronto.'
+                : 'Las entradas salen a la venta el ' + (v.apertura | date: "EEEE d 'de' MMMM") + '.'
+            }}
+          </p>
+          <app-boton-alerta [peliculaId]="p.id" />
+        </div>
+      } @else if (v.enPreventa) {
+        <p class="alerta">
+          Preventa: hasta el día del estreno cada entrada cuesta {{ p.precio_preventa | currency }}, en cualquier función.
+        </p>
+      }
+    }
     @if (diaVisible(); as dia) {
       <!-- Un día a la vez: se elige con un click en lugar de recorrer toda la semana (email 28/02) -->
       <div class="chips filtro-dias" role="group" aria-label="Día de la función">
@@ -60,13 +88,18 @@
       <h3 class="dia">{{ dia.fecha | date: "EEEE d 'de' MMMM" }}</h3>
       <div class="horarios">
         @for (funcion of dia.items; track funcion.id) {
-          <a class="horario" [routerLink]="['/funciones', funcion.id, 'comprar']">
+          <!-- Sin enlace mientras la venta no abrió -->
+          <a
+            class="horario"
+            [class.cerrada]="!venta()?.ventaAbierta"
+            [routerLink]="venta()?.ventaAbierta ? ['/funciones', funcion.id, 'comprar'] : null"
+          >
             <span class="hora">{{ funcion.inicio | date: 'HH:mm' }}</span>
             <span class="detalle-horario">
               <span class="formato" [attr.data-formato]="funcion.formato">{{ funcion.formato }}</span>
               {{ funcion.idioma | idioma }}
             </span>
-            <span class="meta">{{ funcion.sala.nombre }} · {{ funcion.precio | currency }}</span>
+            <span class="meta">{{ funcion.sala.nombre }} · {{ precioPreventa() ?? funcion.precio | currency }}</span>
           </a>
         }
       </div>

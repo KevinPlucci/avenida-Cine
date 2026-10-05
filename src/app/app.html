@@ -27,6 +27,16 @@
   </div>
 }
 
+@for (alerta of alertas.disponibles(); track alerta.pelicula_id) {
+  <div class="contenedor aviso">
+    <p class="alerta alerta-exito" animate.enter="aparecer">
+      {{ alerta.preventa ? 'Empezó la preventa de' : 'Ya están a la venta las entradas de' }}
+      <a [routerLink]="['/peliculas', alerta.pelicula_id]" (click)="alertas.descartar(alerta.pelicula_id)">{{ alerta.titulo }}</a>.
+      <button type="button" class="link" (click)="alertas.descartar(alerta.pelicula_id)">Cerrar</button>
+    </p>
+  </div>
+}
+
 <main class="contenedor principal">
   <router-outlet />
 </main>

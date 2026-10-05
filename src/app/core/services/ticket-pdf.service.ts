@@ -60,8 +60,8 @@ export class TicketPdfService {
     if (candy.length) {
       datos.push(['Candy bar', candy.join(', ')]);
     }
-    if (compra.descuento > 0 || compra.subtotal_productos > 0 || compra.subtotal_combos > 0 || compra.entradas_canjeadas > 0) {
-      datos.push(['Entradas', precio(compra.subtotal)]);
+    if (compra.descuento > 0 || compra.subtotal_productos > 0 || compra.subtotal_combos > 0 || compra.entradas_canjeadas > 0 || compra.preventa) {
+      datos.push([compra.preventa ? 'Entradas (preventa)' : 'Entradas', precio(compra.subtotal)]);
     }
     if (compra.entradas_canjeadas > 0) {
       datos.push(['Con puntos', `${compra.entradas_canjeadas} ${compra.entradas_canjeadas === 1 ? 'entrada gratis' : 'entradas gratis'}`]);

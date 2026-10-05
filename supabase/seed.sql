@@ -81,6 +81,34 @@ begin
   end loop;
 end $$;
 
+-- Próximos estrenos (email 08/03): uno con la preventa ya abierta y otro que se estrena en tres semanas.
+-- Se cargan después de las funciones de arriba, que son solo para las películas que ya se estrenaron.
+insert into public.peliculas (titulo, sinopsis, duracion_min, imagen_url, fecha_estreno, precio_preventa)
+values
+  ('Marea alta',
+   'La guardavidas de un pueblo de la costa queda a cargo de la playa la noche de la peor tormenta del siglo.',
+   108, 'https://picsum.photos/seed/marea-alta/400/600', current_date + 4, 4000),
+  ('El jardín de invierno',
+   'Una botánica jubilada y su nieto intentan que florezca una planta que nadie vio florecer en cien años.',
+   97, 'https://picsum.photos/seed/jardin-de-invierno/400/600', current_date + 21, null);
+
+insert into public.pelicula_generos (pelicula_id, genero_id)
+select p.id, g.id
+from (values
+  ('Marea alta', 'Drama'), ('Marea alta', 'Suspenso'),
+  ('El jardín de invierno', 'Drama'), ('El jardín de invierno', 'Familiar')
+) as v (titulo, genero)
+join public.peliculas p on p.titulo = v.titulo
+join public.generos g on g.nombre = v.genero;
+
+-- Funciones de "Marea alta" desde el día del estreno, a las 11 (antes del primer horario de la sala).
+insert into public.funciones (pelicula_id, sala_id, inicio, formato, idioma, precio)
+select p.id, s.id, (current_date + d + time '11:00') at time zone 'America/Argentina/Buenos_Aires', '2D', 'castellano', 5500
+from public.peliculas p
+cross join public.salas s
+cross join generate_series(4, 6) as d
+where p.titulo = 'Marea alta' and s.nombre = 'Sala 1';
+
 -- Candy bar (email 30/01): categorías y productos de ejemplo.
 insert into public.categorias_productos (nombre, orden)
 values ('Pochoclos', 1), ('Bebidas', 2), ('Golosinas', 3), ('Promociones', 4);

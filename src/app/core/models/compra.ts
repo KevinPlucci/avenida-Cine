@@ -27,6 +27,8 @@ export interface DetalleCompra {
   entradas_canjeadas: number;
   puntos_usados: number;
   puntos_ganados: number;
+  /** Email 08/03: las entradas se cobraron al precio de preventa. */
+  preventa: boolean;
   descuento: number;
   descuento_motivo: MotivoDescuento | null;
   total: number;

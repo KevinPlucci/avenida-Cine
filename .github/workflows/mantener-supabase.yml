@@ -1,19 +1,22 @@
 # Supabase pausa los proyectos gratuitos que pasan 7 días sin actividad.
-# Esta tarea hace una consulta de solo lectura a la base cada 3 días para que el proyecto siga activo.
+# Una consulta de solo lectura no alcanzó para evitarlo, así que esta tarea llama cada 2 días a la función
+# latido(), que actualiza una fecha en la base (una escritura mínima, sin datos de usuarios).
 # También se puede correr a mano desde la pestaña Actions de GitHub.
 name: Mantener Supabase activo
 
 on:
   schedule:
-    - cron: '0 12 */3 * *'
+    - cron: '0 12 */2 * *'
   workflow_dispatch:
 
 jobs:
-  consultar:
+  latido:
     runs-on: ubuntu-latest
     steps:
-      - name: Consultar las salas
+      - name: Registrar actividad en la base
         run: |
-          curl --fail --silent --show-error --max-time 30 \
-            "https://tdteoafnspihvtjgdqtf.supabase.co/rest/v1/salas?select=id&limit=1" \
-            -H "apikey: sb_publishable_A62z-Zn6cHWR3XibN4ntqA_dNXl91y9"
+          curl --fail --silent --show-error --max-time 30 -X POST \
+            "https://tdteoafnspihvtjgdqtf.supabase.co/rest/v1/rpc/latido" \
+            -H "apikey: sb_publishable_A62z-Zn6cHWR3XibN4ntqA_dNXl91y9" \
+            -H "Content-Type: application/json" \
+            -d '{}'

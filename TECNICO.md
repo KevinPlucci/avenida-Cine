@@ -29,7 +29,7 @@ Qué hace la aplicación y para quién está en [FUNCIONAL.md](FUNCIONAL.md).
    ```
 
 2. Crear un proyecto en Supabase.
-3. En **SQL Editor**, ejecutar completo `supabase/schema.sql` y después `supabase/seed.sql` (datos de ejemplo: 4 salas, 6 películas con su restricción de edad, funciones para los próximos 7 días, 10 productos de candy bar, 2 combos y los puntos de las recompensas).
+3. En **SQL Editor**, ejecutar completo `supabase/schema.sql` y después `supabase/seed.sql` (datos de ejemplo: 4 salas, 6 películas con su restricción de edad, 2 próximos estrenos (uno con preventa), funciones para los próximos 7 días, 10 productos de candy bar, 2 combos y los puntos de las recompensas).
    Si la base se creó con una versión anterior del esquema, ejecutar también los archivos de `supabase/migraciones/` en orden.
    **Importante:** una base creada antes del candy bar necesita `supabase/migraciones/003_candybar_roles_qr.sql`; sin eso, la compra y el panel fallan porque faltan tablas y funciones.
    Una base que ya tiene la 003 necesita también, en orden, las migraciones siguientes (`004_...`, `005_...`, etc.).
@@ -79,8 +79,11 @@ npx serve -s dist/tp1-cine/browser
 ### Supabase pausado
 
 El plan gratuito de Supabase pausa el proyecto después de 7 días sin actividad: la dirección de la base deja de existir
-y la app no carga datos. Para evitarlo, `.github/workflows/mantener-supabase.yml` hace una consulta de solo lectura
-cada 3 días (también se puede correr a mano desde **Actions > Mantener Supabase activo > Run workflow**).
+y la app no carga datos. Para evitarlo, `.github/workflows/mantener-supabase.yml` llama cada 2 días a la función
+`latido()`, que actualiza una fecha en la tabla `latidos` (también se puede correr a mano desde
+**Actions > Mantener Supabase activo > Run workflow**). Al principio la tarea hacía solo una consulta de lectura y el
+proyecto se pausó igual, por eso ahora escribe. No es una garantía: antes de una presentación conviene revisar en el
+panel de Supabase que el proyecto esté activo.
 Si igual se pausa: en el panel de Supabase abrir el proyecto y tocar **Restore project**; tarda unos minutos.
 
 ---
@@ -114,18 +117,19 @@ src/
       http/             adaptador HttpClient -> fetch, interceptores y estado de red
       models/           interfaces de los datos
       services/         acceso a Supabase por entidad + generación del PDF
-      utils/            butacas, fechas, errores, QR
+      utils/            butacas, estreno y preventa, fechas, errores, QR
       constantes.ts
       supabase.service.ts
       titulo.strategy.ts
     shared/             piezas reutilizables
-      components/       header, mapa de butacas, contador, estrellas, tarjeta de película, errores de formulario
+      components/       header, mapa de butacas, contador, estrellas, tarjeta de película, botón de alerta,
+                        errores de formulario
       directives/       appMascara, appImagenRespaldo, *appSiRol, appAutoFoco
       pipes/            duracion, idioma, restriccion
       validators.ts     validadores propios
     pages/              una carpeta por pantalla (todas con lazy loading)
       inicio/  pelicula-detalle/  comprar-entradas/  ver-compra/
-      login/  registro/  mi-perfil/  no-encontrada/
+      login/  registro/  mi-perfil/  mis-peliculas/  no-encontrada/
       validar/          lectura del QR para el personal del cine
       admin/            layout con pestañas + películas, funciones, salas, géneros,
                         candy bar, combos, descuentos, puntos, usuarios y reportes
@@ -135,12 +139,13 @@ src/
 
 | Ruta | Pantalla | Acceso |
 |---|---|---|
-| `/` | Cartelera: las 3 más vendidas + listado con buscador y filtro por género | Todos |
-| `/peliculas/:id` | Detalle, puntaje promedio, reseñas y funciones | Todos |
+| `/` | Cartelera: las 3 más vendidas + listado con buscador y filtro por género + Próximamente | Todos |
+| `/peliculas/:id` | Detalle, estreno y preventa, puntaje promedio, reseñas y funciones | Todos |
 | `/funciones/:id/comprar` | Mapa de butacas en tiempo real, combos, candy bar, canje de puntos, resumen con descuento y pago | Todos (anónimo o registrado) |
 | `/compras/:codigo` | Entrada con QR y descarga del PDF | Quien tenga el código |
 | `/login`, `/registro` | Ingreso y registro (`/login?volver=/ruta` vuelve a esa ruta después de ingresar) | Solo sin sesión |
 | `/perfil` | Datos, descuentos, puntos, historial de canjes y compras | Registrados |
+| `/mis-peliculas` | Historial visual de las películas vistas, con fechas y calificación | Registrados |
 | `/validar` | Validación de QR del ingreso y del candy bar | Empleados y administradores (otra cuenta ve la 404) |
 | `/admin/...` | Películas, funciones, salas, géneros, candy bar, combos, descuentos, puntos, usuarios y reportes | Administradores (otra cuenta ve la 404) |
 | Cualquier otra | Página 404 | Todos |
@@ -168,9 +173,14 @@ erDiagram
   perfiles ||--o{ movimientos_puntos : "suma y canjea"
   compras ||--o{ movimientos_puntos : "genera"
   peliculas ||--o{ resenias : "recibe"
+  perfiles ||--o{ alertas_estreno : "pide"
+  peliculas ||--o{ alertas_estreno : "avisa"
 ```
 
 - `peliculas.restriccion_edad` guarda la edad mínima: 0 (ATP), 13 o 18.
+- `peliculas.fecha_estreno` y `peliculas.precio_preventa`: sin fecha, la película ya está en cartelera; con fecha futura va en "Próximamente" y, con precio de preventa, la venta abre 7 días antes. `compras.preventa` indica que las entradas se cobraron a ese precio.
+- `alertas_estreno` guarda la alerta de cada usuario por película y cuándo se le avisó (`avisada_en`).
+- `latidos` tiene una sola fila con la fecha del último latido de la tarea programada (ver "Supabase pausado").
 - `funciones` guarda `fin` y `bloqueada_hasta` (fin + 30 min), calculados por un trigger a partir de la duración de la película.
 - `entradas` tiene una fila por butaca con `unique (funcion_id, fila, numero)`.
 - `compra_productos` congela el nombre y el precio del producto: si después cambian, la compra no se altera.
@@ -189,8 +199,8 @@ erDiagram
 3. Si está logueado se consultan sus descuentos con `mis_beneficios()` y sus puntos con `mis_puntos()`.
    Si es anónimo se le piden nombre y email, y la fecha de nacimiento si la película es +13 o +18.
 4. Al pagar (simulado) se llama a la función `comprar_entradas()` de la base, que en una sola transacción:
-   valida la función, la edad, las butacas, los productos, los combos y el canje de puntos, calcula el total con los
-   precios de la base, aplica el mejor descuento (y marca el cupón si fue el de primera compra), crea la compra, las
+   valida la función, que la venta de la película esté abierta, la edad, las butacas, los productos, los combos y el
+   canje de puntos, calcula el total con los precios de la base (el de preventa hasta el estreno), aplica el mejor descuento (y marca el cupón si fue el de primera compra), crea la compra, las
    entradas y las líneas de productos y combos, descuenta los puntos canjeados, suma los ganados y devuelve el código.
 5. Se redirige a `/compras/:codigo`, que muestra el QR (con ese código) y permite descargar el PDF.
 6. En el cine, `validar_entrada()` y `entregar_productos()` marcan el código como usado. Las dos comprueban
@@ -253,6 +263,8 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 - **`TitleStrategy` propia** para el título de la pestaña.
 - **Animaciones** con `animate.enter` / `animate.leave` de Angular 21 (el paquete `@angular/animations` quedó deprecado): aparición de tarjetas, ficha de película, entrada, reseñas y avisos. Son cortas y se desactivan si el sistema pide reducir movimiento. No se usa `withViewTransitions()` porque, mientras dura la transición entre pantallas, el navegador no entrega los clics a la página (se detectó en las pruebas).
 - **RxJS** donde aporta: búsqueda con `debounceTime` convertida a signal con `toSignal`, interceptores y avisos del service worker.
+- **Alertas de estreno** (`AlertasService`): un `effect` carga las alertas del usuario cuando cambia la sesión. Depende de un `computed` con el id del usuario, así renovar el token no vuelve a consultar. Al ingresar y en cada `visibilitychange` (cuando se vuelve a la pestaña) llama a `avisar_alertas()`. Lo que devuelve se muestra en un aviso dentro de la página y como notificación del sistema con `registration.showNotification()` del service worker. El permiso se pide al activar la alerta, porque el navegador exige un clic del usuario. La notificación lleva `data.onActionClick` con la operación `navigateLastFocusedOrOpen`: el service worker de Angular abre la película al tocarla. En desarrollo, sin service worker, se usa `new Notification()`. No hay push con la app cerrada: haría falta un servidor que envíe las notificaciones con claves VAPID.
+- **Estado de la venta en un solo lugar por capa**: `apertura_venta()` y `hoy_argentina()` en la base, y `core/utils/estreno.ts` (`estadoVenta()`) en el frontend, que decide si la película va en Próximamente, si la venta está abierta y si rige la preventa. Las fechas se comparan en hora de Argentina en las dos capas.
 - **jsPDF se carga recién al descargar** el PDF (`import()` dinámico) para no sumar ~400 kB a la carga inicial.
 - **Lector de QR**: la pantalla de validación abre la cámara con `getUserMedia` y lee un fotograma cada 300 ms. Si el navegador trae `BarcodeDetector` (Chrome en Android y macOS) usa ese lector; si no (Chrome en Windows, Safari, Firefox), dibuja el fotograma en un `canvas` y lo lee con `jsqr`. Igual que jsPDF, jsQR se carga con `import()` recién al abrir la cámara. El ingreso manual del código queda siempre como alternativa. La cámara se apaga al encontrar un código y en `ngOnDestroy`.
 
@@ -273,6 +285,9 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 - **Asignación automática de sala**: `salas_libres()` cruza las salas activas con las funciones existentes usando el mismo rango `[inicio, fin + 30 min)` de la restricción. `programar_funciones()` crea un horario por día con un bloque `begin ... exception` por cada uno, así un choque no cancela el resto y la pantalla informa qué pasó con cada día.
 - **Programa de puntos**: `comprar_entradas()` recibe el canje (`{ entradas, productos }`), toma el costo de cada recompensa de la base, bloquea el perfil con `for update` para que dos compras en paralelo no gasten los mismos puntos y rechaza el canje si el saldo no alcanza. Suma `floor(total)` puntos y deja un movimiento por cada canje y otro por lo ganado. `movimientos_puntos` no tiene políticas de escritura en RLS: nadie puede cargarse puntos ni pasárselos a otro desde la API (lo verifica `npm run test:db` con el rol `authenticated`).
 - **Combos**: `combo_disponible()` exige que el combo esté activo y que todos sus productos tengan stock, y `contenido_combo()` arma el texto "1 entrada + …" que queda guardado en la compra. Cada combo usa una de las butacas elegidas: se pagan aparte las butacas que no van en un combo ni se canjean.
+- **Estreno y preventa**: `comprar_entradas()` rechaza la compra antes de `apertura_venta()` y, hasta el día del estreno, cobra el precio de preventa de la película en lugar del de la función; la compra queda marcada con `preventa`. Una restricción de la tabla exige fecha de estreno para tener preventa.
+- **Alertas**: `avisar_alertas()` es un `update ... returning` que marca como avisadas las alertas del usuario cuya venta ya abrió y que tienen funciones futuras, y las devuelve. Así cada alerta se avisa una sola vez aunque el usuario tenga la app abierta en dos dispositivos. Los usuarios solo pueden crear, ver y borrar sus alertas (RLS): no pueden marcarlas como no avisadas.
+- **Mis películas**: `mis_peliculas()` agrupa por película las compras del usuario cuya función ya terminó, con las fechas (`array_agg(distinct ...)`) y las estrellas de su reseña.
 - **Reporte de ventas**: `reporte_ventas(desde, hasta)` es `security definer` y solo responde al admin. Arma los días con `generate_series` y los cruza con `compras` por fecha de Argentina (`creado_en at time zone 'America/Argentina/Buenos_Aires'`), así aparecen también los días sin ventas. La pantalla suma los totales del período.
 - **Roles**: `cambiar_rol()` valida que quien llama sea admin, que el rol exista y que un administrador no se quite a sí mismo el permiso.
 - **El frontend valida antes** para dar mejores mensajes: al editar una función lista las funciones que chocan y a qué hora queda libre la sala, y si la función tiene ventas bloquea los campos que no se pueden cambiar. Al crear, `programar_funciones()` informa por cada día si se creó y en qué sala, o por qué no.
@@ -294,7 +309,7 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 
 - Identidad propia sin librerías de componentes: fondo cálido, títulos en Oswald (tipografía de marquesina de cine), un rojo como color principal y variables CSS para mantener todo coherente.
 - Detalles de diseño: logo con forma de entrada, ficha de película con el póster desenfocado de fondo, distintivo de color para cada formato (2D, 3D, 4D, 5D), mapa de butacas con pantalla curva y la entrada con forma de ticket (talón con el QR y muescas).
-- Fechas sin calendario desplegable (email 28/02): la fecha de nacimiento se elige con tres listas (día, mes, año), el día de una función con botones de los próximos 14 días y el período del reporte con botones.
+- Fechas sin calendario desplegable (email 28/02): la fecha de nacimiento y la de estreno se eligen con tres listas (día, mes, año), el día de una función con botones de los próximos 14 días y el período del reporte con botones.
 - Menos scroll (email 28/02): el detalle de la película muestra un día de funciones por vez y tres reseñas, el candy bar de la compra una categoría por vez, y el reporte oculta los días sin ventas.
 - El pago es **simulado**: se validan los datos de la tarjeta pero no se procesa ningún cobro.
 
@@ -304,7 +319,7 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 
 | Tipo | Qué cubre | Cómo |
 |---|---|---|
-| Base de datos | 123 pruebas de las reglas de negocio: horarios, butacas, compras, descuentos, edad, puntos, combos, validación del QR, reporte, RLS y las migraciones | `npm run test:db` (PostgreSQL en memoria con PGlite) |
+| Base de datos | 147 pruebas de las reglas de negocio: horarios, butacas, compras, descuentos, edad, puntos, combos, preventa, alertas, Mis películas, validación del QR, reporte, RLS y las migraciones | `npm run test:db` (PostgreSQL en memoria con PGlite) |
 | Aceptación (UAT) | 78 casos sobre la app publicada con cuentas de cliente, empleado y administrador, incluidos los guards de navegación, el tiempo real, la PWA sin conexión y la vista de celular | Detalle y evidencias en [UAT.md](UAT.md) |
 
 ---
@@ -313,6 +328,7 @@ Todas las peticiones de HttpClient pasan por los interceptores:
 
 | Fecha | Versión | Cambios |
 |---|---|---|
+| 05/10/2026 | 0.7.0 | Email del 08/03. "Próximamente" en la cartelera con la fecha de estreno de cada película. Preventa configurable por película: la venta abre 7 días antes del estreno con un precio especial y desde el estreno vuelve al precio de cada función. Alertas de estreno: el usuario las activa en la tarjeta o en el detalle y, cuando se habilita la venta, recibe un aviso en la página y una notificación del sistema. Nueva pantalla "Mis películas" con póster, fechas y calificación propia. La tarea que mantiene activo Supabase ahora escribe en la base cada 2 días (`latido()`), porque la consulta de lectura no evitó la pausa. Migración `008_proximamente_preventa.sql` y 24 pruebas nuevas en `npm run test:db`. |
 | 27/09/2026 | 0.6.4 | El aviso de nueva versión de la PWA se lee con el pipe `async`, sin suscripción manual. Pipes `percent` en los descuentos, `titlecase` en los nombres que escriben los usuarios y `date \| titlecase` encadenados en los botones de día. Se probó la actualización con el build de producción: el service worker detectó la versión nueva, mostró el aviso y "Actualizar" cargó la nueva. |
 | 27/09/2026 | 0.6.3 | Las directivas de atributo modifican el elemento con `Renderer2`. `ngClass` en las butacas del mapa y `ngStyle` en la ficha de la película. La grilla de la cartelera se define con `ng-template` y se usa con `ngTemplateOutlet` en las dos secciones. Nuevo componente `app-contador` con proyección de contenido (`ng-content`), que reemplaza los cinco contadores repetidos de la compra y del armado de combos. Se repitieron en producción los casos del UAT afectados. |
 | 27/09/2026 | 0.6.2 | Pruebas de aceptación (UAT) sobre la app publicada: 78 casos OK, documentados en `UAT.md` con capturas en `docs/uat/`. Correcciones que salieron de la prueba: la pantalla de compra ya no se desborda a lo ancho en el celular, el canje de puntos aparece solo si el saldo alcanza y "1 entrada vendida" en singular. Los guards `canMatch` devuelven `false` cuando el usuario no tiene el rol: la ruta no coincide y Angular sigue buscando en el arreglo de rutas hasta la 404. La migración 007 crea los combos de ejemplo solo si existen sus productos. |

@@ -23,6 +23,7 @@ import { SiRolDirective } from '../directives/si-rol.directive';
           <a *appSiRol="['empleado', 'admin']" routerLink="/validar" routerLinkActive="activo">Validar QR</a>
           <a *appSiRol="'admin'" routerLink="/admin" routerLinkActive="activo">Administración</a>
           <ng-container *appSiRol="['cliente', 'empleado', 'admin']">
+            <a routerLink="/mis-peliculas" routerLinkActive="activo">Mis películas</a>
             <a routerLink="/perfil" routerLinkActive="activo">Mi perfil</a>
             <button type="button" class="enlace" (click)="salir()">Salir</button>
           </ng-container>

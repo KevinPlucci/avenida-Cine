@@ -7,7 +7,7 @@ Hecha con **Angular 21** y **Supabase**, instalable como **PWA**.
 |---|---|
 | **Deploy** | <https://avenida-cine.vercel.app> |
 | **Repositorio** | <https://github.com/KevinPlucci/Avenida-Cine> |
-| **Estado** | Consigna y emails del 01/01 al 03/03 implementados y probados ([UAT](UAT.md)) |
+| **Estado** | Consigna y emails del 01/01 al 08/03 implementados (del 01/01 al 03/03 probados en producción: [UAT](UAT.md)) |
 
 ## Documentación
 
@@ -23,6 +23,8 @@ Hecha con **Angular 21** y **Supabase**, instalable como **PWA**.
 - Detalle de película con sinopsis, puntaje promedio, reseñas y funciones.
 - Compra de entradas con mapa de butacas en tiempo real, combos, candy bar y descuentos, con cuenta o sin registrarse.
 - Programa de puntos: 1 punto por peso pagado, canjeable por entradas o productos.
+- Próximos estrenos con preventa a precio especial y alerta para cuando salen a la venta.
+- Mis películas: el historial de lo que vio cada usuario, con su calificación.
 - Entrada con código QR y descarga en PDF. El pago es simulado.
 - Validación del QR en la puerta y en el candy bar, para el personal del cine.
 - Panel de administración de películas, funciones, salas, géneros, candy bar, combos, descuentos, puntos, usuarios y reporte de ventas.

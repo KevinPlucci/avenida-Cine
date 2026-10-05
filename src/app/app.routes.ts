@@ -48,6 +48,12 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/mi-perfil/mi-perfil').then((m) => m.MiPerfil),
   },
   {
+    path: 'mis-peliculas',
+    title: 'Mis películas',
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/mis-peliculas/mis-peliculas').then((m) => m.MisPeliculas),
+  },
+  {
     path: 'validar',
     title: 'Validar entradas',
     canMatch: [empleadoGuard],

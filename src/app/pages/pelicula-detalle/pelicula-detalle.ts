@@ -12,7 +12,9 @@ import { FuncionesService } from '../../core/services/funciones.service';
 import { PeliculasService } from '../../core/services/peliculas.service';
 import { ReseniasService } from '../../core/services/resenias.service';
 import { mensajeError } from '../../core/utils/errores';
+import { estadoVenta } from '../../core/utils/estreno';
 import { agruparPorDia } from '../../core/utils/fechas';
+import { BotonAlerta } from '../../shared/components/boton-alerta';
 import { ErrorCampo } from '../../shared/components/error-campo';
 import { Estrellas } from '../../shared/components/estrellas';
 import { ImagenRespaldoDirective } from '../../shared/directives/imagen-respaldo.directive';
@@ -34,6 +36,7 @@ import { RestriccionPipe } from '../../shared/pipes/restriccion.pipe';
     RestriccionPipe,
     Estrellas,
     ErrorCampo,
+    BotonAlerta,
     ImagenRespaldoDirective,
   ],
   templateUrl: './pelicula-detalle.html',
@@ -53,6 +56,14 @@ export class PeliculaDetalle implements OnInit {
   protected readonly puntaje = signal<Puntaje | null>(null);
   protected readonly cargando = signal(true);
   protected readonly error = signal('');
+
+  /** Estreno y preventa (email 08/03): si la venta todavía no abrió, las funciones se muestran sin enlace. */
+  protected readonly venta = computed(() => {
+    const pelicula = this.pelicula();
+    return pelicula ? estadoVenta(pelicula) : null;
+  });
+  /** En la preventa todas las funciones se cobran al precio de preventa. */
+  protected readonly precioPreventa = computed(() => (this.venta()?.enPreventa ? this.pelicula()!.precio_preventa : null));
 
   protected readonly funcionesPorDia = computed(() => agruparPorDia(this.funciones()));
   /** Día elegido en los botones; si no se eligió ninguno se muestra el primero con funciones. */

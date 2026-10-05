@@ -23,9 +23,11 @@ y para que el cine administre su programación desde el mismo lugar.
 
 El cliente elige película, función y butacas, paga (pago simulado) y recibe una entrada con código QR
 que puede descargar en PDF. Puede hacerlo con una cuenta o sin registrarse. Con cuenta, además, suma
-puntos en cada compra y los canjea por entradas o productos del candy bar.
+puntos en cada compra y los canjea por entradas o productos del candy bar. En la cartelera también ve los próximos
+estrenos, que pueden tener preventa a precio especial; con cuenta puede pedir que le avisen cuando salen a la venta
+y tiene el historial de las películas que vio.
 
-Del otro lado, el administrador carga películas, arma los horarios, administra las salas y los géneros,
+Del otro lado, el administrador carga películas con su estreno y su preventa, arma los horarios, administra las salas y los géneros,
 decide qué se muestra en la cartelera, arma el candy bar y los combos, configura los descuentos y los puntos,
 asigna los roles del personal y consulta las ventas. Los empleados validan los QR en la puerta y en el candy bar.
 
@@ -33,27 +35,29 @@ asigna los roles del personal y consulta las ventas. Los empleados validan los Q
 
 | Rol | Quién es | Qué puede hacer |
 |---|---|---|
-| Visitante | Entra sin cuenta | Ver la cartelera y el detalle de las películas, comprar entradas dejando nombre y email, ver la entrada con el código de compra |
-| Cliente registrado | Se registró con sus datos | Todo lo anterior, más su perfil, su cupón de primera compra, sus puntos y canjes, el historial de compras y dejar reseñas |
+| Visitante | Entra sin cuenta | Ver la cartelera, los próximos estrenos y el detalle de las películas, comprar entradas dejando nombre y email, ver la entrada con el código de compra |
+| Cliente registrado | Se registró con sus datos | Todo lo anterior, más su perfil, su cupón de primera compra, sus puntos y canjes, el historial de compras, las alertas de estreno, Mis películas y dejar reseñas |
 | Empleado | Personal de puerta y candy bar | Validar los códigos QR del ingreso y entregar los productos del candy bar |
-| Administrador | Personal del cine | Películas, funciones, salas, géneros, candy bar, combos, descuentos, puntos, roles de los usuarios y reporte de ventas. También puede validar QR |
+| Administrador | Personal del cine | Películas (con su estreno y su preventa), funciones, salas, géneros, candy bar, combos, descuentos, puntos, roles de los usuarios y reporte de ventas. También puede validar QR |
 
 ## 3. Pantallas
 
 | Pantalla | Qué ofrece | Quién entra |
 |---|---|---|
-| Cartelera | Las 3 películas más vendidas arriba y el listado completo, con buscador y filtro por género | Todos |
-| Detalle de película | Sinopsis, duración, restricción de edad, puntaje promedio, reseñas y funciones de los próximos días | Todos |
+| Cartelera | Las 3 películas más vendidas arriba, el listado completo con buscador y filtro por género, y "Próximamente" con los estrenos, su preventa y la alerta | Todos |
+| Detalle de película | Sinopsis, duración, restricción de edad, estreno y preventa, puntaje promedio, reseñas y funciones de los próximos días (sin enlace hasta que abre la venta) | Todos |
 | Compra de entradas | Mapa de butacas en tiempo real con la fila accesible, combos destacados, productos del candy bar, canje de puntos, resumen con el descuento aplicado y datos de pago | Todos |
 | Entrada | Código QR para ingresar y retirar el candy bar, y descarga del PDF | Quien tenga el código de compra |
 | Validar entradas | Lectura del QR con la cámara o a mano, con el estado del ingreso y del candy bar. El empleado entra directo acá al ingresar | Empleados y administradores |
 | Ingreso y registro | Cuenta propia; después de ingresar vuelve a la pantalla donde estaba | Solo sin sesión iniciada |
+| Mis películas | Historial visual de lo que vio: póster, fechas de las funciones y su calificación | Clientes registrados |
 | Mi perfil | Datos personales, cupón disponible, puntos acumulados con lo que se puede canjear, historial de canjes y compras realizadas | Clientes registrados |
-| Administración | Películas, funciones, salas, géneros, candy bar, combos, descuentos, puntos de cada recompensa, usuarios y reporte de ventas por día | Administradores |
+| Administración | Películas (con estreno y preventa), funciones, salas, géneros, candy bar, combos, descuentos, puntos de cada recompensa, usuarios y reporte de ventas por día | Administradores |
 
 ## 4. Flujo de compra
 
-1. El cliente elige una función desde el detalle de la película.
+1. El cliente elige una función desde el detalle de la película. Si la película todavía no se estrenó, puede comprar
+   recién cuando abre la venta: el día del estreno o, si tiene preventa, 7 días antes y a su precio especial.
 2. Ve el mapa de la sala con las butacas ya vendidas y elige las suyas (hasta 10 por compra).
    Si otra persona compra una butaca mientras tanto, el mapa la marca como ocupada al instante.
    Si la película tiene restricción de edad y el cliente no llega a la edad, no puede comprar.
@@ -82,6 +86,10 @@ Cada código sirve una sola vez para cada cosa.
 - La entrada y los productos se validan desde una hora antes del inicio de la función hasta que termina.
 - Las películas son ATP, +13 o +18. Quien no tiene la edad no puede comprar entradas: si está registrado se usa la fecha de nacimiento de su perfil y, si compra sin cuenta, tiene que declararla.
 - Toda entrada de una película +13 o +18 aclara que debe ir un adulto (en pantalla, en el PDF y en la validación del empleado).
+- Una película con fecha de estreno futura aparece en "Próximamente". Su venta abre el día del estreno o, si tiene preventa, 7 días antes; antes de esa fecha no se pueden comprar entradas.
+- Durante la preventa todas las entradas de la película se cobran al precio de preventa, en cualquier función y formato. Desde el día del estreno se cobra el precio de cada función. Las fechas se cuentan con la hora de Argentina.
+- Las alertas de estreno son de usuarios registrados. Cada alerta se avisa una sola vez, cuando la venta ya abrió y hay funciones para comprar.
+- "Mis películas" muestra las películas de las compras del usuario cuya función ya terminó.
 - La fila K ya no existe: su lugar lo ocupa la fila J, accesible para personas con discapacidad, con 2, 10 y 2 butacas.
 - Los usuarios registrados suman 1 punto por cada peso que pagan (con el descuento ya restado). Lo canjeado con puntos no suma puntos.
 - Los puntos se canjean al comprar, por entradas gratis o por productos del candy bar de esa compra, al costo que fija el administrador. Solo se puede usar el saldo disponible.
@@ -191,10 +199,10 @@ Referencias: `[x]` implementado · `[ ]` pendiente.
 
 ### Email 9 · 08/03/2020 · Próximamente, preventa y Mis películas
 
-- [ ] Sección "Próximamente" con los estrenos de las próximas semanas
-- [ ] Alerta para recibir una notificación cuando se habilita la venta
-- [ ] Preventa desde 7 días antes del estreno con precio especial, configurable por película
-- [ ] "Mis películas": historial visual con póster, fecha y calificación propia
+- [x] Sección "Próximamente" con los estrenos de las próximas semanas (en la cartelera, con la fecha de estreno)
+- [x] Alerta para recibir una notificación cuando se habilita la venta (aviso en la página y notificación del sistema)
+- [x] Preventa desde 7 días antes del estreno con precio especial, configurable por película (fecha de estreno y precio de preventa en el formulario de la película)
+- [x] "Mis películas": historial visual con póster, fecha y calificación propia
 
 ### Email 10 · 10/03/2020 · Cancelaciones, VIP, reportes y log
 
@@ -248,6 +256,10 @@ Puntos que los emails no definen y cómo se resolvieron:
 | "Debe ir un adulto" | Se imprime en toda entrada de una película +13 o +18, como pide el email, y el empleado lo ve al validar. |
 | Tiempo real | El mapa marca al instante las butacas de las compras confirmadas por otras personas. Si una de ellas estaba elegida, se quita de la selección y se avisa. Las butacas que otra persona está eligiendo sin pagar no se bloquean. |
 | Pantallas sin permiso | Si un cliente o un empleado escribe la dirección del panel, ve la página no encontrada: para ellos esa pantalla no existe. Sin sesión, se pide ingresar y después se vuelve a esa pantalla. |
+| Próximamente | Muestra todas las películas visibles con fecha de estreno futura, ordenadas por fecha. El admin decide cuáles se ven con la misma marca de cartelera. El día del estreno pasan solas a "En cartelera". |
+| Precio de preventa | Un precio fijo por película, que el admin carga en el formulario, igual para todas sus funciones y formatos. Rige para las compras hechas antes del día del estreno, desde 7 días antes. Sin preventa, la venta abre el día del estreno. |
+| Alerta de estreno | Necesita una cuenta, para saber a quién avisar. El aviso aparece dentro de la página y como notificación del sistema si el usuario la permite, cuando abre la app o vuelve a ella. Avisar con la app cerrada necesitaría un servidor de notificaciones push, que el proyecto no tiene. |
+| Qué cuenta como "visto" | Toda función de una compra del usuario que ya terminó. Si vio la película más de una vez, aparece una sola vez con todas las fechas. La calificación es la de su reseña; si no tiene, se ofrece calificarla. |
 
 Dudas ya detectadas para los próximos emails:
 
