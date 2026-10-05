@@ -10,6 +10,12 @@
         Compra confirmada. Descargá el PDF o guardá esta página: el código QR es tu entrada.
       </p>
     }
+    @if (c.cancelada_en) {
+      <p class="alerta alerta-error">
+        Esta compra se canceló el {{ c.cancelada_en | date: 'dd/MM/yyyy HH:mm' }}: la entrada ya no sirve. Se acreditaron
+        {{ c.credito_generado | currency }} en la cuenta para usar en otra compra.
+      </p>
+    }
 
     <article class="ticket" animate.enter="aparecer">
       <header class="ticket-marca">
@@ -40,6 +46,9 @@
           <div>
             <span class="etiqueta">Butacas</span>
             <strong>{{ c.butacas.join(', ') }}</strong>
+            @if (butacasVip().length) {
+              <small class="vip">VIP: {{ butacasVip().join(', ') }}</small>
+            }
           </div>
         </div>
 
@@ -81,7 +90,7 @@
         <dl class="datos">
           <dt>Comprador</dt>
           <dd>{{ c.nombre | titlecase }} ({{ c.email }})</dd>
-          @if (c.descuento > 0 || c.subtotal_productos > 0 || c.subtotal_combos > 0 || c.entradas_canjeadas > 0 || c.preventa) {
+          @if (c.descuento > 0 || c.subtotal_productos > 0 || c.subtotal_combos > 0 || c.entradas_canjeadas > 0 || c.preventa || c.subtotal_vip > 0) {
             <dt>{{ c.preventa ? 'Entradas (preventa)' : 'Entradas' }}</dt>
             <dd>{{ c.subtotal | currency }}</dd>
           }
@@ -97,6 +106,10 @@
             <dt>Candy bar</dt>
             <dd>{{ c.subtotal_productos | currency }}</dd>
           }
+          @if (c.subtotal_vip > 0) {
+            <dt>Recargo VIP</dt>
+            <dd>{{ c.subtotal_vip | currency }}</dd>
+          }
           @if (c.descuento > 0) {
             <dt>{{ c.descuento_motivo === 'mayores' ? 'Descuento por edad' : 'Cupón primera compra' }}</dt>
             <dd>- {{ c.descuento | currency }}</dd>
@@ -105,6 +118,10 @@
           <dd>
             <strong>{{ c.total | currency }}</strong>
           </dd>
+          @if (c.credito_usado > 0) {
+            <dt>Pagado con crédito</dt>
+            <dd>{{ c.credito_usado | currency }}</dd>
+          }
           @if (c.puntos_usados > 0) {
             <dt>Puntos usados</dt>
             <dd>{{ c.puntos_usados | number }}</dd>
@@ -119,10 +136,13 @@
       </div>
 
       <div class="ticket-talon">
-        @if (qr()) {
+        @if (qr() && !c.cancelada_en) {
           <img [src]="qr()" alt="Código QR de la entrada" width="200" height="200" [class.usado]="c.validada_en" />
         }
         <small class="codigo">{{ c.codigo }}</small>
+        @if (c.cancelada_en) {
+          <small class="validada">Compra cancelada</small>
+        }
         @if (c.validada_en) {
           <small class="validada">Ingreso validado el {{ c.validada_en | date: 'dd/MM/yyyy HH:mm' }}</small>
         }
@@ -130,9 +150,11 @@
     </article>
 
     <div class="acciones">
-      <button type="button" class="btn btn-primario" (click)="descargarPdf()" [disabled]="descargando()">
-        {{ descargando() ? 'Generando PDF...' : 'Descargar PDF' }}
-      </button>
+      @if (!c.cancelada_en) {
+        <button type="button" class="btn btn-primario" (click)="descargarPdf()" [disabled]="descargando()">
+          {{ descargando() ? 'Generando PDF...' : 'Descargar PDF' }}
+        </button>
+      }
       <a routerLink="/" class="btn">Volver a la cartelera</a>
     </div>
   </div>

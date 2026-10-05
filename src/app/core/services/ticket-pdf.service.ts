@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { DetalleCompra } from '../models/compra';
 import { NOMBRE_CINE } from '../constantes';
+import { esVip } from '../utils/butacas';
 import { generarQr } from '../utils/qr';
 
 const ANCHO = 148; // hoja A5 en mm
@@ -14,6 +15,7 @@ export class TicketPdfService {
     const [{ jsPDF }, qr] = await Promise.all([import('jspdf'), generarQr(compra.codigo)]);
     const doc = new jsPDF({ unit: 'mm', format: 'a5' });
     const inicio = new Date(compra.inicio);
+    const vip = compra.butacas.filter(esVip);
 
     // Encabezado oscuro con línea roja, igual que en la app.
     doc.setFillColor(21, 20, 20);
@@ -50,7 +52,7 @@ export class TicketPdfService {
       ['Hora', inicio.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })],
       ['Sala', compra.sala],
       ['Función', `${compra.formato} - ${compra.idioma === 'castellano' ? 'Castellano' : 'Subtitulada'}`],
-      ['Butacas', compra.butacas.join(', ')],
+      ['Butacas', compra.butacas.join(', ') + (vip.length ? ` (VIP: ${vip.join(', ')})` : '')],
       ['Comprador', compra.nombre],
     ];
     const candy = [
@@ -60,7 +62,10 @@ export class TicketPdfService {
     if (candy.length) {
       datos.push(['Candy bar', candy.join(', ')]);
     }
-    if (compra.descuento > 0 || compra.subtotal_productos > 0 || compra.subtotal_combos > 0 || compra.entradas_canjeadas > 0 || compra.preventa) {
+    if (
+      compra.descuento > 0 || compra.subtotal_productos > 0 || compra.subtotal_combos > 0 ||
+      compra.entradas_canjeadas > 0 || compra.preventa || compra.subtotal_vip > 0
+    ) {
       datos.push([compra.preventa ? 'Entradas (preventa)' : 'Entradas', precio(compra.subtotal)]);
     }
     if (compra.entradas_canjeadas > 0) {
@@ -72,11 +77,17 @@ export class TicketPdfService {
     if (compra.subtotal_productos > 0) {
       datos.push(['Productos', precio(compra.subtotal_productos)]);
     }
+    if (compra.subtotal_vip > 0) {
+      datos.push(['Recargo VIP', precio(compra.subtotal_vip)]);
+    }
     if (compra.descuento > 0) {
       const etiqueta = compra.descuento_motivo === 'mayores' ? 'Descuento por edad' : 'Cupón 1ra compra';
       datos.push([etiqueta, `- ${precio(compra.descuento)}`]);
     }
     datos.push(['Total', precio(compra.total)]);
+    if (compra.credito_usado > 0) {
+      datos.push(['Con crédito', precio(compra.credito_usado)]);
+    }
     if (compra.puntos_usados > 0) {
       datos.push(['Puntos usados', compra.puntos_usados.toLocaleString('es-AR')]);
     }

@@ -3,6 +3,7 @@ import { Component, computed, ElementRef, inject, OnDestroy, signal, viewChild }
 import { FormsModule, NgForm } from '@angular/forms';
 import { CompraParaValidar } from '../../core/models/compra';
 import { ValidacionService } from '../../core/services/validacion.service';
+import { esVip } from '../../core/utils/butacas';
 import { mensajeError } from '../../core/utils/errores';
 import { AutoFocoDirective } from '../../shared/directives/auto-foco.directive';
 import { IdiomaPipe } from '../../shared/pipes/idioma.pipe';
@@ -46,6 +47,9 @@ export class Validar implements OnDestroy {
 
   /** La cámara solo se puede usar si el navegador la ofrece (hace falta HTTPS o localhost). */
   protected readonly hayCamara = !!navigator.mediaDevices?.getUserMedia;
+
+  /** Butacas VIP de la compra (email 10/03). */
+  protected readonly butacasVip = computed(() => this.compra()?.butacas.filter(esVip) ?? []);
 
   /** Productos sueltos o combos (email 03/03) para retirar en el candy bar. */
   protected readonly tieneProductos = computed(

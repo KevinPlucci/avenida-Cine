@@ -478,6 +478,198 @@ await comoUsuario(idNuevo);
 ok((await q(`select * from mis_peliculas()`)).length === 0, 'cada usuario ve solo sus películas');
 await comoUsuario(null);
 
+// ---------- Butacas VIP, cancelaciones, crédito, gráficos y registro de actividad (email 10/03) ----------
+const igual = (a, b) => Math.abs(a - b) < 0.005;
+await comoUsuario(null);
+ok((await q(`select recargo_vip::float r from configuracion`))[0].r === 2000, 'el recargo de las butacas VIP arranca en $ 2.000');
+
+// Butacas VIP: las filas R, S y T suman el recargo, también si la entrada va en un combo, y el recargo no tiene descuento.
+const [precioFuncion] = await q(`select precio::float p from funciones where id = $1`, [funcion.id]);
+const [conVip] = await q(`select comprar_entradas($1, array['Q1', 'R1', 'T28'], 'x@test.com', 'X') codigo`, [funcion.id]);
+const [compraVip] = await q(`select c.subtotal_vip::float vip, c.total::float,
+  (select array_agg(e.precio::float order by e.fila, e.numero) from entradas e where e.compra_id = c.id) precios
+  from compras c where codigo = $1`, [conVip.codigo]);
+ok(compraVip.vip === 4000 && compraVip.total === precioFuncion.p * 3 + 4000, `cada butaca VIP suma el recargo (${compraVip.total})`);
+ok(compraVip.precios.join() === [precioFuncion.p, precioFuncion.p + 2000, precioFuncion.p + 2000].join(),
+  'la entrada VIP guarda su precio con el recargo');
+await comoUsuario(idMayor);
+const [vipEnCombo] = await q(`select comprar_entradas($1, array['S1', 'S2'], null, null, '[]'::jsonb, null, $2::jsonb) codigo`,
+  [funcion.id, combo(1)]);
+const [compraVipEnCombo] = await q(`select subtotal_vip::float vip, descuento::float, total::float from compras where codigo = $1`,
+  [vipEnCombo.codigo]);
+ok(compraVipEnCombo.vip === 4000 && igual(compraVipEnCombo.descuento, precioFuncion.p * 0.15)
+  && igual(compraVipEnCombo.total, precioFuncion.p * 0.85 + comboClasico.precio + 4000),
+  'el recargo VIP se cobra también en el combo y el descuento no lo alcanza');
+await comoUsuario(uid);
+await db.exec('set role authenticated');
+ok((await q(`update configuracion set recargo_vip = 1 returning id`)).length === 0, 'un cliente no cambia el recargo VIP');
+await db.exec('reset role');
+
+// Cancelación: hasta 2 horas antes, el total vuelve como crédito y las butacas se liberan.
+await comoUsuario(null);
+const [salaCancelaciones] = await q(`insert into salas (nombre) values ('Sala cancelaciones') returning id`);
+const nuevaFuncion = async (pelicula, inicio) => (await q(`insert into funciones (pelicula_id, sala_id, inicio, formato, idioma, precio)
+  values ($1, $2, ${inicio}, '2D', 'castellano', 6000) returning id`, [pelicula, salaCancelaciones.id]))[0].id;
+const funcionManiana = await nuevaFuncion(1, `now() + interval '1 day'`);
+const funcionEnUnRato = await nuevaFuncion(1, `now() + interval '90 minutes'`);
+
+await comoUsuario(uid);
+const [puntosAntes] = await q(`select mis_puntos() j`);
+const [aCancelar] = await q(`select comprar_entradas($1, array['A1', 'A2'], null, null, '[]'::jsonb, null, '[]'::jsonb,
+  '{"entradas": 1}'::jsonb) codigo`, [funcionManiana]);
+const [acreditado] = await q(`select cancelar_compra($1)::float c`, [aCancelar.codigo]);
+const [cancelada] = await q(`select cancelada_en, credito_generado::float credito, butacas_canceladas from compras where codigo = $1`,
+  [aCancelar.codigo]);
+ok(acreditado.c === 6000 && cancelada.credito === 6000, 'al cancelar se acredita el total de la compra');
+ok(cancelada.cancelada_en !== null && cancelada.butacas_canceladas.join() === 'A1,A2', 'la compra queda cancelada y guarda sus butacas');
+ok((await q(`select count(*)::int n from entradas where funcion_id = $1`, [funcionManiana]))[0].n === 0,
+  'las butacas de la compra cancelada quedan libres');
+const [creditoJuan] = await q(`select mi_credito() j`);
+ok(creditoJuan.j.saldo === 6000 && creditoJuan.j.movimientos.length === 1 && creditoJuan.j.movimientos[0].monto === 6000,
+  'el crédito aparece en la cuenta con su movimiento');
+ok((await q(`select mis_puntos() j`))[0].j.saldo === puntosAntes.j.saldo,
+  'cancelar devuelve los puntos canjeados y descuenta los que sumó la compra');
+await esperarError(`select cancelar_compra($1)`, [aCancelar.codigo], 'ya se canceló', 'una compra no se cancela dos veces');
+const [enMisCompras] = await q(`select cancelada_en, credito_generado::float credito, puede_cancelar from mis_compras() where codigo = $1`,
+  [aCancelar.codigo]);
+ok(enMisCompras.cancelada_en !== null && enMisCompras.credito === 6000 && !enMisCompras.puede_cancelar,
+  'Mis compras muestra la cancelación y el crédito');
+ok((await q(`select obtener_compra($1) j`, [aCancelar.codigo]))[0].j.butacas.join() === 'A1,A2',
+  'la entrada cancelada sigue mostrando sus butacas');
+await comoUsuario(null);
+ok(!!(await q(`select comprar_entradas($1, array['A1'], 'x@test.com', 'X') codigo`, [funcionManiana]))[0].codigo,
+  'otra persona compra una butaca que se liberó');
+await comoUsuario(idEmpleado);
+await esperarError(`select validar_entrada($1)`, [aCancelar.codigo], 'se canceló', 'el QR de una compra cancelada no sirve');
+
+await comoUsuario(uid);
+const [cercana] = await q(`select comprar_entradas($1, array['A1']) codigo`, [funcionEnUnRato]);
+ok((await q(`select puede_cancelar from mis_compras() where codigo = $1`, [cercana.codigo]))[0].puede_cancelar === false,
+  'Mis compras indica que ya no se puede cancelar');
+await esperarError(`select cancelar_compra($1)`, [cercana.codigo], 'hasta 2 horas antes', 'no se cancela con menos de 2 horas');
+await comoUsuario(idNuevo);
+await esperarError(`select cancelar_compra($1)`, [cercana.codigo], 'ninguna compra tuya', 'no se cancela la compra de otro usuario');
+await comoUsuario(null);
+await esperarError(`select cancelar_compra($1)`, [anonima.codigo], 'iniciar sesión', 'una compra sin cuenta no se cancela');
+
+// Crédito: se usa junto con la tarjeta y nunca más de lo que cuesta la compra.
+await comoUsuario(uid);
+const [conCredito] = await q(`select comprar_entradas($1, array['B1', 'B2'], null, null, '[]'::jsonb, null, '[]'::jsonb, '{}'::jsonb, true) codigo`,
+  [funcionManiana]);
+const [compraConCredito] = await q(`select total::float, credito_usado::float credito, puntos_ganados from compras where codigo = $1`,
+  [conCredito.codigo]);
+ok(compraConCredito.total === 12000 && compraConCredito.credito === 6000, 'el crédito paga una parte y el resto va con la tarjeta');
+ok(compraConCredito.puntos_ganados === 12000, 'la compra con crédito suma puntos por el total');
+const [creditoUsado] = await q(`select mi_credito() j`);
+ok(creditoUsado.j.saldo === 0 && creditoUsado.j.movimientos[0].monto === -6000, 'el crédito usado se descuenta del saldo');
+const [sinSaldo] = await q(`select comprar_entradas($1, array['B3'], null, null, '[]'::jsonb, null, '[]'::jsonb, '{}'::jsonb, true) codigo`,
+  [funcionManiana]);
+ok((await q(`select credito_usado::float c from compras where codigo = $1`, [sinSaldo.codigo]))[0].c === 0,
+  'sin saldo de crédito la compra se paga entera con la tarjeta');
+await comoUsuario(null);
+await esperarError(`select comprar_entradas($1, array['B4'], 'x@test.com', 'X', '[]'::jsonb, null, '[]'::jsonb, '{}'::jsonb, true)`,
+  [funcionManiana], 'iniciar sesión', 'sin cuenta no se usa crédito');
+
+// Cupón y puntos al cancelar: el cupón vuelve y no se cancela si ya se canjearon los puntos que dio la compra.
+const idCredito = '88888888-8888-8888-8888-888888888888';
+await q(`insert into auth.users (id, email, raw_user_meta_data) values ($1, 'lia@test.com', $2)`, [
+  idCredito,
+  { nombre: 'Lía', apellido: 'Sosa', fecha_nacimiento: '1994-08-01', tipo_sangre: '0-', color_ojos: 'Verde', dias_vacaciones: 20 },
+]);
+await comoUsuario(idCredito);
+const [conCupon] = await q(`select comprar_entradas($1, array['C1', 'C2']) codigo`, [funcionManiana]);
+const [compraConCupon] = await q(`select total::float, puntos_ganados from compras where codigo = $1`, [conCupon.codigo]);
+const diezButacas = Array.from({ length: 10 }, (_, i) => `D${i + 1}`);
+const [todoConPuntos] = await q(`select comprar_entradas($1, $2::text[], null, null, '[]'::jsonb, null, '[]'::jsonb,
+  '{"entradas": 10}'::jsonb) codigo`, [funcionManiana, diezButacas]);
+await esperarError(`select cancelar_compra($1)`, [conCupon.codigo], 'ya canjeaste los puntos',
+  'no se cancela si ya se canjearon los puntos que sumó la compra');
+await q(`select cancelar_compra($1)`, [todoConPuntos.codigo]);
+ok((await q(`select mis_puntos() j`))[0].j.saldo === compraConCupon.puntos_ganados, 'al cancelar un canje vuelven los puntos');
+await q(`select cancelar_compra($1)`, [conCupon.codigo]);
+ok((await q(`select usado from cupones where usuario_id = $1`, [idCredito]))[0].usado === false,
+  'al cancelar la compra que usó el cupón de primera compra, el cupón vuelve a estar disponible');
+ok((await q(`select mi_credito() j`))[0].j.saldo === compraConCupon.total, 'el crédito es lo que se pagó, con el descuento ya restado');
+await db.exec('set role authenticated');
+await esperarError(`insert into movimientos_credito (usuario_id, compra_id, tipo, monto, detalle)
+  select $1::uuid, id, 'cancelacion', 100000, 'regalo' from compras limit 1`, [idCredito], 'row-level security',
+  'nadie se carga crédito desde la API');
+ok((await q(`select count(*)::int n from movimientos_credito where usuario_id <> $1`, [idCredito]))[0].n === 0,
+  'cada usuario ve solo su crédito');
+await db.exec('reset role');
+
+await comoUsuario(idAdmin);
+const [reporteHoy] = await q(`select cantidad_compras, facturado::float from reporte_ventas(hoy_argentina(), hoy_argentina())`);
+const [ventasValidas] = await q(`select count(*)::int compras, sum(total)::float total from compras
+  where (creado_en at time zone 'America/Argentina/Buenos_Aires')::date = hoy_argentina() and cancelada_en is null`);
+ok(reporteHoy.cantidad_compras === ventasValidas.compras && igual(reporteHoy.facturado, ventasValidas.total),
+  'el reporte de facturación no cuenta las compras canceladas');
+
+// Gráficos: películas más vistas y productos más vendidos en las funciones del período.
+await comoUsuario(null);
+const funcionLejana = await nuevaFuncion(3, `(hoy_argentina() + 40 + time '20:00') at time zone 'America/Argentina/Buenos_Aires'`);
+const [chocolate] = await q(`select id from productos where nombre = 'Chocolate'`);
+const [comboGrande] = await q(`select id from combos where nombre = 'Combo grande'`);
+await q(`select comprar_entradas($1, array['A1'], 'x@test.com', 'X', $2::jsonb)`,
+  [funcionLejana, JSON.stringify([{ producto_id: chocolate.id, cantidad: 2 }])]);
+await q(`select comprar_entradas($1, array['A2'], 'x@test.com', 'X', '[]'::jsonb, null, $2::jsonb)`,
+  [funcionLejana, JSON.stringify([{ combo_id: comboGrande.id, cantidad: 1 }])]);
+await comoUsuario(uid);
+const [lejanaCancelada] = await q(`select comprar_entradas($1, array['A3', 'A4'], null, null, $2::jsonb) codigo`,
+  [funcionLejana, JSON.stringify([{ producto_id: chocolate.id, cantidad: 5 }])]);
+await q(`select cancelar_compra($1)`, [lejanaCancelada.codigo]);
+await esperarError(`select * from ranking_peliculas(hoy_argentina(), hoy_argentina())`, [], 'Solo un administrador',
+  'un cliente no ve los gráficos');
+await comoUsuario(idAdmin);
+const masVistas = await q(`select * from ranking_peliculas(hoy_argentina() + 40, hoy_argentina() + 40)`);
+ok(masVistas.length === 1 && masVistas[0].pelicula === 'Pequeños gigantes' && masVistas[0].entradas_vendidas === 2,
+  'películas más vistas: entradas de las funciones del período, sin las canceladas');
+const masVendidos = await q(`select * from ranking_productos(hoy_argentina() + 40, hoy_argentina() + 40)`);
+ok(masVendidos.length === 3 && masVendidos[0].producto === 'Chocolate' && masVendidos[0].unidades === 3,
+  `producto más vendido: suma los sueltos y los de los combos (${masVendidos.map((p) => `${p.producto} ${p.unidades}`).join(', ')})`);
+
+// Registro de actividad: funciones, precios y validaciones, con el usuario que lo hizo.
+ok((await q(`select count(*)::int n from actividad where tipo = 'funcion'`))[0].n === 0,
+  'lo que se carga sin usuario (datos de ejemplo) no se registra');
+const validaciones = await q(`select usuario, detalle from actividad where tipo = 'validacion' order by id`);
+ok(validaciones.some((a) => a.usuario === 'Beto López (empleado@test.com)'
+  && a.detalle.startsWith(`Validó el ingreso de la compra ${enHorario.codigo.slice(0, 8)} (Ana, El último faro del `)),
+  `se registra quién validó un QR: ${validaciones[0]?.detalle}`);
+ok(validaciones.some((a) => a.detalle.startsWith('Entregó los productos del candy bar')), 'se registra quién entregó los productos');
+await db.exec('set role authenticated');
+await q(`select programar_funciones(3, $1, array[(hoy_argentina() + 45 + time '18:00') at time zone 'America/Argentina/Buenos_Aires'],
+  '3D', 'castellano', 7000)`, [salaCancelaciones.id]);
+const [creada] = await q(`select id from funciones where sala_id = $1 and formato = '3D'`, [salaCancelaciones.id]);
+await q(`update funciones set precio = 7500 where id = $1`, [creada.id]);
+await q(`update productos set precio = 2300 where nombre = 'Agua mineral'`);
+await q(`update peliculas set precio_preventa = 4200 where id = $1`, [mareaAlta.id]);
+await q(`update configuracion set recargo_vip = 2500`);
+await q(`delete from funciones where id = $1`, [creada.id]);
+await db.exec('reset role');
+const registro = await q(`select usuario, tipo, detalle from actividad where usuario_id = $1 order by id`, [idAdmin]);
+const textos = registro.map((a) => `${a.tipo}: ${a.detalle}`);
+ok(registro.length === 6 && registro.every((a) => a.usuario === 'Ada López (admin@test.com)'), 'cada línea guarda quién lo hizo');
+ok(/^funcion: Creó la función de Pequeños gigantes del \d\d\/\d\d\/\d{4} 18:00 en Sala cancelaciones \(3D, castellano, \$ 7\.000\)$/.test(textos[0]),
+  `se registra quién creó una función: ${textos[0]}`);
+ok(textos[1].startsWith('precio: Cambió el precio de la función de Pequeños gigantes') && textos[1].endsWith('de $ 7.000 a $ 7.500'),
+  `se registra el cambio de precio de una función: ${textos[1]}`);
+ok(textos[2] === 'precio: Cambió el precio de Agua mineral: de $ 2.200 a $ 2.300', `y el de un producto: ${textos[2]}`);
+ok(textos[3] === 'precio: Cambió el precio de preventa de Marea alta: de $ 4.000 a $ 4.200', `y el de la preventa: ${textos[3]}`);
+ok(textos[4] === 'precio: Cambió el recargo de las butacas VIP: de $ 2.000 a $ 2.500', `y el recargo VIP: ${textos[4]}`);
+ok(textos[5].startsWith('funcion: Eliminó la función de Pequeños gigantes'), `se registra la baja de una función: ${textos[5]}`);
+ok((await q(`select creado_en from actividad order by id desc limit 1`))[0].creado_en instanceof Date, 'cada línea tiene fecha y hora');
+await comoUsuario(uid);
+await db.exec('set role authenticated');
+ok((await q(`select * from actividad`)).length === 0, 'solo el admin lee el registro de actividad');
+await esperarError(`select registrar_actividad('precio', 'falso')`, [], 'permission denied', 'nadie agrega líneas al registro desde la API');
+await comoUsuario(idAdmin);
+await esperarError(`insert into actividad (usuario, tipo, detalle) values ('x', 'precio', 'falso')`, [], 'row-level security',
+  'ni el admin escribe el registro a mano');
+ok((await q(`update actividad set detalle = 'x' returning id`)).length === 0, 'el registro no se puede modificar');
+await db.exec('reset role');
+await comoUsuario(null);
+await q(`update configuracion set recargo_vip = 2000`);
+
 // ---------- Mantenimiento: latido para que Supabase no pause el proyecto ----------
 await db.exec('set role anon');
 const [latido] = await q(`select latido() en`);
@@ -579,9 +771,19 @@ await comoUsuario(null);
 await db.exec(leer('./migraciones/007_puntos_combos.sql'));
 await db.exec(leer('./migraciones/007_puntos_combos.sql'));
 ok(true, 'la migración 007 se aplica sobre una base existente y se puede repetir');
+ok((await q(`select count(*)::int n from recompensas where tipo = 'entrada'`))[0].n === 1, 'la migración 007 no duplica la entrada gratis');
+
+await db.exec(leer('./migraciones/008_proximamente_preventa.sql'));
+await db.exec(leer('./migraciones/008_proximamente_preventa.sql'));
+ok(true, 'la migración 008 se aplica sobre una base existente y se puede repetir');
+
+await db.exec(leer('./migraciones/009_cancelaciones_vip_reportes_actividad.sql'));
+await db.exec(leer('./migraciones/009_cancelaciones_vip_reportes_actividad.sql'));
+ok(true, 'la migración 009 se aplica sobre una base existente y se puede repetir');
 ok((await q(`select count(*)::int n from pg_proc where proname = 'comprar_entradas'`))[0].n === 1,
   'después de las migraciones queda una sola versión de comprar_entradas');
-ok((await q(`select count(*)::int n from recompensas where tipo = 'entrada'`))[0].n === 1, 'la migración 007 no duplica la entrada gratis');
+ok((await q(`select count(*)::int n from pg_trigger where tgname like 'trg\\_%\\_actividad'`))[0].n === 6,
+  'después de las migraciones están los triggers del registro de actividad');
 await esperarError(`select comprar_entradas($1, array['K4'], 'x@test.com', 'X')`, [funcion.id], 'Butaca inválida',
   'después de las migraciones la fila K ya no se vende');
 await esperarError(`select comprar_entradas($1, array['A4'], 'x@test.com', 'X')`, [funcion18.id], 'fecha de nacimiento',
@@ -589,15 +791,16 @@ await esperarError(`select comprar_entradas($1, array['A4'], 'x@test.com', 'X')`
 const [comboMigrado] = await q(`select comprar_entradas($1, array['H8'], 'x@test.com', 'X', '[]'::jsonb, null, $2::jsonb) codigo`,
   [funcion.id, combo(1)]);
 ok(!!comboMigrado.codigo, 'después de las migraciones se venden combos');
-
-await db.exec(leer('./migraciones/008_proximamente_preventa.sql'));
-await db.exec(leer('./migraciones/008_proximamente_preventa.sql'));
-ok(true, 'la migración 008 se aplica sobre una base existente y se puede repetir');
-ok((await q(`select count(*)::int n from pg_proc where proname = 'comprar_entradas'`))[0].n === 1,
-  'después de la migración 008 queda una sola versión de comprar_entradas');
 const [preventaMigrada] = await q(`select comprar_entradas($1, array['A3'], 'x@test.com', 'X') codigo`, [funcionPreventa.id]);
 ok((await q(`select preventa from compras where codigo = $1`, [preventaMigrada.codigo]))[0].preventa,
-  'después de la migración 008 se cobra la preventa');
+  'después de las migraciones se cobra la preventa');
+const [vipMigrado] = await q(`select comprar_entradas($1, array['R5'], 'x@test.com', 'X') codigo`, [funcion.id]);
+ok((await q(`select subtotal_vip::float v from compras where codigo = $1`, [vipMigrado.codigo]))[0].v === 2000,
+  'después de las migraciones se cobra el recargo VIP');
+await comoUsuario(uid);
+ok((await q(`select count(*)::int n from mis_compras() where cancelada_en is not null`))[0].n === 2,
+  'después de las migraciones Mis compras muestra las canceladas');
+await comoUsuario(null);
 
 console.log(fallos ? `\n${fallos} prueba(s) fallaron` : '\nTodas las pruebas pasaron');
 process.exit(fallos ? 1 : 0);

@@ -79,12 +79,22 @@
         @if (c.restriccion_edad) {
           <p class="aviso-edad">Película para mayores de {{ c.restriccion_edad }} años: debe ir un adulto.</p>
         }
+        @if (c.cancelada_en) {
+          <p class="alerta alerta-error">
+            Compra cancelada el {{ c.cancelada_en | date: 'dd/MM/yyyy HH:mm' }}: la entrada no sirve.
+          </p>
+        }
 
         <dl class="datos">
           <dt>Comprador</dt>
           <dd>{{ c.nombre | titlecase }}</dd>
           <dt>Butacas</dt>
-          <dd>{{ c.butacas.join(', ') }} ({{ c.cantidad }})</dd>
+          <dd>
+            {{ c.butacas.join(', ') }} ({{ c.cantidad }})
+            @if (butacasVip().length) {
+              · <strong>VIP: {{ butacasVip().join(', ') }}</strong>
+            }
+          </dd>
           @if (tieneProductos()) {
             <dt>Candy bar</dt>
             <dd>
@@ -117,7 +127,7 @@
           <button
             type="button"
             class="btn btn-primario"
-            [disabled]="procesando() || !!c.validada_en"
+            [disabled]="procesando() || !!c.validada_en || !!c.cancelada_en"
             (click)="validarEntrada()"
           >
             {{ c.validada_en ? 'Entrada ya validada' : 'Validar ingreso' }}
@@ -126,7 +136,7 @@
             <button
               type="button"
               class="btn"
-              [disabled]="procesando() || !!c.entregado_en"
+              [disabled]="procesando() || !!c.entregado_en || !!c.cancelada_en"
               (click)="entregarProductos()"
             >
               {{ c.entregado_en ? 'Productos entregados' : 'Entregar productos' }}

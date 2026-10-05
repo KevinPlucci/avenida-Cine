@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { SupabaseService } from '../supabase.service';
-import { Beneficios, Comprador, CompraResumen, DetalleCompra } from '../models/compra';
+import { Beneficios, Comprador, CompraResumen, DetalleCompra, MiCredito } from '../models/compra';
 import { PeliculaVista } from '../models/pelicula';
 import { ItemCarrito, ItemCombo } from '../models/producto';
 import { Canje } from '../models/puntos';
@@ -21,6 +21,7 @@ export class ComprasService {
   /**
    * Confirma la compra llamando a la función comprar_entradas() de la base, que valida las butacas,
    * los productos, los combos y el canje de puntos, calcula el total y aplica el descuento.
+   * Con usarCredito, la base paga con el crédito de la cuenta lo que alcance (email 10/03).
    * Devuelve el código de la compra. Si el usuario está logueado, comprador va en null y se usan
    * los datos de su perfil.
    */
@@ -31,6 +32,7 @@ export class ComprasService {
     productos: ItemCarrito[] = [],
     combos: ItemCombo[] = [],
     canje: Canje = { entradas: 0, productos: [] },
+    usarCredito = false,
   ): Promise<string> {
     const { data, error } = await this.db.rpc('comprar_entradas', {
       p_funcion_id: funcionId,
@@ -41,6 +43,7 @@ export class ComprasService {
       p_fecha_nacimiento: comprador?.fecha_nacimiento ?? null,
       p_combos: combos,
       p_canje: canje,
+      p_usar_credito: usarCredito,
     });
     if (error) throw error;
     return data as string;
@@ -48,10 +51,12 @@ export class ComprasService {
 
   /**
    * Butacas en tiempo real (email 12/02): avisa cada butaca que se vende en la función mientras la
-   * pantalla está abierta, con Supabase Realtime. alConectar se llama cada vez que el canal queda
-   * conectado, para volver a leer lo vendido mientras tanto. Devuelve la función que deja de escuchar.
+   * pantalla está abierta, con Supabase Realtime. releer se llama cada vez que el canal queda
+   * conectado, para volver a leer lo vendido mientras tanto, y cuando se borra una entrada porque se
+   * canceló una compra (email 10/03; Realtime no filtra los borrados por función). Devuelve la función
+   * que deja de escuchar.
    */
-  escucharVentas(funcionId: number, alVender: (butaca: string) => void, alConectar: () => void): () => void {
+  escucharVentas(funcionId: number, alVender: (butaca: string) => void, releer: () => void): () => void {
     const canal = this.db
       .channel(`ventas-funcion-${funcionId}`)
       .on(
@@ -62,8 +67,9 @@ export class ComprasService {
           alVender(idButaca(entrada.fila, entrada.numero));
         },
       )
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'entradas' }, () => releer())
       .subscribe((estado) => {
-        if (estado === 'SUBSCRIBED') alConectar();
+        if (estado === 'SUBSCRIBED') releer();
       });
     return () => void this.db.removeChannel(canal);
   }
@@ -79,6 +85,24 @@ export class ComprasService {
     const { data, error } = await this.db.rpc('mis_compras');
     if (error) throw error;
     return data as CompraResumen[];
+  }
+
+  /**
+   * Cancela una compra del usuario hasta 2 horas antes de la función (email 10/03).
+   * La base libera las butacas y acredita el total en la cuenta. Devuelve el crédito acreditado.
+   */
+  async cancelar(codigo: string): Promise<number> {
+    const { data, error } = await this.db.rpc('cancelar_compra', { p_codigo: codigo });
+    if (error) throw error;
+    return Number(data);
+  }
+
+  /** Saldo y movimientos del crédito de la cuenta (email 10/03). */
+  async miCredito(): Promise<MiCredito> {
+    const { data, error } = await this.db.rpc('mi_credito');
+    if (error) throw error;
+    const credito = data as MiCredito;
+    return { saldo: Number(credito.saldo), movimientos: credito.movimientos.map((m) => ({ ...m, monto: Number(m.monto) })) };
   }
 
   /** Películas que vio el usuario logueado, con las fechas y su calificación (email 08/03). */

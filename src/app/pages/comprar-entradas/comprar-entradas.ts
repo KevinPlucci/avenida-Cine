@@ -1,5 +1,5 @@
 import { CurrencyPipe, DatePipe, DecimalPipe, formatDate, PercentPipe } from '@angular/common';
-import { Component, computed, DestroyRef, inject, LOCALE_ID, OnInit, signal } from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject, LOCALE_ID, OnInit, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
@@ -10,11 +10,12 @@ import { CategoriaConProductos, Combo, contenidoCombo, ItemCarrito, ItemCombo, P
 import { Canje, Recompensa } from '../../core/models/puntos';
 import { CombosService } from '../../core/services/combos.service';
 import { ComprasService } from '../../core/services/compras.service';
+import { ConfiguracionService } from '../../core/services/configuracion.service';
 import { CuponesService } from '../../core/services/cupones.service';
 import { PuntosService } from '../../core/services/puntos.service';
 import { FuncionesService } from '../../core/services/funciones.service';
 import { ProductosService } from '../../core/services/productos.service';
-import { esAccesible, FILA_ACCESIBLE } from '../../core/utils/butacas';
+import { esAccesible, esVip, FILA_ACCESIBLE } from '../../core/utils/butacas';
 import { mensajeError } from '../../core/utils/errores';
 import { estadoVenta } from '../../core/utils/estreno';
 import { aniosHastaHoy, DIAS_DEL_MES, edadCumplida, fechaDeListas, MESES } from '../../core/utils/fechas';
@@ -53,6 +54,7 @@ export class ComprarEntradas implements OnInit {
   private readonly cuponesService = inject(CuponesService);
   private readonly combosService = inject(CombosService);
   private readonly puntosService = inject(PuntosService);
+  private readonly configuracionService = inject(ConfiguracionService);
   private readonly router = inject(Router);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly destroyRef = inject(DestroyRef);
@@ -137,6 +139,15 @@ export class ComprarEntradas implements OnInit {
   });
   protected readonly hayAccesibles = computed(() => this.seleccionadas().some(esAccesible));
 
+  // Butacas VIP (email 10/03): cada una suma el recargo, que no tiene descuento.
+  protected readonly recargoVip = signal(0);
+  protected readonly butacasVip = computed(() => this.seleccionadas().filter(esVip));
+  protected readonly subtotalVip = computed(() => this.butacasVip().length * this.recargoVip());
+
+  // Crédito de la cuenta (email 10/03): paga lo que alcance y el resto va con la tarjeta.
+  protected readonly saldoCredito = signal(0);
+  protected readonly usarCredito = signal(false);
+
   private readonly porId = computed(() => {
     const mapa = new Map<number, Producto>();
     for (const categoria of this.categorias()) {
@@ -217,8 +228,12 @@ export class ComprarEntradas implements OnInit {
   /** El descuento se aplica solo sobre las entradas que se pagan aparte, no sobre combos ni candy bar. */
   protected readonly descuento = computed(() => Math.round(this.subtotal() * this.porcentajeDescuento()) / 100);
   protected readonly total = computed(
-    () => this.subtotal() + this.subtotalProductos() + this.subtotalCombos() - this.descuento(),
+    () => this.subtotal() + this.subtotalProductos() + this.subtotalCombos() + this.subtotalVip() - this.descuento(),
   );
+  protected readonly creditoAUsar = computed(() => (this.usarCredito() ? Math.min(this.saldoCredito(), this.total()) : 0));
+  protected readonly aPagar = computed(() => this.total() - this.creditoAUsar());
+  /** Si el crédito cubre toda la compra no hace falta la tarjeta. */
+  protected readonly pagaTodoConCredito = computed(() => this.creditoAUsar() > 0 && this.aPagar() === 0);
   /** 1 punto por cada peso pagado, solo con cuenta (la base hace el mismo cálculo). */
   protected readonly puntosAGanar = computed(() => (this.auth.logueado() ? Math.floor(this.total()) : 0));
 
@@ -242,17 +257,30 @@ export class ComprarEntradas implements OnInit {
     }),
   });
 
+  constructor() {
+    // Los datos de la tarjeta se validan solo si queda algo por pagar con ella.
+    effect(() => {
+      const pago = this.form.controls.pago;
+      if (this.pagaTodoConCredito()) {
+        pago.disable();
+      } else {
+        pago.enable();
+      }
+    });
+  }
+
   async ngOnInit(): Promise<void> {
     // Parámetro :id de la ruta /funciones/:id/comprar
     const id = Number(this.route.snapshot.paramMap.get('id'));
     try {
       await this.auth.esperarSesion();
       // El candy bar es opcional: si no carga, igual se pueden comprar las entradas.
-      const [funcion, ocupadas, categorias, combos] = await Promise.all([
+      const [funcion, ocupadas, categorias, combos, recargoVip] = await Promise.all([
         this.funcionesService.obtener(id),
         this.comprasService.butacasOcupadas(id),
         this.productosService.disponiblesPorCategoria().catch(() => null),
         this.combosService.disponibles().catch(() => [] as Combo[]),
+        this.configuracionService.recargoVip(),
       ]);
       if (!funcion?.pelicula) {
         this.error.set('La función no existe o la película ya no está en cartelera.');
@@ -270,6 +298,7 @@ export class ComprarEntradas implements OnInit {
       }
       this.funcion.set(funcion);
       this.ocupadas.set(ocupadas);
+      this.recargoVip.set(recargoVip);
       this.escucharVentas(id);
       if (categorias) {
         this.categorias.set(categorias);
@@ -288,15 +317,17 @@ export class ComprarEntradas implements OnInit {
       if (this.auth.logueado()) {
         // Los datos del comprador se toman del perfil.
         this.form.controls.comprador.disable();
-        const [beneficios, puntos, recompensas] = await Promise.all([
+        const [beneficios, puntos, recompensas, credito] = await Promise.all([
           this.comprasService.misBeneficios(),
-          // Si los puntos no cargan, se puede comprar igual: solo no se ofrece el canje.
+          // Si los puntos o el crédito no cargan, se puede comprar igual: solo no se ofrecen.
           this.puntosService.misPuntos().catch(() => null),
           this.puntosService.recompensas().catch(() => [] as Recompensa[]),
+          this.comprasService.miCredito().catch(() => null),
         ]);
         this.beneficios.set(beneficios);
         this.saldoPuntos.set(puntos?.saldo ?? null);
         this.recompensas.set(recompensas);
+        this.saldoCredito.set(credito?.saldo ?? 0);
       } else {
         const regla = await this.cuponesService.obtenerRegla('primera_compra');
         if (regla?.activo) this.porcentajeBienvenida.set(regla.porcentaje);
@@ -452,6 +483,7 @@ export class ComprarEntradas implements OnInit {
         this.items(),
         combos,
         canje,
+        this.creditoAUsar() > 0,
       );
       await this.router.navigate(['/compras', codigo], { state: { recienComprada: true } });
     } catch (e) {

@@ -71,6 +71,11 @@ export const ADMIN_ROUTES: Routes = [
         title: 'Reportes',
         loadComponent: () => import('./admin-reportes').then((m) => m.AdminReportes),
       },
+      {
+        path: 'actividad',
+        title: 'Registro de actividad',
+        loadComponent: () => import('./admin-actividad').then((m) => m.AdminActividad),
+      },
     ],
   },
 ];

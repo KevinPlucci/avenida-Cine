@@ -1,10 +1,10 @@
-import { NgClass } from '@angular/common';
+import { CurrencyPipe, NgClass } from '@angular/common';
 import { Component, input, model, output } from '@angular/core';
-import { FILA_ACCESIBLE, FILAS, idButaca, ordenarButacas } from '../../core/utils/butacas';
+import { FILA_ACCESIBLE, FILAS, FILAS_VIP, idButaca, ordenarButacas } from '../../core/utils/butacas';
 
 @Component({
   selector: 'app-mapa-butacas',
-  imports: [NgClass],
+  imports: [NgClass, CurrencyPipe],
   template: `
     <div class="contenedor-mapa">
       <div class="mapa">
@@ -19,10 +19,15 @@ import { FILA_ACCESIBLE, FILAS, idButaca, ordenarButacas } from '../../core/util
                   <button
                     type="button"
                     class="butaca"
-                    [ngClass]="{ accesible: fila.accesible, ocupada: ocupadas().has(id), seleccionada: seleccionadas().includes(id) }"
+                    [ngClass]="{
+                      accesible: fila.accesible,
+                      vip: fila.vip,
+                      ocupada: ocupadas().has(id),
+                      seleccionada: seleccionadas().includes(id),
+                    }"
                     [disabled]="ocupadas().has(id)"
                     [attr.aria-pressed]="seleccionadas().includes(id)"
-                    [attr.aria-label]="'Fila ' + fila.letra + ', butaca ' + numero + (fila.accesible ? ', accesible' : '')"
+                    [attr.aria-label]="'Fila ' + fila.letra + ', butaca ' + numero + (fila.accesible ? ', accesible' : '') + (fila.vip ? ', VIP' : '')"
                     [title]="id"
                     (click)="alternar(id)"
                   >{{ numero }}</button>
@@ -39,6 +44,9 @@ import { FILA_ACCESIBLE, FILAS, idButaca, ordenarButacas } from '../../core/util
       <li><span class="butaca seleccionada"></span> Seleccionada</li>
       <li><span class="butaca ocupada"></span> Ocupada</li>
       <li><span class="butaca accesible"></span> Accesible (fila {{ filaAccesible }}, para personas con discapacidad)</li>
+      <li>
+        <span class="butaca vip"></span> VIP (filas {{ filasVip.join(', ') }}{{ recargoVip() ? ', + ' + (recargoVip() | currency) + ' cada una' : '' }})
+      </li>
     </ul>
   `,
   styles: `
@@ -56,8 +64,10 @@ import { FILA_ACCESIBLE, FILAS, idButaca, ordenarButacas } from '../../core/util
     button.butaca:hover:not(:disabled) { border-color: var(--color-primario); transform: translateY(-1px); }
     /* Una butaca accesible ocupa el ancho de dos: los bloques quedan alineados con el resto de la sala */
     .butaca.accesible { width: 42px; height: 40px; font-size: 10px; line-height: 38px; color: var(--color-accesible); background: var(--color-accesible-suave); border: 1px solid var(--color-accesible); border-radius: 6px; }
-    .seleccionada, .butaca.accesible.seleccionada { color: #fff; background: var(--color-primario); border-color: var(--color-primario); }
-    .ocupada, .butaca.accesible.ocupada { color: transparent; cursor: not-allowed; background: #d6d1cb; border-color: #d6d1cb; }
+    /* Email 10/03: butacas VIP en dorado */
+    .butaca.vip { color: #6b4e00; background: var(--color-destacado-suave); border-color: var(--color-dorado); }
+    .seleccionada, .butaca.accesible.seleccionada, .butaca.vip.seleccionada { color: #fff; background: var(--color-primario); border-color: var(--color-primario); }
+    .ocupada, .butaca.accesible.ocupada, .butaca.vip.ocupada { color: transparent; cursor: not-allowed; background: #d6d1cb; border-color: #d6d1cb; }
     .referencias { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 12px 0 0; padding: 0; font-size: .85rem; list-style: none; }
     .referencias li { display: flex; align-items: center; gap: 6px; }
     .referencias .butaca { cursor: default; }
@@ -68,11 +78,14 @@ export class MapaButacas {
   readonly ocupadas = input.required<ReadonlySet<string>>();
   readonly seleccionadas = model<string[]>([]);
   readonly maximo = input.required<number>();
+  /** Recargo de cada butaca VIP, para mostrarlo en las referencias (email 10/03). */
+  readonly recargoVip = input<number | null>(null);
   /** Avisa al componente padre que se intentó elegir más butacas de las permitidas. */
   readonly limiteAlcanzado = output<number>();
 
   protected readonly filas = FILAS;
   protected readonly filaAccesible = FILA_ACCESIBLE;
+  protected readonly filasVip = FILAS_VIP;
   protected readonly idButaca = idButaca;
 
   protected alternar(id: string): void {

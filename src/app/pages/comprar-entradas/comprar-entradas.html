@@ -40,6 +40,7 @@
       <app-mapa-butacas
         [ocupadas]="ocupadas()"
         [maximo]="maximo"
+        [recargoVip]="recargoVip()"
         [seleccionadas]="seleccionadas()"
         (seleccionadasChange)="cambiarSeleccion($event)"
         (limiteAlcanzado)="avisoLimite.set($event)"
@@ -176,13 +177,31 @@
             <dd>Gratis</dd>
           }
         }
+        @if (butacasVip().length) {
+          <dt>Recargo VIP ({{ butacasVip().join(', ') }})</dt>
+          <dd>{{ subtotalVip() | currency }}</dd>
+        }
         @if (descuentoAplicado(); as beneficio) {
           <dt>{{ beneficio.etiqueta }} ({{ beneficio.porcentaje / 100 | percent }} de las entradas)</dt>
           <dd class="descuento">- {{ descuento() | currency }}</dd>
         }
         <dt class="total">Total</dt>
         <dd class="total">{{ total() | currency }}</dd>
+        @if (creditoAUsar()) {
+          <dt>Crédito de tu cuenta</dt>
+          <dd class="descuento">- {{ creditoAUsar() | currency }}</dd>
+          <dt>A pagar con tarjeta</dt>
+          <dd>{{ aPagar() | currency }}</dd>
+        }
       </dl>
+
+      @if (butacasVip().length) {
+        <!-- Email 10/03: el usuario tiene que saber que compra una butaca VIP antes de pagar -->
+        <p class="alerta aviso-vip" animate.enter="aparecer">
+          <strong>{{ butacasVip().length === 1 ? 'Butaca VIP' : 'Butacas VIP' }}: {{ butacasVip().join(', ') }}.</strong>
+          Cada una tiene un recargo de {{ recargoVip() | currency }}, que ya está sumado al total.
+        </p>
+      }
 
       @if (hayAccesibles()) {
         <p class="meta nota-accesible">Elegiste butacas de la fila {{ filaAccesible }}, pensadas para personas con discapacidad.</p>
@@ -229,6 +248,14 @@
             <small class="meta">Elegí butacas o productos para canjearlos con tus puntos.</small>
           }
         </fieldset>
+      }
+
+      @if (saldoCredito() > 0) {
+        <!-- Crédito de la cuenta (email 10/03): se usa junto con la tarjeta -->
+        <label class="check credito">
+          <input type="checkbox" [checked]="usarCredito()" (change)="usarCredito.set(!usarCredito())" />
+          Usar el crédito de mi cuenta ({{ saldoCredito() | currency }} disponibles)
+        </label>
       }
 
       @if (!auth.logueado()) {
@@ -286,6 +313,9 @@
           </fieldset>
         }
 
+        @if (pagaTodoConCredito()) {
+          <p class="meta">El crédito de tu cuenta cubre toda la compra: no hace falta la tarjeta.</p>
+        } @else {
         <fieldset formGroupName="pago">
           <legend>Tarjeta (pago simulado)</legend>
           <label class="campo">
@@ -328,12 +358,13 @@
             </label>
           </div>
         </fieldset>
+        }
 
         @if (errorCompra()) {
           <p class="alerta alerta-error" animate.enter="aparecer">{{ errorCompra() }}</p>
         }
         <button type="submit" class="btn btn-primario btn-bloque" [disabled]="procesando()">
-          {{ procesando() ? 'Procesando...' : 'Pagar ' + (total() | currency) }}
+          {{ procesando() ? 'Procesando...' : pagaTodoConCredito() ? 'Confirmar compra' : 'Pagar ' + (aPagar() | currency) }}
         </button>
       </form>
     </section>

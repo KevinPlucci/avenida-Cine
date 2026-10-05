@@ -1,10 +1,11 @@
 import { CurrencyPipe, DatePipe, DecimalPipe, TitleCasePipe } from '@angular/common';
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { NOMBRE_CINE } from '../../core/constantes';
 import { DetalleCompra } from '../../core/models/compra';
 import { ComprasService } from '../../core/services/compras.service';
 import { TicketPdfService } from '../../core/services/ticket-pdf.service';
+import { esVip } from '../../core/utils/butacas';
 import { mensajeError } from '../../core/utils/errores';
 import { generarQr } from '../../core/utils/qr';
 import { IdiomaPipe } from '../../shared/pipes/idioma.pipe';
@@ -25,6 +26,8 @@ export class VerCompra implements OnInit {
   /** Viene en true cuando se llega desde la pantalla de compra. */
   protected readonly recienComprada = history.state?.recienComprada === true;
   protected readonly compra = signal<DetalleCompra | null>(null);
+  /** Butacas VIP de la compra (email 10/03). */
+  protected readonly butacasVip = computed(() => this.compra()?.butacas.filter(esVip) ?? []);
   protected readonly qr = signal('');
   protected readonly cargando = signal(true);
   protected readonly descargando = signal(false);

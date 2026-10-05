@@ -55,3 +55,35 @@
   font-weight: 600;
   color: var(--color-exito);
 }
+
+/* Crédito de la cuenta (email 10/03) */
+.movimientos {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.movimientos li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.movimientos small {
+  display: block;
+}
+
+.movimientos li > span:last-child {
+  white-space: nowrap;
+}
+
+.movimientos .positivo {
+  font-weight: 600;
+  color: var(--color-exito);
+}
+
+tr.cancelada td {
+  color: var(--color-texto-suave);
+}

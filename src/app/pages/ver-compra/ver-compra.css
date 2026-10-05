@@ -162,3 +162,10 @@
 .candy .contenido {
   display: block;
 }
+
+/* Email 10/03: butacas VIP */
+.vip {
+  display: block;
+  font-size: 0.8rem;
+  color: #6b4e00;
+}

@@ -24,21 +24,23 @@ y para que el cine administre su programación desde el mismo lugar.
 El cliente elige película, función y butacas, paga (pago simulado) y recibe una entrada con código QR
 que puede descargar en PDF. Puede hacerlo con una cuenta o sin registrarse. Con cuenta, además, suma
 puntos en cada compra y los canjea por entradas o productos del candy bar. En la cartelera también ve los próximos
-estrenos, que pueden tener preventa a precio especial; con cuenta puede pedir que le avisen cuando salen a la venta
-y tiene el historial de las películas que vio.
+estrenos, que pueden tener preventa a precio especial; con cuenta puede pedir que le avisen cuando salen a la venta,
+tiene el historial de las películas que vio y puede cancelar una compra hasta 2 horas antes de la función: el total
+vuelve como crédito para la próxima compra. Las últimas filas de cada sala son VIP, con un recargo.
 
 Del otro lado, el administrador carga películas con su estreno y su preventa, arma los horarios, administra las salas y los géneros,
 decide qué se muestra en la cartelera, arma el candy bar y los combos, configura los descuentos y los puntos,
-asigna los roles del personal y consulta las ventas. Los empleados validan los QR en la puerta y en el candy bar.
+asigna los roles del personal, consulta las ventas (y las exporta a PDF o Excel), ve qué películas y productos
+se venden más y revisa el registro de actividad. Los empleados validan los QR en la puerta y en el candy bar.
 
 ## 2. Roles
 
 | Rol | Quién es | Qué puede hacer |
 |---|---|---|
 | Visitante | Entra sin cuenta | Ver la cartelera, los próximos estrenos y el detalle de las películas, comprar entradas dejando nombre y email, ver la entrada con el código de compra |
-| Cliente registrado | Se registró con sus datos | Todo lo anterior, más su perfil, su cupón de primera compra, sus puntos y canjes, el historial de compras, las alertas de estreno, Mis películas y dejar reseñas |
+| Cliente registrado | Se registró con sus datos | Todo lo anterior, más su perfil, su cupón de primera compra, sus puntos y canjes, el historial de compras, las alertas de estreno, Mis películas, dejar reseñas y cancelar compras a cambio de crédito |
 | Empleado | Personal de puerta y candy bar | Validar los códigos QR del ingreso y entregar los productos del candy bar |
-| Administrador | Personal del cine | Películas (con su estreno y su preventa), funciones, salas, géneros, candy bar, combos, descuentos, puntos, roles de los usuarios y reporte de ventas. También puede validar QR |
+| Administrador | Personal del cine | Películas (con su estreno y su preventa), funciones, salas y recargo VIP, géneros, candy bar, combos, descuentos, puntos, roles de los usuarios, reporte de ventas exportable, gráficos y registro de actividad. También puede validar QR |
 
 ## 3. Pantallas
 
@@ -46,29 +48,34 @@ asigna los roles del personal y consulta las ventas. Los empleados validan los Q
 |---|---|---|
 | Cartelera | Las 3 películas más vendidas arriba, el listado completo con buscador y filtro por género, y "Próximamente" con los estrenos, su preventa y la alerta | Todos |
 | Detalle de película | Sinopsis, duración, restricción de edad, estreno y preventa, puntaje promedio, reseñas y funciones de los próximos días (sin enlace hasta que abre la venta) | Todos |
-| Compra de entradas | Mapa de butacas en tiempo real con la fila accesible, combos destacados, productos del candy bar, canje de puntos, resumen con el descuento aplicado y datos de pago | Todos |
-| Entrada | Código QR para ingresar y retirar el candy bar, y descarga del PDF | Quien tenga el código de compra |
+| Compra de entradas | Mapa de butacas en tiempo real con la fila accesible y las VIP, combos destacados, productos del candy bar, canje de puntos, crédito de la cuenta, resumen con el descuento y el recargo VIP, y datos de pago | Todos |
+| Entrada | Código QR para ingresar y retirar el candy bar, y descarga del PDF. Si la compra se canceló, lo avisa y no muestra el QR | Quien tenga el código de compra |
 | Validar entradas | Lectura del QR con la cámara o a mano, con el estado del ingreso y del candy bar. El empleado entra directo acá al ingresar | Empleados y administradores |
 | Ingreso y registro | Cuenta propia; después de ingresar vuelve a la pantalla donde estaba | Solo sin sesión iniciada |
 | Mis películas | Historial visual de lo que vio: póster, fechas de las funciones y su calificación | Clientes registrados |
-| Mi perfil | Datos personales, cupón disponible, puntos acumulados con lo que se puede canjear, historial de canjes y compras realizadas | Clientes registrados |
-| Administración | Películas (con estreno y preventa), funciones, salas, géneros, candy bar, combos, descuentos, puntos de cada recompensa, usuarios y reporte de ventas por día | Administradores |
+| Mi perfil | Datos personales, cupón disponible, crédito con sus movimientos, puntos acumulados con lo que se puede canjear, historial de canjes y compras realizadas, con la opción de cancelarlas | Clientes registrados |
+| Administración | Películas (con estreno y preventa), funciones, salas y recargo VIP, géneros, candy bar, combos, descuentos, puntos de cada recompensa, usuarios, reporte de ventas por día (exportable a PDF y Excel), gráficos de películas más vistas y productos más vendidos, y registro de actividad | Administradores |
 
 ## 4. Flujo de compra
 
 1. El cliente elige una función desde el detalle de la película. Si la película todavía no se estrenó, puede comprar
    recién cuando abre la venta: el día del estreno o, si tiene preventa, 7 días antes y a su precio especial.
-2. Ve el mapa de la sala con las butacas ya vendidas y elige las suyas (hasta 10 por compra).
+2. Ve el mapa de la sala con las butacas ya vendidas y elige las suyas (hasta 10 por compra). Las de las filas R, S y T
+   son VIP y tienen un recargo: el mapa las marca en dorado y el resumen lo avisa antes de pagar.
    Si otra persona compra una butaca mientras tanto, el mapa la marca como ocupada al instante.
    Si la película tiene restricción de edad y el cliente no llega a la edad, no puede comprar.
 3. Si quiere, suma un combo (una entrada con pochoclos y bebida a precio fijo) o productos sueltos del candy bar.
 4. Si tiene la sesión iniciada y le corresponde un descuento, aparece en el resumen. También puede canjear puntos
    por entradas gratis o por productos que eligió. Si compra sin cuenta, deja nombre y email.
-5. Paga con tarjeta (simulado). El total lo calcula el sistema con los precios de la base, no el navegador.
+5. Paga con tarjeta (simulado). Si tiene crédito en su cuenta, puede usarlo y paga el resto con la tarjeta; si el crédito
+   alcanza, no hace falta la tarjeta. El total lo calcula el sistema con los precios de la base, no el navegador.
 6. Recibe la entrada con el código QR y puede descargar el PDF. Si tiene cuenta, suma 1 punto por cada peso pagado.
 
 En el cine, un empleado escanea ese QR en la puerta y, si la compra tenía productos, otra vez en el candy bar.
 Cada código sirve una sola vez para cada cosa.
+
+Hasta 2 horas antes de la función, el cliente puede cancelar la compra desde su perfil: las butacas quedan libres,
+el código deja de servir y el total vuelve como crédito en su cuenta.
 
 ## 5. Reglas de negocio
 
@@ -90,6 +97,11 @@ Cada código sirve una sola vez para cada cosa.
 - Durante la preventa todas las entradas de la película se cobran al precio de preventa, en cualquier función y formato. Desde el día del estreno se cobra el precio de cada función. Las fechas se cuentan con la hora de Argentina.
 - Las alertas de estreno son de usuarios registrados. Cada alerta se avisa una sola vez, cuando la venta ya abrió y hay funciones para comprar.
 - "Mis películas" muestra las películas de las compras del usuario cuya función ya terminó.
+- Las filas R, S y T son VIP: cada butaca suma un recargo fijo que configura el administrador, también si la entrada va en un combo o se canjea con puntos. El recargo no tiene descuento.
+- Un usuario registrado puede cancelar una compra hasta 2 horas antes de la función. No se devuelve dinero: el total vuelve como crédito en su cuenta, las butacas quedan libres, los puntos canjeados vuelven, se descuentan los que sumó la compra y, si usó el cupón de primera compra, el cupón vuelve a estar disponible. Si ya canjeó los puntos que le dio esa compra, no se puede cancelar.
+- El crédito se usa al comprar, junto con la tarjeta: paga lo que alcance y el resto va con la tarjeta. Solo el sistema lo suma (al cancelar) y lo descuenta (al comprar): no se carga ni se transfiere.
+- Una compra cancelada no se valida en la puerta ni entrega productos, y no cuenta en el reporte de facturación ni en los gráficos.
+- El registro de actividad anota con fecha y hora quién creó, cambió o eliminó funciones, quién cambió un precio (de una función, un producto, un combo, la preventa o el recargo VIP) y quién validó una entrada o entregó productos. Solo lo ve el administrador y nadie lo puede modificar.
 - La fila K ya no existe: su lugar lo ocupa la fila J, accesible para personas con discapacidad, con 2, 10 y 2 butacas.
 - Los usuarios registrados suman 1 punto por cada peso que pagan (con el descuento ya restado). Lo canjeado con puntos no suma puntos.
 - Los puntos se canjean al comprar, por entradas gratis o por productos del candy bar de esa compra, al costo que fija el administrador. Solo se puede usar el saldo disponible.
@@ -107,7 +119,7 @@ Referencias: `[x]` implementado · `[ ]` pendiente.
 ### Consigna
 
 - [x] Crear un documento que resuma todos los requerimientos (este archivo)
-- [ ] Crear la aplicación completa usando los temas vistos en clase (en curso)
+- [x] Crear la aplicación completa usando los temas vistos en clase
 - [ ] Defender oralmente las decisiones el día de la entrega
 - [x] Aplicación desplegada con URL funcional (<https://avenida-cine.vercel.app>)
 - [x] Código en GitHub
@@ -206,14 +218,14 @@ Referencias: `[x]` implementado · `[ ]` pendiente.
 
 ### Email 10 · 10/03/2020 · Cancelaciones, VIP, reportes y log
 
-- [ ] Cancelar una compra hasta 2 horas antes de la función
-- [ ] Devolución como crédito en la cuenta, visible en el perfil y combinable con otros medios de pago
-- [ ] Butacas VIP en las filas R, S y T con precio más alto
-- [ ] Butacas VIP marcadas en el mapa y avisadas antes de pagar
-- [ ] Exportar el reporte de facturación a PDF y Excel
-- [ ] Gráfico de películas más vistas por semana y por mes
-- [ ] Producto del candy bar más vendido
-- [ ] Log de actividad: quién creó cada función, quién modificó un precio, quién validó un QR, con fecha y hora
+- [x] Cancelar una compra hasta 2 horas antes de la función (desde Mi perfil)
+- [x] Devolución como crédito en la cuenta, visible en el perfil y combinable con otros medios de pago
+- [x] Butacas VIP en las filas R, S y T con precio más alto (recargo configurable en Salas)
+- [x] Butacas VIP marcadas en el mapa y avisadas antes de pagar
+- [x] Exportar el reporte de facturación a PDF y Excel
+- [x] Gráfico de películas más vistas por semana y por mes
+- [x] Producto del candy bar más vendido
+- [x] Log de actividad: quién creó cada función, quién modificó un precio, quién validó un QR, con fecha y hora (pestaña Actividad)
 
 ---
 
@@ -260,10 +272,15 @@ Puntos que los emails no definen y cómo se resolvieron:
 | Precio de preventa | Un precio fijo por película, que el admin carga en el formulario, igual para todas sus funciones y formatos. Rige para las compras hechas antes del día del estreno, desde 7 días antes. Sin preventa, la venta abre el día del estreno. |
 | Alerta de estreno | Necesita una cuenta, para saber a quién avisar. El aviso aparece dentro de la página y como notificación del sistema si el usuario la permite, cuando abre la app o vuelve a ella. Avisar con la app cerrada necesitaría un servidor de notificaciones push, que el proyecto no tiene. |
 | Qué cuenta como "visto" | Toda función de una compra del usuario que ya terminó. Si vio la película más de una vez, aparece una sola vez con todas las fechas. La calificación es la de su reseña; si no tiene, se ofrece calificarla. |
-
-Dudas ya detectadas para los próximos emails:
-
-- Email 10: cómo dar crédito por cancelación en una compra anónima.
+| Cancelar una compra sin cuenta | No se puede desde la web: el email pide dar crédito en la cuenta, y una compra sin cuenta no tiene dónde acreditarlo. |
+| Qué se cancela | La compra completa: todas sus butacas, combos y productos. El crédito es el total que se pagó, con el descuento ya restado e incluida la parte pagada con crédito. |
+| Puntos al cancelar | Vuelven los canjeados y se descuentan los que sumó la compra. Si ya se gastaron, la compra no se cancela, para que el saldo no quede negativo. La compra que se paga con crédito suma puntos por el total, porque los de la compra cancelada ya se descontaron. |
+| Recargo VIP | Un importe fijo por butaca, igual en todas las salas y funciones (empieza en $ 2.000 y lo cambia el admin en Salas). Se suma también en la preventa, en los combos y en las entradas canjeadas con puntos, y los descuentos no lo alcanzan. |
+| Cómo se avisa que es VIP | Butacas doradas en el mapa con su referencia y el recargo, una línea en el resumen y un aviso antes de pagar. La entrada, el PDF y la pantalla del empleado también indican las butacas VIP. |
+| Más vistas por semana y por mes | Entradas vendidas de cada película en las funciones del período, no en el día de la compra. La semana va de lunes a domingo; se elige esta semana, la pasada, este mes o el pasado. |
+| Producto más vendido | Unidades vendidas en las funciones del período, sueltas y dentro de los combos (según lo que trae cada combo hoy), incluidas las canjeadas con puntos. |
+| Exportar el reporte | El PDF y el Excel traen todos los días del período elegido, también los que no tuvieron ventas, con los totales. |
+| Registro de actividad | Anota lo que se hace desde la app con un usuario. Lo que se carga directo en la base (datos de ejemplo, migraciones) no tiene usuario y no se registra. La pantalla muestra los últimos 200 movimientos y se filtra por funciones, precios o validación de QR. |
 
 ## 8. Pruebas de aceptación
 

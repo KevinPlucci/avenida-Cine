@@ -55,6 +55,34 @@
       <p class="meta">No tenés descuentos disponibles.</p>
     }
   </section>
+
+  <!-- Crédito de las compras canceladas (email 10/03) -->
+  <section class="tarjeta">
+    <h2>Mi crédito</h2>
+    @if (cargando()) {
+      <p class="cargando">Cargando...</p>
+    } @else if (credito(); as cr) {
+      <p class="saldo"><strong>{{ cr.saldo | currency }}</strong></p>
+      <p class="meta">
+        Cuando cancelás una compra, el total vuelve como crédito. Se usa al pagar otra compra, junto con la tarjeta.
+      </p>
+      @if (cr.movimientos.length) {
+        <ul class="movimientos">
+          @for (movimiento of cr.movimientos; track $index) {
+            <li>
+              <span>
+                {{ movimiento.detalle }}
+                <small class="meta">{{ movimiento.fecha | date: 'dd/MM/yyyy' }}</small>
+              </span>
+              <span [class.positivo]="movimiento.monto > 0">
+                {{ movimiento.monto > 0 ? '+' : '-' }} {{ (movimiento.monto > 0 ? movimiento.monto : -movimiento.monto) | currency }}
+              </span>
+            </li>
+          }
+        </ul>
+      }
+    }
+  </section>
 </div>
 
 <section class="tarjeta">
@@ -116,6 +144,10 @@
 
 <section class="tarjeta">
   <h2>Mis compras</h2>
+  <p class="meta">Podés cancelar una compra hasta 2 horas antes de la función: el total vuelve como crédito en tu cuenta.</p>
+  @if (exito()) {
+    <p class="alerta alerta-exito" animate.enter="aparecer">{{ exito() }}</p>
+  }
   @if (cargando()) {
     <p class="cargando">Cargando...</p>
   } @else {
@@ -134,16 +166,33 @@
         </thead>
         <tbody>
           @for (compra of compras(); track compra.codigo) {
-            <tr>
+            <tr [class.cancelada]="compra.cancelada_en">
               <td>{{ compra.pelicula }}</td>
               <td>{{ compra.inicio | date: 'dd/MM/yyyy HH:mm' }}</td>
               <td>{{ compra.sala }}</td>
               <td>{{ compra.cantidad }}</td>
               <td>{{ compra.total | currency }}</td>
               <td>
-                {{ compra.validada_en ? 'Usada el ' + (compra.validada_en | date: 'dd/MM HH:mm') : 'Sin usar' }}
+                @if (compra.cancelada_en) {
+                  Cancelada el {{ compra.cancelada_en | date: 'dd/MM' }}
+                } @else {
+                  {{ compra.validada_en ? 'Usada el ' + (compra.validada_en | date: 'dd/MM HH:mm') : 'Sin usar' }}
+                }
               </td>
-              <td><a [routerLink]="['/compras', compra.codigo]">Ver entrada</a></td>
+              <td class="acciones-tabla">
+                <a [routerLink]="['/compras', compra.codigo]">Ver entrada</a>
+                @if (compra.puede_cancelar) {
+                  ·
+                  <button
+                    type="button"
+                    class="link peligro"
+                    [disabled]="cancelando() === compra.codigo"
+                    (click)="cancelar(compra)"
+                  >
+                    {{ cancelando() === compra.codigo ? 'Cancelando...' : 'Cancelar' }}
+                  </button>
+                }
+              </td>
             </tr>
           } @empty {
             <tr>

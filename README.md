@@ -7,7 +7,7 @@ Hecha con **Angular 21** y **Supabase**, instalable como **PWA**.
 |---|---|
 | **Deploy** | <https://avenida-cine.vercel.app> |
 | **Repositorio** | <https://github.com/KevinPlucci/Avenida-Cine> |
-| **Estado** | Consigna y emails del 01/01 al 08/03 implementados (del 01/01 al 03/03 probados en producción: [UAT](UAT.md)) |
+| **Estado** | Consigna y los 10 emails implementados (del 01/01 al 03/03 probados en producción: [UAT](UAT.md)) |
 
 ## Documentación
 
@@ -21,13 +21,14 @@ Hecha con **Angular 21** y **Supabase**, instalable como **PWA**.
 
 - Cartelera con las 3 películas más vendidas, buscador y filtro por género.
 - Detalle de película con sinopsis, puntaje promedio, reseñas y funciones.
-- Compra de entradas con mapa de butacas en tiempo real, combos, candy bar y descuentos, con cuenta o sin registrarse.
+- Compra de entradas con mapa de butacas en tiempo real (con butacas VIP), combos, candy bar y descuentos, con cuenta o sin registrarse.
+- Cancelación hasta 2 horas antes de la función, con el total como crédito para la próxima compra.
 - Programa de puntos: 1 punto por peso pagado, canjeable por entradas o productos.
 - Próximos estrenos con preventa a precio especial y alerta para cuando salen a la venta.
 - Mis películas: el historial de lo que vio cada usuario, con su calificación.
 - Entrada con código QR y descarga en PDF. El pago es simulado.
 - Validación del QR en la puerta y en el candy bar, para el personal del cine.
-- Panel de administración de películas, funciones, salas, géneros, candy bar, combos, descuentos, puntos, usuarios y reporte de ventas.
+- Panel de administración de películas, funciones, salas, géneros, candy bar, combos, descuentos, puntos y usuarios, con reporte de ventas exportable a PDF y Excel, gráficos de lo más visto y vendido, y registro de actividad.
 
 ## Stack
 

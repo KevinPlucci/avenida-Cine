@@ -17,6 +17,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
       <a routerLink="puntos" routerLinkActive="activo">Puntos</a>
       <a routerLink="usuarios" routerLinkActive="activo">Usuarios</a>
       <a routerLink="reportes" routerLinkActive="activo">Reportes</a>
+      <a routerLink="actividad" routerLinkActive="activo">Actividad</a>
     </nav>
     <router-outlet />
   `,

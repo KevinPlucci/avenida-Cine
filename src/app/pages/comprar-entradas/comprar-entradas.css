@@ -164,3 +164,14 @@
 .fila-canje {
   margin-bottom: 10px;
 }
+
+/* Butacas VIP y crédito de la cuenta (email 10/03) */
+.aviso-vip {
+  background: var(--color-destacado-suave);
+  border-color: #ecd9a3;
+  border-left-color: var(--color-dorado);
+}
+
+.credito {
+  margin-bottom: 14px;
+}

@@ -32,6 +32,12 @@ export interface DetalleCompra {
   descuento: number;
   descuento_motivo: MotivoDescuento | null;
   total: number;
+  /** Email 10/03: recargo de las butacas VIP y parte del total pagada con el crédito de la cuenta. */
+  subtotal_vip: number;
+  credito_usado: number;
+  /** Email 10/03: fecha de cancelación y crédito que generó (null si no se canceló). */
+  cancelada_en: string | null;
+  credito_generado: number | null;
   pelicula: string;
   restriccion_edad: RestriccionEdad;
   imagen_url: string;
@@ -59,6 +65,18 @@ export interface CompraResumen {
   cantidad: number;
   total: number;
   validada_en: string | null;
+  /** Email 10/03: cancelación y si todavía se puede cancelar (hasta 2 horas antes de la función). */
+  cancelada_en: string | null;
+  credito_generado: number | null;
+  puntos_usados: number;
+  puntos_ganados: number;
+  puede_cancelar: boolean;
+}
+
+/** Crédito de la cuenta (email 10/03): saldo y movimientos (positivos por cancelaciones, negativos al usarlo). */
+export interface MiCredito {
+  saldo: number;
+  movimientos: { fecha: string; detalle: string; monto: number; codigo: string }[];
 }
 
 export interface Cupon {
@@ -89,6 +107,8 @@ export interface CompraParaValidar {
   idioma: Idioma;
   validada_en: string | null;
   entregado_en: string | null;
+  /** Email 10/03: una compra cancelada no se valida. */
+  cancelada_en: string | null;
   productos: { nombre: string; cantidad: number }[];
   combos: { nombre: string; contenido: string; cantidad: number }[];
 }
