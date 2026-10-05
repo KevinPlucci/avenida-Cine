@@ -285,6 +285,6 @@ Puntos que los emails no definen y cómo se resolvieron:
 ## 8. Pruebas de aceptación
 
 El 27/09/2026 se probó la aplicación publicada con cuentas de cliente, empleado y administrador, contra la
-consigna y los emails del 01/01 al 03/03, y el control de acceso a cada pantalla: 78 casos, todos OK. Los errores que
-aparecieron se corrigieron y se volvieron a probar. El detalle de cada caso, las capturas y los datos de prueba
-están en [UAT.md](UAT.md).
+consigna y los emails del 01/01 al 03/03, y el control de acceso a cada pantalla: 78 casos, todos OK. El 05/10/2026
+se probaron los emails del 08/03 y del 10/03 con las cuentas demo: 43 casos, todos OK. Los errores que aparecieron se
+corrigieron y se volvieron a probar. El detalle de cada caso, las capturas y los datos de prueba están en [UAT.md](UAT.md).

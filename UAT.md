@@ -1,7 +1,7 @@
 # Cine Avenida · Pruebas de aceptación (UAT)
 
 Resultado de probar la aplicación publicada como la usarían el cliente, el empleado y el administrador,
-contra los requerimientos de la consigna y de los emails del 01/01 al 03/03, y el control de acceso a cada pantalla (guards).
+contra los requerimientos de la consigna y de los 10 emails (del 01/01 al 10/03), y el control de acceso a cada pantalla (guards).
 Qué pide cada email está en [FUNCIONAL.md](FUNCIONAL.md); cómo está hecho, en [TECNICO.md](TECNICO.md).
 
 ## Índice
@@ -18,9 +18,14 @@ Qué pide cada email está en [FUNCIONAL.md](FUNCIONAL.md); cómo está hecho, e
 
 ## 1. Resumen
 
-**Resultado: aprobado.** Los 78 casos terminaron OK (82 comprobaciones, porque el registro se probó con 5 cuentas).
-Durante la prueba aparecieron tres errores de la aplicación y uno de la documentación; se corrigieron, se publicaron
-y se volvieron a probar (ver [hallazgos](#4-hallazgos-y-correcciones)).
+**Resultado: aprobado.** Se probó en dos rondas, siempre sobre la app publicada y la base real:
+
+- **27/09/2026** (versión 0.6.2): la consigna, los emails del 01/01 al 03/03 y el control de acceso a cada pantalla.
+  78 casos OK (82 comprobaciones, porque el registro se probó con 5 cuentas).
+- **05/10/2026** (versión 0.8.0): los emails del 08/03 y del 10/03, con las cuentas demo. 43 casos OK.
+
+En la primera ronda aparecieron tres errores de la aplicación y uno de la documentación, y en la segunda uno de diseño.
+Se corrigieron, se publicaron y se volvieron a probar (ver [hallazgos](#4-hallazgos-y-correcciones)).
 
 | Área | Requerimiento | Casos | OK |
 |---|---|---|---|
@@ -36,9 +41,13 @@ y se volvieron a probar (ver [hallazgos](#4-hallazgos-y-correcciones)).
 | Validación de QR | Emails 06/02, 12/02 y 28/02 | 12 | 12 |
 | Reporte y más vendidas | Emails 28/02 y 16/01 | 2 | 2 |
 | PWA y celular | Consigna | 4 | 4 |
-| **Total** | | **78** | **78** |
-
-No se probaron los emails del 08/03 y del 10/03 porque todavía no están implementados.
+| Próximamente, preventa y alertas | Email 08/03 | 13 | 13 |
+| Mis películas | Email 08/03 | 1 | 1 |
+| Butacas VIP | Email 10/03 | 6 | 6 |
+| Cancelación y crédito | Email 10/03 | 6 | 6 |
+| Reportes, gráficos y registro de actividad | Emails 10/03 y 06/02 | 14 | 14 |
+| Celular (segunda ronda) | Consigna | 3 | 3 |
+| **Total** | | **121** | **121** |
 
 ## 2. Entorno y datos de prueba
 
@@ -67,6 +76,26 @@ de la pantalla se comparó con lo que guardó la base (por ejemplo, el total de 
 **Datos que cargó el administrador durante la prueba** (quedan en la base porque le sirven a la app):
 categorías Pochoclos y Bebidas; productos Pochoclos medianos, Pochoclos grandes y Gaseosa grande; productos de los
 combos Combo clásico y Combo grande; 150 puntos para los pochoclos grandes; y 6 funciones entre el 27/09 y el 01/10.
+
+**Segunda ronda (emails del 08/03 y del 10/03)**
+
+| | |
+|---|---|
+| Fecha | 05/10/2026, de 12:15 a 12:19 (hora de Argentina) |
+| Aplicación | <https://avenida-cine.vercel.app>, versión 0.8.0 (commit `c11e480`); la repetición del hallazgo 6, con `a15624c` |
+| Base | Supabase real, con las migraciones hasta la `009` aplicadas |
+| Navegador | Chrome en Windows 11, automatizado con Puppeteer, en 1280 × 900 y en 390 × 844 |
+| Notificaciones | El navegador del cliente tenía el permiso concedido, como si hubiera aceptado el aviso |
+| Tiempo real | Un segundo navegador, sin cuenta, con la misma función abierta |
+
+Se usaron las cuentas demo de la defensa: `admin.demo@example.com` (Laura Gómez, administradora),
+`empleado.demo@example.com` (Martín Díaz, empleado) y `cliente.demo@example.com` (Sofía Pereyra, cliente).
+
+**Datos que quedan para la demostración:** las películas "Marea alta" (estreno 09/10, preventa a $ 4.000, con
+funciones el 09/10 y el 10/10 a las 18) y "El jardín de invierno" (estreno 26/10, sin preventa); una función de
+Pequeños gigantes el 05/10 a las 12:45; y del cliente demo, una compra VIP en preventa (R5 y R6 con candy bar), una
+cancelada, una pagada con crédito y una validada en el día. El cliente demo queda con $ 1.500 de crédito y con la alerta
+de "Marea alta" ya avisada.
 
 ## 3. Casos
 
@@ -213,6 +242,79 @@ lo verifica `npm run test:db`, donde un usuario con el rol `authenticated` no pu
 | P-03 | Sin conexión ([captura](docs/uat/P-03-sin-conexion.png)) | La app abre, avisa "Sin conexión a internet" y muestra la última cartelera guardada | OK |
 | U-01 | Celular de 390 px ([captura](docs/uat/U-01-celular-compra.png)) | Cartelera, detalle y compra sin desborde lateral; el mapa se desplaza dentro de su tarjeta (ver hallazgo 1) | OK |
 
+### 3.13 Próximamente, preventa y alertas (segunda ronda)
+
+| ID | Email | Qué se prueba | Resultado obtenido | Estado |
+|---|---|---|---|---|
+| N-01 | 08/03 | El admin carga una película con fecha de estreno (en 11 días) y preventa | "Marea alta", estreno 16/10/2026, "Preventa $ 4.000,00" en el listado | OK |
+| N-02 | 08/03 | Y otra con estreno en tres semanas, sin preventa | "El jardín de invierno", estreno 26/10/2026 | OK |
+| N-03 | 08/03 | La cartelera tiene "Próximamente", ordenada por estreno, con la preventa ([captura](docs/uat/N-03-proximamente.png)) | Marea alta: "Preventa desde el 9/10 a $ 4.000,00"; El jardín de invierno: "Avisarme cuando salga a la venta" | OK |
+| N-04 | 08/03 | Las películas que no se estrenaron no se mezclan con "En cartelera" | "6 de 6 películas", sin los estrenos | OK |
+| N-05 | 08/03 | El cliente activa la alerta de Marea alta | "Alerta activada" y la alerta guardada en la base, sin avisar | OK |
+| N-06 | 08/03 | El admin adelanta el estreno al 09/10: la preventa (7 días antes) queda abierta | Fecha guardada: 2026-10-09 | OK |
+| N-07 | 08/03, 06/02 | Programa Marea alta el 09/10 y el 10/10 a las 18, con sala automática | Las dos creadas en Sala 4 | OK |
+| N-08 | 08/03 | Al volver a la pestaña, el cliente ve el aviso de la venta ([captura](docs/uat/N-08-aviso-preventa.png)) | "Empezó la preventa de Marea alta." | OK |
+| N-09 | 08/03 | Y la notificación del sistema, mostrada por el service worker | "Marea alta: ya podés comprar tus entradas · Empezó la preventa en Cine Avenida." | OK |
+| N-10 | 08/03 | La alerta queda marcada como avisada, así no se repite | `avisada_en` con la fecha del aviso | OK |
+| N-11 | 08/03 | El detalle avisa la preventa y las funciones muestran ese precio ([captura](docs/uat/N-11-detalle-preventa.png)) | "cada entrada cuesta $ 4.000,00"; funciones a $ 4.000 aunque su precio es $ 5.500 | OK |
+| N-12 | 08/03 | La base cobra el precio de preventa | Compra marcada como preventa, $ 8.000 por 2 entradas | OK |
+| N-13 | 08/03 | Una película sin preventa no se vende antes del estreno y ofrece la alerta | "Las entradas salen a la venta el lunes 26 de octubre." | OK |
+
+### 3.14 Mis películas (segunda ronda)
+
+| ID | Email | Qué se prueba | Resultado obtenido | Estado |
+|---|---|---|---|---|
+| M-01 | 08/03 | Historial visual con póster, fecha y calificación propia ([captura](docs/uat/M-01-mis-peliculas.png)) | "La casa del fondo, la viste el 28/09/2026" y "Pequeños gigantes, la viste el 27/09/2026", con su póster y "Calificar" (no tiene reseñas de esas películas) | OK |
+
+### 3.15 Butacas VIP (segunda ronda)
+
+| ID | Email | Qué se prueba | Resultado obtenido | Estado |
+|---|---|---|---|---|
+| V-01 | 10/03 | El admin ve y cambia el recargo VIP en Salas | $ 2.000 → $ 2.500 → $ 2.000 | OK |
+| V-02 | 10/03 | La compra marca las butacas VIP y lo avisa antes de pagar ([captura](docs/uat/V-02-compra-vip-preventa.png)) | Butacas doradas; "Recargo VIP (R5, R6)" en el resumen y "Butacas VIP: R5, R6. Cada una tiene un recargo de $ 2.000,00" | OK |
+| V-03 | 10/03 | La base suma el recargo sin descuento | Entradas $ 8.000 + recargo $ 4.000 + candy $ 13.000 = $ 25.000 | OK |
+| V-04 | 10/03, 08/03 | La entrada indica preventa y butacas VIP ([captura](docs/uat/V-04-entrada-vip.png)) | "Entradas (preventa)", "VIP: R5, R6" y "Recargo VIP" | OK |
+| V-05 | 10/03 | PDF de la entrada VIP | Se descargó `entrada-d6a33c0e.pdf` (271 KB) | OK |
+| V-06 | 10/03 | El empleado ve qué butacas son VIP | "R5, R6 (2) · VIP: R5, R6" | OK |
+
+### 3.16 Cancelación y crédito (segunda ronda)
+
+| ID | Email | Qué se prueba | Resultado obtenido | Estado |
+|---|---|---|---|---|
+| K-01 | 10/03 | El cliente cancela desde su perfil, con más de 2 horas de anticipación ([captura](docs/uat/K-01-perfil-cancelada.png)) | Pide confirmación y avisa "Compra cancelada. Se acreditaron $ 6.500,00 en tu cuenta." | OK |
+| K-02 | 10/03, 12/02 | Otra persona ve la butaca liberada | La butaca G10 quedó libre en su pantalla 0,4 segundos después | OK |
+| K-03 | 10/03 | El crédito aparece en el perfil | $ 6.500 con su movimiento | OK |
+| K-04 | 10/03 | La entrada cancelada lo avisa y no muestra el QR ([captura](docs/uat/K-04-entrada-cancelada.png)) | "Esta compra se canceló el 05/10/2026 12:16: la entrada ya no sirve." | OK |
+| K-05 | 10/03 | El crédito se usa en otra compra ([captura](docs/uat/K-05-compra-con-credito.png)) | Cubrió la entrada de $ 5.000: el botón dice "Confirmar compra" (sin tarjeta) y quedan $ 1.500 | OK |
+| K-06 | 10/03 | El empleado no puede validar una compra cancelada ([captura](docs/uat/K-06-validar-cancelada.png)) | "Compra cancelada el 05/10/2026 12:16: la entrada no sirve." y el botón deshabilitado | OK |
+
+### 3.17 Reportes, gráficos y registro de actividad (segunda ronda)
+
+| ID | Email | Qué se prueba | Resultado obtenido | Estado |
+|---|---|---|---|---|
+| I-01 | 06/02 | El admin programa una función para hoy, con sala automática | Pequeños gigantes, 05/10 a las 12:45, en Sala 1 | OK |
+| I-02 | 10/03 | El admin cambia el precio de una función | $ 5.500 → $ 6.000 | OK |
+| I-03 | 06/02 | El empleado valida el ingreso y entrega los productos de esa función | "validado el 05/10/2026 12:16" y "entregado el 05/10/2026 12:16" | OK |
+| I-04 | 10/03, 28/02 | El reporte no cuenta la compra cancelada | Facturado hoy $ 38.600: las 3 compras válidas de 4 | OK |
+| I-05 | 10/03 | Exportar el reporte a PDF | `facturacion-2026-09-29-a-2026-10-05.pdf` | OK |
+| I-06 | 10/03 | Exportar el reporte a Excel | `facturacion-2026-09-29-a-2026-10-05.xlsx`, con los días, las compras, las entradas y el facturado | OK |
+| I-07 | 10/03 | Gráfico de películas más vistas de esta semana ([captura](docs/uat/I-07-reportes.png)) | Marea alta 2, Luna de papel 1, Pequeños gigantes 1 (la cancelada no cuenta) | OK |
+| I-08 | 10/03 | Producto del candy bar más vendido | "Gaseosa grande · 3 unidades", después Pochoclos grandes 1 | OK |
+| I-09 | 10/03 | Los gráficos cambian a "Mes pasado" | Pequeños gigantes 3, La casa del fondo 2 | OK |
+| I-10 | 10/03 | El registro dice quién creó cada función, con fecha y hora ([captura](docs/uat/I-10-actividad.png)) | "05/10/2026 12:16:04 · Laura Gómez (admin.demo@example.com) · Creó la función de Marea alta del 09/10/2026 18:00 en Sala 4 (2D, castellano, $ 5.500)" | OK |
+| I-11 | 10/03 | Quién modificó un precio | "Cambió el precio de la función de Marea alta del 10/10/2026 18:00 en Sala 4: de $ 5.500 a $ 6.000" y los dos cambios del recargo VIP | OK |
+| I-12 | 10/03 | Quién validó un QR y entregó productos | "Martín Díaz (empleado.demo@example.com) · Validó el ingreso de la compra ecbf5eb2 (Sofía Pereyra, Pequeños gigantes …)" | OK |
+| I-13 | 10/03 | El registro se filtra por tipo | "Validación de QR" deja solo las 2 líneas del empleado | OK |
+| I-14 | 10/03 | Repetición del hallazgo 6: los importes no se cortan en dos renglones | Ningún renglón termina en "$" | OK |
+
+### 3.18 Celular (segunda ronda)
+
+| ID | Qué se prueba | Resultado obtenido | Estado |
+|---|---|---|---|
+| U-02 | Cartelera con Próximamente en 390 px | Sin desborde lateral | OK |
+| U-03 | Mis películas en 390 px ([captura](docs/uat/U-03-celular.png)) | Sin desborde lateral | OK |
+| U-04 | Perfil con crédito y cancelación en 390 px | Sin desborde lateral | OK |
+
 ## 4. Hallazgos y correcciones
 
 | # | Caso | Qué pasó | Corrección | Commit |
@@ -222,6 +324,7 @@ lo verifica `npm run test:db`, donde un usuario con el rol `authenticated` no pu
 | 3 | A-16 | La tarjeta de las más vendidas decía "1 entradas vendidas". | Singular y plural según la cantidad (caso C-27). | `b9a84f9` |
 | 4 | A-13 | TECNICO.md decía que al **crear** una función la pantalla lista las funciones que chocan. Eso pasa solo al **editar**; al crear, la base informa el motivo por cada día. | Se corrigió el documento. | Documentación de la versión 0.6.2 |
 | 5 | E-05 | La primera corrida marcó falla por un error del script de prueba (miraba el botón de la cámara en vez del de la entrada). La aplicación funcionaba bien. | Se corrigió el script y se repitió el caso. | — |
+| 6 | I-10 | En el registro de actividad, un importe podía quedar cortado entre dos renglones: "$" al final de uno y el número en el siguiente. Además, la descripción quedaba pegada a los filtros. | Al mostrar el detalle se usa un espacio duro entre "$" y el número, y se separó la descripción de los filtros (caso I-14). | `a15624c` |
 
 **Repetición después de la versión 0.6.3.** Esa versión cambió cómo se dibujan la grilla de la cartelera,
 las butacas, el fondo de la ficha y los contadores de la compra (ver TECNICO.md). En producción, sin cuenta, se
@@ -265,11 +368,23 @@ Todos los guards son funciones (`CanActivateFn`, `CanMatchFn`, `CanActivateChild
   pagan aparte, no al combo ni al candy bar (C-07).
 - **Datos reales**: las compras de prueba aparecen en el reporte de hoy y en las más vendidas hasta que se borren
   (ver punto 7).
+- **Alertas de estreno (segunda ronda)**: la notificación llegó al volver a la pestaña, con el permiso concedido y el
+  service worker activo. Con la app cerrada no llega, porque no hay un servidor de notificaciones push; está
+  explicado en FUNCIONAL.md.
+- **Tiempo real con cancelaciones**: Realtime no permite filtrar los borrados por función, así que cada pantalla de
+  compra vuelve a leer sus butacas cuando se borra una entrada. La butaca liberada apareció libre en 0,4 segundos.
+- **Cancelar con menos de 2 horas**: no se probó en producción porque hay que esperar a que se acerque una función;
+  lo cubren las pruebas de la base (`npm run test:db`), junto con el cupón que vuelve y el bloqueo si ya se gastaron
+  los puntos de la compra.
+- **Recargo VIP**: se cambió a $ 2.500 y se volvió a $ 2.000 para dejar el valor documentado; los dos cambios quedaron
+  en el registro de actividad, que en producción empezó vacío porque solo anota lo que se hace después de la migración `009`.
 
 ## 7. Limpieza de los datos de prueba
 
-El catálogo del candy bar, los combos, los puntos de las recompensas y las funciones que cargó el administrador
-quedan en la base porque la app los necesita. Las cuentas y las compras de prueba se borraron el 27/09/2026 con
+Los datos de la segunda ronda quedan en la base a propósito, para mostrarlos en la defensa (ver la sección 2).
+
+De la primera ronda, el catálogo del candy bar, los combos, los puntos de las recompensas y las funciones que cargó
+el administrador quedan porque la app los necesita. Las cuentas y las compras de prueba se borraron el 27/09/2026 con
 este SQL en **Supabase > SQL Editor**:
 
 ```sql
