@@ -12,7 +12,6 @@ La parte técnica (instalación, arquitectura y decisiones) está en [TECNICO.md
 5. [Reglas de negocio](#5-reglas-de-negocio)
 6. [Requerimientos por email](#6-requerimientos-por-email)
 7. [Criterios adoptados](#7-criterios-adoptados)
-8. [Pruebas de aceptación](#8-pruebas-de-aceptación)
 
 ---
 
@@ -281,10 +280,3 @@ Puntos que los emails no definen y cómo se resolvieron:
 | Producto más vendido | Unidades vendidas en las funciones del período, sueltas y dentro de los combos (según lo que trae cada combo hoy), incluidas las canjeadas con puntos. |
 | Exportar el reporte | El PDF y el Excel traen todos los días del período elegido, también los que no tuvieron ventas, con los totales. |
 | Registro de actividad | Anota lo que se hace desde la app con un usuario. Lo que se carga directo en la base (datos de ejemplo, migraciones) no tiene usuario y no se registra. La pantalla muestra los últimos 200 movimientos y se filtra por funciones, precios o validación de QR. |
-
-## 8. Pruebas de aceptación
-
-El 27/09/2026 se probó la aplicación publicada con cuentas de cliente, empleado y administrador, contra la
-consigna y los emails del 01/01 al 03/03, y el control de acceso a cada pantalla: 78 casos, todos OK. El 05/10/2026
-se probaron los emails del 08/03 y del 10/03 con las cuentas demo: 43 casos, todos OK. Los errores que aparecieron se
-corrigieron y se volvieron a probar. El detalle de cada caso, las capturas y los datos de prueba están en [UAT.md](UAT.md).

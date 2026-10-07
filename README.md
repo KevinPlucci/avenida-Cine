@@ -7,15 +7,14 @@ Hecha con **Angular 21** y **Supabase**, instalable como **PWA**.
 |---|---|
 | **Deploy** | <https://avenida-cine.vercel.app> |
 | **Repositorio** | <https://github.com/KevinPlucci/Avenida-Cine> |
-| **Estado** | Consigna y los 10 emails implementados y probados en producción ([UAT](UAT.md)) |
+| **Estado** | Consigna y los 10 emails implementados |
 
 ## Documentación
 
 | Documento | Qué contiene |
 |---|---|
 | [FUNCIONAL.md](FUNCIONAL.md) | Qué hace la app: roles, pantallas, flujo de compra, requerimientos por email y criterios adoptados |
-| [TECNICO.md](TECNICO.md) | Cómo está hecha: instalación, arquitectura, modelo de datos, decisiones técnicas, pruebas e historial de versiones |
-| [UAT.md](UAT.md) | Pruebas de aceptación sobre la app publicada: casos, resultados, hallazgos y capturas |
+| [TECNICO.md](TECNICO.md) | Cómo está hecha: instalación, arquitectura, modelo de datos, decisiones técnicas e historial de versiones |
 
 ## Qué hace
 
@@ -54,4 +53,3 @@ Los pasos completos, el alta del administrador y el deploy están en [TECNICO.md
 |---|---|
 | `npm start` | Servidor de desarrollo en el puerto 4200 |
 | `npm run build` | Build de producción en `dist/tp1-cine/browser` |
-| `npm run test:db` | Prueba el esquema y las reglas de negocio en un PostgreSQL en memoria |
